@@ -1,5 +1,9 @@
+# WEB CHIA SẺ TÀI LIỆU
+
+### CẤU TRÚC
+
 ```
-doc_share/
+DocShareProject/
 │── config/
 │   ├── config.properties
 │   └── Database.php
@@ -49,5 +53,6 @@ doc_share/
 │
 │── .gitignore
 └── README.md
-
 ```
+
+---
