@@ -14,24 +14,24 @@ INSERT INTO roles (role_id, role_name) VALUES
 -- user_id dạng: USER + 10 chữ số
 -- =====================
 INSERT INTO users (user_id, username, email, password, role_id) VALUES
+('USER0000000000','admin','admin@example.com','adminpass','ROLE000'),
 ('USER0000000001','nguyenvana','vana@example.com','pass1','ROLE011'),
 ('USER0000000002','tranthib','thib@example.com','pass2','ROLE011'),
 ('USER0000000003','phamvand','vand@example.com','pass3','ROLE011'),
 ('USER0000000004','lethingoc','ngocle@example.com','pass4','ROLE011'),
-('USER0000000005','dangminh','minhdang@example.com','pass5','ROLE010'),
-('USER0000000006','admin','admin@example.com','adminpass','ROLE000');
+('USER0000000005','dangminh','minhdang@example.com','pass5','ROLE010');
 
 -- =====================
 -- 3) USER_INFOS (tương ứng 6 user)
 -- user_infos columns: (user_id, full_name, avatar_url, bio, birth_date)
 -- =====================
 INSERT INTO user_infos (user_id, full_name, avatar_url, bio, birth_date) VALUES
+('USER0000000000','Quản trị viên','/uploads/avatars/admin.jpg','Quản trị hệ thống','1990-01-01'),
 ('USER0000000001','Nguyễn Văn A','/uploads/avatars/u1.jpg','Sinh viên CNTT, thích chia sẻ tài liệu','1998-05-12'),
 ('USER0000000002','Trần Thị B','/uploads/avatars/u2.jpg','Đam mê ngôn ngữ và văn học','1997-03-21'),
 ('USER0000000003','Phạm Văn D','/uploads/avatars/u3.jpg','Nghiên cứu viên kinh tế','1996-07-09'),
 ('USER0000000004','Lê Thị Ngọc','/uploads/avatars/u4.jpg','Giảng viên môn toán','1995-11-15'),
-('USER0000000005','Đặng Minh','/uploads/avatars/u5.jpg','Chuyên viên CNTT tại doanh nghiệp','1994-09-30'),
-('USER0000000006','Quản trị viên','/uploads/avatars/admin.jpg','Quản trị hệ thống','1990-01-01');
+('USER0000000005','Đặng Minh','/uploads/avatars/u5.jpg','Chuyên viên CNTT tại doanh nghiệp','1994-09-30');
 
 -- =====================
 -- 4) USER_FOLLOWS (ngẫu nhiên lẫn nhau) 
@@ -141,19 +141,19 @@ INSERT INTO post_comments (comment_id, post_id, user_id, content) VALUES
 -- reaction_type phải là một trong ('like','love','haha','sad','angry')
 -- =====================
 INSERT INTO post_reactions (post_id, user_id, reaction_type) VALUES
+('POST000000000200100003000003','USER0000000000','love'),
 ('POST000000000100100001000001','USER0000000001','like'),
 ('POST000000000100100001000001','USER0000000002','love'),
 ('POST000000000100100002000002','USER0000000003','haha'),
 ('POST000000000100100002000002','USER0000000004','sad'),
-('POST000000000200100003000003','USER0000000005','like'),
-('POST000000000200100003000003','USER0000000006','love');
+('POST000000000200100003000003','USER0000000005','like');
 
 -- =====================
 -- 12) POST_REPORTS (1 report: user thứ 6 báo cáo bài viết đầu tiên)
 -- report_id pattern: REPORT + postSeq(6) + userNumber(10)
 -- =====================
 INSERT INTO post_reports (report_id, post_id, user_id, reason) VALUES
-('REPORT0000010000000006','POST000000000100100001000001','USER0000000006','Nội dung trùng lặp / khả nghi vi phạm');
+('REPORT0000010000000000','POST000000000100100001000001','USER0000000000','Nội dung trùng lặp / khả nghi vi phạm');
 
 -- =====================
 -- Kết thúc dữ liệu demo
