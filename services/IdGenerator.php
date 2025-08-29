@@ -24,7 +24,7 @@ class IdGenerator {
     }
 
     public function generateHashtagId($lastNumber) {
-        return "HASHTAG" . $this->pad($lastNumber + 1, 11);
+        return "HASHTAG" . $this->pad($lastNumber + 1, 10);
     }
 
     public function generateCommentId($postNumber, $userNumber, $commentNumber) {
