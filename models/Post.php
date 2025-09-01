@@ -1,6 +1,11 @@
 <?php
 // models/Post.php
 require_once __DIR__ . '/../config/Database.php';
+require_once __DIR__ . '/../services/IdGenerator.php';
+require_once __DIR__ . '/../vendor/autoload.php'; // Composer autoload
+
+use PhpOffice\PhpWord\IOFactory;
+use Smalot\PdfParser\Parser as PdfParser;
 
 class Post {
     private $pdo;
@@ -146,4 +151,86 @@ class Post {
             'author_follower_count' => $authorFollowerCount
         ];
     }
+    // CREATE: Thêm bài viết mới vào database
+     public function createPost($title, $content, $albumId, $categoryId, $bannerUrl) {
+        // 1. Trích xuất phần số từ các ID đã có
+        // Ví dụ: "ALBUM0000000007001" -> "0000000007001"
+        $albumNumber = preg_replace('/[^0-9]/', '', $albumId);
+        // Ví dụ: "CATEGORY00001" -> "00001"
+        $categoryNumber = preg_replace('/[^0-9]/', '', $categoryId);
+
+        // 2. Tìm post_id cuối cùng thuộc album và category này
+        // Điều này đảm bảo số thứ tự không bị trùng lặp trong cùng một album và thể loại
+        $sqlLastPost = "SELECT post_id FROM posts 
+                        WHERE album_id = ? AND category_id = ?
+                        ORDER BY post_id DESC LIMIT 1";
+        $stmtLastPost = $this->pdo->prepare($sqlLastPost);
+        $stmtLastPost->execute([$albumId, $categoryId]);
+        $lastPost = $stmtLastPost->fetch(PDO::FETCH_ASSOC);
+
+        // 3. Tính số thứ tự bài viết mới
+        $postNumber = $lastPost ? intval(substr($lastPost['post_id'], -6)) + 1 : 1;
+        
+        // 4. Khởi tạo và sử dụng IdGenerator với 3 tham số
+        $idGenerator = new IdGenerator();
+        $newId = $idGenerator->generatePostId($albumNumber, $categoryNumber, $postNumber);
+
+        // 5. Chèn bài viết mới vào database
+        $sql = "INSERT INTO posts (post_id, title, content, album_id, category_id, banner_url) VALUES (?, ?, ?, ?, ?, ?)";
+        $stmt = $this->pdo->prepare($sql);
+        return $stmt->execute([$newId, $title, $content, $albumId, $categoryId, $bannerUrl]);
+    }
+    
+    // READ: Lấy một bài viết theo ID
+    public function getPostById($postId) {
+    $sql = "
+        SELECT p.*, a.user_id AS author_id, ui.full_name AS author_name
+        FROM posts p
+        LEFT JOIN albums a ON p.album_id = a.album_id
+        LEFT JOIN user_infos ui ON a.user_id = ui.user_id
+        WHERE p.post_id = ?
+        LIMIT 1
+    ";
+    $stmt = $this->pdo->prepare($sql);
+    $stmt->execute([$postId]);
+    return $stmt->fetch(PDO::FETCH_ASSOC);
+}  
+    // READ: Lấy tất cả bài viết
+   public function getAllPosts() {
+    $sql = "SELECT 
+                p.*, 
+                a.album_name, 
+                c.category_name, 
+                u.username
+            FROM posts AS p
+            LEFT JOIN albums AS a ON p.album_id = a.album_id
+            LEFT JOIN categories AS c ON p.category_id = c.category_id
+            LEFT JOIN users AS u ON a.user_id = u.user_id 
+            ORDER BY p.created_at DESC";
+            
+    $stmt = $this->pdo->query($sql);
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
+    // UPDATE: Cập nhật thông tin bài viết
+    public function updatePost($id, $title, $content, $albumId, $categoryId, $bannerUrl, $userId) {
+    $sql = "UPDATE posts 
+            SET title = ?, content = ?, album_id = ?, category_id = ?, banner_url = ?
+            WHERE post_id = ? 
+              AND album_id IN (SELECT album_id FROM albums WHERE user_id = ?)"; // xác thực quyền
+    $stmt = $this->pdo->prepare($sql);
+    return $stmt->execute([$title, $content, $albumId, $categoryId, $bannerUrl, $id, $userId]);
+}
+
+public function deletePost($id, $userId) {
+    $sql = "DELETE FROM posts 
+            WHERE post_id = ? 
+              AND album_id IN (SELECT album_id FROM albums WHERE user_id = ?)";
+    $stmt = $this->pdo->prepare($sql);
+    return $stmt->execute([$id, $userId]);
+}
+
+
+
+    
 }

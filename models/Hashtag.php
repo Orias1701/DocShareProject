@@ -49,4 +49,38 @@ public function createHashtag($hashtagName) {
         $stmt = $this->conn->prepare($sql);
         return $stmt->execute([$id]);
     }
+    // Tìm hashtag theo tên, nếu chưa có thì tạo mới
+    public function findOrCreateHashtag($hashtagName) {
+        // Chuẩn hóa tên hashtag (in thường, bỏ khoảng trắng thừa)
+        $normalizedName = strtolower(trim($hashtagName));
+
+        // 1. Tìm hashtag đã tồn tại theo tên
+        $stmt = $this->conn->prepare("SELECT hashtag_id FROM hashtags WHERE hashtag_name = :name");
+        $stmt->execute([':name' => $normalizedName]);
+        $existingHashtag = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if ($existingHashtag) {
+            // Nếu hashtag đã tồn tại, trả về ID của nó
+            return $existingHashtag['hashtag_id'];
+        } else {
+            // Nếu hashtag chưa tồn tại, tạo mới bằng hàm createHashtag
+            return $this->createHashtag($normalizedName);
+        }
+    }
+
+    /**
+     * Lấy số thứ tự cuối cùng từ ID hashtag lớn nhất trong database
+     * @return int
+     */
+    private function _getLastHashtagNumber() {
+        $stmt = $this->conn->query("SELECT hashtag_id FROM hashtags ORDER BY hashtag_id DESC LIMIT 1");
+        $lastId = $stmt->fetchColumn();
+
+        if ($lastId) {
+            // Tách số từ chuỗi ID (ví dụ: 'HASHTAG00000000001' -> 1)
+            return (int) substr($lastId, 7); // 'HASHTAG' có 7 ký tự
+        }
+        return 0; // Nếu không có hashtag nào, bắt đầu từ 0
+    }
+    
 }

@@ -1,8 +1,5 @@
-<!-- services/Idgenerator Tạm chưa dùng -->
-
 <?php
 class IdGenerator {
-
     private function pad($num, $length) {
         return str_pad($num, $length, "0", STR_PAD_LEFT);
     }

@@ -4,16 +4,25 @@ require_once __DIR__ . '/../config/Database.php';
 
 class UserFollow {
     private $pdo;
-    public function __construct() { $this->pdo = Database::getConnection(); }
 
-    public function getFollowersCount($userId) {
-        $stmt = $this->pdo->prepare("SELECT COUNT(*) AS cnt FROM user_follows WHERE following_id = :uid");
-        $stmt->execute([':uid' => $userId]);
-        return (int)$stmt->fetchColumn();
+    public function __construct() {
+        $this->pdo = Database::getConnection();
     }
 
-    public function getAll() {
-        $stmt = $this->pdo->query("SELECT * FROM user_follows");
-        return $stmt->fetchAll();
-    }
+    public function isFollowing($followerId, $followingId) {
+    $stmt = $this->pdo->prepare("SELECT 1 FROM user_follows WHERE follower_id=? AND following_id=?");
+    $stmt->execute([$followerId, $followingId]);
+    return (bool)$stmt->fetch();
+}
+
+public function follow($followerId, $followingId) {
+    $stmt = $this->pdo->prepare("INSERT INTO user_follows (follower_id, following_id) VALUES (?, ?)");
+    $stmt->execute([$followerId, $followingId]);
+}
+
+public function unfollow($followerId, $followingId) {
+    $stmt = $this->pdo->prepare("DELETE FROM user_follows WHERE follower_id=? AND following_id=?");
+    $stmt->execute([$followerId, $followingId]);
+}
+
 }

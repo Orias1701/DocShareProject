@@ -76,4 +76,31 @@ class UserInfoController {
         header("Location: index.php?action=list_user_infos");
         exit;
     }
+
+    public function showUserInfo() {
+    $userId = $_GET['id'] ?? null;
+    if (!$userId) {
+        echo "Thiếu user_id";
+        return;
+    }
+
+    $userInfo = $this->userInfoModel->getUserInfoById($userId);
+    if (!$userInfo) {
+        echo "Người dùng không tồn tại";
+        return;
+    }
+
+    // Kiểm tra follow
+    $myUserId = $_SESSION['user_id'] ?? null;
+    $isFollowing = false;
+    if ($myUserId && $myUserId !== $userId) {
+        require_once __DIR__ . '/../models/UserFollow.php';
+        $isFollowing = (new UserFollow())->isFollowing($myUserId, $userId);
+    }
+
+    // Truyền $userInfo và $isFollowing xuống view
+    include __DIR__ . '/../views/user_info/detail.php';
+}
+
+
 }

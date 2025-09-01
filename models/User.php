@@ -15,18 +15,17 @@ class User {
     }
 
     public function createUser($username, $email, $password, $role_id = "ROLE_USER") {
-        // Lấy user_id mới: USER + 12 chữ số
+        // Tạo user_id dạng USER + 12 chữ số
         $stmt = $this->conn->query("SELECT user_id FROM users ORDER BY user_id DESC LIMIT 1");
         $last = $stmt->fetch(PDO::FETCH_ASSOC);
 
         if ($last) {
-            $num = intval(substr($last['user_id'], 4)) + 1; // bỏ "USER"
+            $num = intval(substr($last['user_id'], 4)) + 1;
         } else {
             $num = 1;
         }
         $newId = "USER" . str_pad($num, 10, "0", STR_PAD_LEFT);
 
-        // Thêm user
         $sql = "INSERT INTO users (user_id, username, email, password, role_id) 
                 VALUES (?, ?, ?, ?, ?)";
         $stmt = $this->conn->prepare($sql);

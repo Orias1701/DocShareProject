@@ -1,6 +1,5 @@
 <?php
 // views/layouts/header.php
-session_start();
 ?><!doctype html>
 <html lang="vi">
 <head>
