@@ -169,7 +169,8 @@ class Post {
                 throw new Exception('Định dạng file không hỗ trợ. Chỉ hỗ trợ PDF hoặc Word.');
             }
         } catch (Exception $e) {
-            throw new Exception('Lỗi khi đọc file: ' . $e->getMessage());
+            error_log('Lỗi khi đọc file: ' . $e->getMessage());
+            return false;
         }
 
         return $content;
@@ -188,7 +189,12 @@ class Post {
 
     private function convertWordToHtml($filePath) {
         $htmlContent = '<div style="font-family: Arial, sans-serif; line-height: 1.6;">';
-        $phpWord = IOFactory::load($filePath);
+        try {
+            $phpWord = IOFactory::load($filePath);
+        } catch (Exception $e) {
+            error_log('Lỗi khi tải file Word: ' . $e->getMessage());
+            return $htmlContent . '<p>Lỗi: Không thể đọc file Word.</p></div>';
+        }
 
         foreach ($phpWord->getSections() as $section) {
             foreach ($section->getElements() as $element) {
@@ -203,33 +209,21 @@ class Post {
                             $style = $this->getFontStyleCss($fontStyle);
                             $htmlContent .= '<span style="' . $style . '">' . htmlspecialchars($subElement->getText()) . '</span>';
                         } elseif ($subElement instanceof \PhpOffice\PhpWord\Element\Image) {
-                            $imageData = $subElement->getImageStringData(true);
-                            $imageMime = $subElement->getImageType();
-                            $imageName = uniqid('img_') . '.' . $imageMime;
-
-                            $cloudinary = require __DIR__ . '/../config/cloudinary.php';
-                            $upload = $cloudinary->uploadApi()->upload('data:image/' . $imageMime . ';base64,' . $imageData);
-                            $imageUrl = $upload['secure_url'];
-
-                            $htmlContent .= '<img src="' . $imageUrl . '" alt="Image from Word" style="max-width: 100%; height: auto;">';
+                            $htmlContent .= $this->processImage($subElement);
                         }
                     }
                     $htmlContent .= '<br>';
                 } elseif ($element instanceof \PhpOffice\PhpWord\Element\Table) {
-                    // Xử lý bảng
                     $htmlContent .= '<table style="border-collapse: collapse; width: 100%; margin: 10px 0;">';
                     foreach ($element->getRows() as $row) {
                         $htmlContent .= '<tr>';
                         foreach ($row->getCells() as $cell) {
                             $cellStyle = $cell->getStyle();
                             $cellCss = 'border: 1px solid #000; padding: 8px;';
-                            if ($cellStyle) {
-                                if ($cellStyle->getWidth()) {
-                                    $cellCss .= 'width: ' . ($cellStyle->getWidth() / 50) . '%;';
-                                }
+                            if ($cellStyle && $cellStyle->getWidth()) {
+                                $cellCss .= 'width: ' . ($cellStyle->getWidth() / 50) . '%;';
                             }
                             $htmlContent .= '<td style="' . $cellCss . '">';
-                            // Xử lý nội dung bên trong ô (cell)
                             foreach ($cell->getElements() as $cellElement) {
                                 if ($cellElement instanceof \PhpOffice\PhpWord\Element\Text) {
                                     $fontStyle = $cellElement->getFontStyle();
@@ -242,15 +236,7 @@ class Post {
                                             $style = $this->getFontStyleCss($fontStyle);
                                             $htmlContent .= '<span style="' . $style . '">' . htmlspecialchars($subElement->getText()) . '</span>';
                                         } elseif ($subElement instanceof \PhpOffice\PhpWord\Element\Image) {
-                                            $imageData = $subElement->getImageStringData(true);
-                                            $imageMime = $subElement->getImageType();
-                                            $imageName = uniqid('img_') . '.' . $imageMime;
-
-                                            $cloudinary = require __DIR__ . '/../config/cloudinary.php';
-                                            $upload = $cloudinary->uploadApi()->upload('data:image/' . $imageMime . ';base64,' . $imageData);
-                                            $imageUrl = $upload['secure_url'];
-
-                                            $htmlContent .= '<img src="' . $imageUrl . '" alt="Image from Word" style="max-width: 100%; height: auto;">';
+                                            $htmlContent .= $this->processImage($subElement);
                                         }
                                     }
                                 }
@@ -265,6 +251,32 @@ class Post {
         }
         $htmlContent .= '</div>';
         return $htmlContent;
+    }
+
+    private function processImage($imageElement) {
+        try {
+            $imageData = $imageElement->getImageStringData(true);
+            $imageMime = $imageElement->getImageType();
+            if ($imageData && $imageMime) {
+                $imageName = uniqid('img_') . '.' . $imageMime;
+                $cloudinary = require __DIR__ . '/../config/cloudinary.php';
+                $upload = $cloudinary->uploadApi()->upload('data:image/' . $imageMime . ';base64,' . $imageData);
+                if (isset($upload['secure_url'])) {
+                    $imageUrl = $upload['secure_url'];
+                    // Thêm lớp mặc định để căn giữa ảnh
+                    return '<img src="' . htmlspecialchars($imageUrl) . '" alt="Image from Word" class="image-style-align-center" style="max-width: 100%; height: auto;">';
+                } else {
+                    error_log('Lỗi upload ảnh lên Cloudinary: Không có secure_url');
+                    return '<p>[Lỗi: Không thể tải ảnh]</p>';
+                }
+            } else {
+                error_log('Lỗi: Dữ liệu ảnh không hợp lệ hoặc định dạng không được hỗ trợ');
+                return '<p>[Lỗi: Ảnh không hợp lệ]</p>';
+            }
+        } catch (Exception $e) {
+            error_log('Lỗi khi xử lý ảnh: ' . $e->getMessage());
+            return '<p>[Lỗi: Không thể xử lý ảnh]</p>';
+        }
     }
 
     private function getFontStyleCss($fontStyle) {
@@ -286,9 +298,36 @@ class Post {
         return $style;
     }
 
+    public function updatePost($id, $title, $content, $albumId, $categoryId, $bannerUrl, $userId, $filePath = null, $fileType = null) {
+        if ($filePath && $fileType && empty($content)) {
+            $fileContent = $this->extractContentFromFile($filePath, $fileType);
+            if ($fileContent !== false) {
+                $config = HTMLPurifier_Config::createDefault();
+                $config->set('HTML.Allowed', 'p,span,table,tr,td,img[src|alt|style|class],br,div');
+                $config->set('CSS.AllowedProperties', 'float,margin,margin-left,margin-right,margin-top,margin-bottom,text-align,max-width,height');
+                $purifier = new HTMLPurifier($config);
+                $content = $purifier->purify($fileContent);
+            } else {
+                error_log('File processing failed, keeping CKEditor content');
+            }
+        }
+
+        $sql = "UPDATE posts 
+                SET title = ?, content = ?, album_id = ?, category_id = ?, banner_url = ?
+                WHERE post_id = ? 
+                  AND album_id IN (SELECT album_id FROM albums WHERE user_id = ?)";
+        $stmt = $this->pdo->prepare($sql);
+        return $stmt->execute([$title, $content, $albumId, $categoryId, $bannerUrl, $id, $userId]);
+    }
+
     public function createPost($title, $content, $albumId, $categoryId, $bannerUrl, $filePath = null, $fileType = null) {
         if ($filePath && $fileType) {
-            $content = $this->extractContentFromFile($filePath, $fileType);
+            $fileContent = $this->extractContentFromFile($filePath, $fileType);
+            if ($fileContent !== false) {
+                $content = $fileContent; // Sử dụng nội dung từ file nếu thành công
+            } else {
+                error_log('File processing failed, falling back to Quill content');
+            }
         }
 
         $albumNumber = preg_replace('/[^0-9]/', '', $albumId);
@@ -343,14 +382,14 @@ class Post {
 }
 
     // UPDATE: Cập nhật thông tin bài viết
-    public function updatePost($id, $title, $content, $albumId, $categoryId, $bannerUrl, $userId) {
-    $sql = "UPDATE posts 
-            SET title = ?, content = ?, album_id = ?, category_id = ?, banner_url = ?
-            WHERE post_id = ? 
-              AND album_id IN (SELECT album_id FROM albums WHERE user_id = ?)"; // xác thực quyền
-    $stmt = $this->pdo->prepare($sql);
-    return $stmt->execute([$title, $content, $albumId, $categoryId, $bannerUrl, $id, $userId]);
-}
+//     public function updatePost($id, $title, $content, $albumId, $categoryId, $bannerUrl, $userId) {
+//     $sql = "UPDATE posts 
+//             SET title = ?, content = ?, album_id = ?, category_id = ?, banner_url = ?
+//             WHERE post_id = ? 
+//               AND album_id IN (SELECT album_id FROM albums WHERE user_id = ?)"; // xác thực quyền
+//     $stmt = $this->pdo->prepare($sql);
+//     return $stmt->execute([$title, $content, $albumId, $categoryId, $bannerUrl, $id, $userId]);
+// }
 
 public function deletePost($id, $userId) {
     $sql = "DELETE FROM posts 

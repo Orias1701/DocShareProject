@@ -1,5 +1,6 @@
 <?php
 // views/post_detail.php
+
 if (empty($post)) {
     echo "<p>Bài viết không tồn tại.</p>";
     return;
@@ -15,6 +16,12 @@ $reactions = [
     'angry' => '😡'
 ];
 
+// Sử dụng HTMLPurifier để lọc nội dung HTML
+require_once __DIR__ . '/../vendor/autoload.php';
+$config = HTMLPurifier_Config::createDefault();
+$config->set('HTML.Allowed', 'p,span,table,tr,td,img[src|alt|style],br,div');
+$purifier = new HTMLPurifier($config);
+$cleanContent = $purifier->purify($post['content']);
 ?>
 
 <!DOCTYPE html>
@@ -28,6 +35,9 @@ $reactions = [
         .post-title { font-size: 2.5em; margin-bottom: 10px; }
         .post-meta { font-size: 0.9em; color: #555; margin-bottom: 20px; }
         .post-content { font-size: 1.1em; line-height: 1.8; }
+        .post-content img { max-width: 100%; height: auto; }
+        .post-content table { border-collapse: collapse; width: 100%; margin: 10px 0; }
+        .post-content td, .post-content th { border: 1px solid #000; padding: 8px; }
         .reaction-bar { margin-top: 20px; }
         .reaction-bar a {
             font-size: 20px;
@@ -59,24 +69,23 @@ $reactions = [
         | Ngày đăng: <?php echo htmlspecialchars($post['created_at']); ?>
     </div>
     <div class="post-content">
-    <?php echo nl2br(strip_tags($post['content'])); ?>
-</div>
-
+        <?php echo $cleanContent; ?>
+    </div>
 
     <!-- Reaction section -->
-<div class="reaction-bar">
-    <?php include __DIR__ . '/reaction/reaction_bar.php'; ?>
-</div>
+    <div class="reaction-bar">
+        <?php include __DIR__ . '/reaction/reaction_bar.php'; ?>
+    </div>
 
-<!-- Report section -->
-<div class="report-section" style="margin-top: 20px;">
+    <!-- Report section -->
+    <div class="report-section" style="margin-top: 20px;">
         <?php include __DIR__ . '/report/report_section.php'; ?>
+    </div>
 
-</div>
-
-<div class="post-container comment-section">
-    <h2>Bình luận</h2>
-    <?php include __DIR__ . '/postcomment/comments_by_post.php'; ?>
+    <div class="comment-section">
+        <h2>Bình luận</h2>
+        <?php include __DIR__ . '/postcomment/comments_by_post.php'; ?>
+    </div>
 </div>
 
 </body>

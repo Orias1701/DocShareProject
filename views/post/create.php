@@ -10,6 +10,7 @@
         body { font-family: Arial, sans-serif; }
         form { max-width: 800px; margin: 0 auto; }
         #editor { height: 300px; background: #fff; border: 1px solid #ccc; }
+        .warning { color: red; font-size: 0.9em; margin-top: 5px; display: none; }
     </style>
 </head>
 <body>
@@ -26,6 +27,7 @@
 
         <label for="content_file">Hoặc upload file (PDF/Word):</label>
         <input type="file" id="content_file" name="content_file" accept=".pdf,.doc,.docx">
+        <div id="fileWarning" class="warning">Lưu ý: Upload file sẽ ghi đè nội dung trong trình soạn thảo!</div>
         <br><br>
 
         <label for="album_id">Chọn Album:</label>
@@ -82,6 +84,15 @@
 
         const form = document.getElementById('postForm');
         const contentFileInput = document.getElementById('content_file');
+        const fileWarning = document.getElementById('fileWarning');
+
+        contentFileInput.addEventListener('change', function() {
+            if (contentFileInput.files.length > 0) {
+                fileWarning.style.display = 'block';
+            } else {
+                fileWarning.style.display = 'none';
+            }
+        });
 
         form.addEventListener('submit', function(e) {
             if (contentFileInput.files.length > 0) {
