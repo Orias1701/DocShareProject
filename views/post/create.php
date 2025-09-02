@@ -1,75 +1,96 @@
-<h2>Thêm bài viết mới</h2>
-<form id="postForm" action="index.php?action=create_post" method="POST" enctype="multipart/form-data">
-    <label for="title">Tiêu đề:</label>
-    <input type="text" id="title" name="title" required>
-    <br><br>
-    
-    <label for="content">Nội dung:</label>
-    <!-- Quill editor container -->
-    <div id="editor" style="height: 300px; background: #fff;"></div>
-    <!-- Hidden input để lưu dữ liệu thực sự -->
-    <input type="hidden" name="content" id="hiddenContent" required>
-    <br><br>
-    
-    <label for="album_id">Chọn Album:</label>
-    <select id="album_id" name="album_id" required>
-        <?php foreach ($albums as $album): ?>
-            <option value="<?= htmlspecialchars($album['album_id']) ?>">
-                <?= htmlspecialchars($album['album_name']) ?>
-            </option>
-        <?php endforeach; ?>
-    </select>
-    <br><br>
+<!-- views/post/create.php -->
 
-    <label for="category_id">Chọn Thể loại:</label>
-    <select id="category_id" name="category_id" required>
-        <?php foreach ($categories as $category): ?>
-            <option value="<?= htmlspecialchars($category['category_id']) ?>">
-                <?= htmlspecialchars($category['category_name']) ?>
-            </option>
-        <?php endforeach; ?>
-    </select>
-    <br><br>
-    
-    <label for="banner">Banner (Upload hình):</label>
-    <input type="file" id="banner" name="banner" accept="image/*">
-    <br><br>
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>Thêm bài viết mới</title>
+    <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
+    <style>
+        body { font-family: Arial, sans-serif; }
+        form { max-width: 800px; margin: 0 auto; }
+        #editor { height: 300px; background: #fff; border: 1px solid #ccc; }
+    </style>
+</head>
+<body>
+    <h2>Thêm bài viết mới</h2>
+    <form id="postForm" action="index.php?action=create_post" method="POST" enctype="multipart/form-data">
+        <label for="title">Tiêu đề:</label>
+        <input type="text" id="title" name="title" required>
+        <br><br>
 
-    <button type="submit">Đăng bài</button>
-</form>
+        <label for="content">Nội dung:</label>
+        <div id="editor"></div>
+        <input type="hidden" name="content" id="hiddenContent">
+        <br><br>
 
-<!-- Quill scripts -->
-<link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
-<script src="https://cdn.quilljs.com/1.3.6/quill.js"></script>
+        <label for="content_file">Hoặc upload file (PDF/Word):</label>
+        <input type="file" id="content_file" name="content_file" accept=".pdf,.doc,.docx">
+        <br><br>
 
-<script>
-let quill;
+        <label for="album_id">Chọn Album:</label>
+        <select id="album_id" name="album_id" required>
+            <?php foreach ($albums as $album): ?>
+                <option value="<?= htmlspecialchars($album['album_id']) ?>">
+                    <?= htmlspecialchars($album['album_name']) ?>
+                </option>
+            <?php endforeach; ?>
+        </select>
+        <br><br>
 
-document.addEventListener("DOMContentLoaded", function() {
-    quill = new Quill('#editor', {
-        theme: 'snow',
-        placeholder: 'Nhập nội dung bài viết...',
-        modules: {
-            toolbar: [
-                [{ header: [1, 2, 3, false] }],
-                ['bold', 'italic', 'underline', 'strike'],
-                ['blockquote', 'code-block'],
-                [{ list: 'ordered' }, { list: 'bullet' }],
-                [{ script: 'sub' }, { script: 'super' }],
-                [{ indent: '-1' }, { indent: '+1' }],
-                [{ direction: 'rtl' }],
-                [{ color: [] }, { background: [] }],
-                [{ align: [] }],
-                ['link', 'image', 'video'],
-                ['clean']
-            ]
-        }
+        <label for="category_id">Chọn Thể loại:</label>
+        <select id="category_id" name="category_id" required>
+            <?php foreach ($categories as $category): ?>
+                <option value="<?= htmlspecialchars($category['category_id']) ?>">
+                    <?= htmlspecialchars($category['category_name']) ?>
+                </option>
+            <?php endforeach; ?>
+        </select>
+        <br><br>
+
+        <label for="banner">Banner (Upload hình):</label>
+        <input type="file" id="banner" name="banner" accept="image/*">
+        <br><br>
+
+        <button type="submit">Đăng bài</button>
+    </form>
+
+    <script src="https://cdn.quilljs.com/1.3.6/quill.js"></script>
+    <script>
+    let quill;
+
+    document.addEventListener("DOMContentLoaded", function() {
+        quill = new Quill('#editor', {
+            theme: 'snow',
+            placeholder: 'Nhập nội dung bài viết...',
+            modules: {
+                toolbar: [
+                    [{ header: [1, 2, 3, false] }],
+                    ['bold', 'italic', 'underline', 'strike'],
+                    ['blockquote', 'code-block'],
+                    [{ list: 'ordered' }, { list: 'bullet' }],
+                    [{ script: 'sub' }, { script: 'super' }],
+                    [{ indent: '-1' }, { indent: '+1' }],
+                    [{ direction: 'rtl' }],
+                    [{ color: [] }, { background: [] }],
+                    [{ align: [] }],
+                    ['link', 'image', 'video'],
+                    ['clean']
+                ]
+            }
+        });
+
+        const form = document.getElementById('postForm');
+        const contentFileInput = document.getElementById('content_file');
+
+        form.addEventListener('submit', function(e) {
+            if (contentFileInput.files.length > 0) {
+                document.getElementById('hiddenContent').value = '';
+            } else {
+                document.getElementById('hiddenContent').value = quill.root.innerHTML;
+            }
+        });
     });
-
-    const form = document.getElementById('postForm');
-    form.addEventListener('submit', function(e) {
-        // Đồng bộ dữ liệu Quill vào hidden input
-        document.getElementById('hiddenContent').value = quill.root.innerHTML;
-    });
-});
-</script>
+    </script>
+</body>
+</html>

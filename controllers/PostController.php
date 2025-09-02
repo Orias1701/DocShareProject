@@ -121,28 +121,51 @@ class PostController {
 
     // Create post
     public function create() {
-    if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_SESSION['user_id'])) {
-        $title = $_POST['title'];
-        $content = $_POST['content'];
-        $albumId = $_POST['album_id'];
-        $categoryId = $_POST['category_id'];
-        $bannerUrl = null; // mặc định null
+        if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_SESSION['user_id'])) {
+            $title = $_POST['title'] ?? '';
+            $content = $_POST['content'] ?? '';
+            $albumId = $_POST['album_id'] ?? '';
+            $categoryId = $_POST['category_id'] ?? '';
+            $bannerUrl = null;
+            $filePath = null;
+            $fileType = null;
 
-        // Upload banner nếu có file
-        if (!empty($_FILES['banner']['tmp_name'])) {
-            $cloudinary = require __DIR__ . '/../config/cloudinary.php';
-            $upload = $cloudinary->uploadApi()->upload($_FILES['banner']['tmp_name']);
-            $bannerUrl = $upload['secure_url'];
+            if (!empty($_FILES['banner']['tmp_name'])) {
+                $cloudinary = require __DIR__ . '/../config/cloudinary.php';
+                $upload = $cloudinary->uploadApi()->upload($_FILES['banner']['tmp_name']);
+                $bannerUrl = $upload['secure_url'];
+            }
+
+            if (!empty($_FILES['content_file']['tmp_name'])) {
+                $fileType = $_FILES['content_file']['type'];
+                $filePath = $_FILES['content_file']['tmp_name'];
+
+                if (!in_array($fileType, [
+                    'application/pdf',
+                    'application/msword',
+                    'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+                ])) {
+                    echo "Chỉ hỗ trợ file PDF hoặc Word!";
+                    exit;
+                }
+            }
+
+            try {
+                $this->postModel->createPost($title, $content, $albumId, $categoryId, $bannerUrl, $filePath, $fileType);
+                header("Location: index.php?action=list_all_posts");
+                exit;
+            } catch (Exception $e) {
+                echo "Lỗi khi tạo bài viết: " . $e->getMessage();
+                exit;
+            }
+        } else {
+            $albums = $this->albumModel->getAllAlbums();
+            $categories = $this->categoryModel->getAllCategories();
+
+            require __DIR__ . '/../views/post/create.php';
         }
-
-        $userId = $_SESSION['user_id'];
-
-        $this->postModel->createPost($title, $content, $albumId, $categoryId, $bannerUrl, $userId);
-
-        header("Location: index.php?action=list_all_posts");
-        exit;
     }
-}
+    
 
     // Show edit form
     public function showEditForm() {

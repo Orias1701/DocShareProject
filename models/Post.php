@@ -4,8 +4,8 @@ require_once __DIR__ . '/../config/Database.php';
 require_once __DIR__ . '/../services/IdGenerator.php';
 require_once __DIR__ . '/../vendor/autoload.php'; // Composer autoload
 
+use Smalot\PdfParser\Parser;
 use PhpOffice\PhpWord\IOFactory;
-use Smalot\PdfParser\Parser as PdfParser;
 
 class Post {
     private $pdo;
@@ -152,15 +152,148 @@ class Post {
         ];
     }
     // CREATE: Thêm bài viết mới vào database
-     public function createPost($title, $content, $albumId, $categoryId, $bannerUrl) {
-        // 1. Trích xuất phần số từ các ID đã có
-        // Ví dụ: "ALBUM0000000007001" -> "0000000007001"
+    public function extractContentFromFile($filePath, $fileType) {
+        $content = '';
+
+        try {
+            if ($fileType === 'application/pdf') {
+                $parser = new \Smalot\PdfParser\Parser();
+                $pdf = $parser->parseFile($filePath);
+                $content = $this->convertPdfToHtml($pdf);
+            } elseif (in_array($fileType, [
+                'application/msword',
+                'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+            ])) {
+                $content = $this->convertWordToHtml($filePath);
+            } else {
+                throw new Exception('Định dạng file không hỗ trợ. Chỉ hỗ trợ PDF hoặc Word.');
+            }
+        } catch (Exception $e) {
+            throw new Exception('Lỗi khi đọc file: ' . $e->getMessage());
+        }
+
+        return $content;
+    }
+
+    private function convertPdfToHtml($pdf) {
+        $htmlContent = '<div style="font-family: Arial, sans-serif; line-height: 1.6;">';
+        $pages = $pdf->getPages();
+        foreach ($pages as $page) {
+            $text = $page->getText();
+            $htmlContent .= '<p>' . nl2br(htmlspecialchars($text)) . '</p>';
+        }
+        $htmlContent .= '</div>';
+        return $htmlContent;
+    }
+
+    private function convertWordToHtml($filePath) {
+        $htmlContent = '<div style="font-family: Arial, sans-serif; line-height: 1.6;">';
+        $phpWord = IOFactory::load($filePath);
+
+        foreach ($phpWord->getSections() as $section) {
+            foreach ($section->getElements() as $element) {
+                if ($element instanceof \PhpOffice\PhpWord\Element\Text) {
+                    $fontStyle = $element->getFontStyle();
+                    $style = $this->getFontStyleCss($fontStyle);
+                    $htmlContent .= '<p style="' . $style . '">' . htmlspecialchars($element->getText()) . '</p>';
+                } elseif ($element instanceof \PhpOffice\PhpWord\Element\TextRun) {
+                    foreach ($element->getElements() as $subElement) {
+                        if ($subElement instanceof \PhpOffice\PhpWord\Element\Text) {
+                            $fontStyle = $subElement->getFontStyle();
+                            $style = $this->getFontStyleCss($fontStyle);
+                            $htmlContent .= '<span style="' . $style . '">' . htmlspecialchars($subElement->getText()) . '</span>';
+                        } elseif ($subElement instanceof \PhpOffice\PhpWord\Element\Image) {
+                            $imageData = $subElement->getImageStringData(true);
+                            $imageMime = $subElement->getImageType();
+                            $imageName = uniqid('img_') . '.' . $imageMime;
+
+                            $cloudinary = require __DIR__ . '/../config/cloudinary.php';
+                            $upload = $cloudinary->uploadApi()->upload('data:image/' . $imageMime . ';base64,' . $imageData);
+                            $imageUrl = $upload['secure_url'];
+
+                            $htmlContent .= '<img src="' . $imageUrl . '" alt="Image from Word" style="max-width: 100%; height: auto;">';
+                        }
+                    }
+                    $htmlContent .= '<br>';
+                } elseif ($element instanceof \PhpOffice\PhpWord\Element\Table) {
+                    // Xử lý bảng
+                    $htmlContent .= '<table style="border-collapse: collapse; width: 100%; margin: 10px 0;">';
+                    foreach ($element->getRows() as $row) {
+                        $htmlContent .= '<tr>';
+                        foreach ($row->getCells() as $cell) {
+                            $cellStyle = $cell->getStyle();
+                            $cellCss = 'border: 1px solid #000; padding: 8px;';
+                            if ($cellStyle) {
+                                if ($cellStyle->getWidth()) {
+                                    $cellCss .= 'width: ' . ($cellStyle->getWidth() / 50) . '%;';
+                                }
+                            }
+                            $htmlContent .= '<td style="' . $cellCss . '">';
+                            // Xử lý nội dung bên trong ô (cell)
+                            foreach ($cell->getElements() as $cellElement) {
+                                if ($cellElement instanceof \PhpOffice\PhpWord\Element\Text) {
+                                    $fontStyle = $cellElement->getFontStyle();
+                                    $style = $this->getFontStyleCss($fontStyle);
+                                    $htmlContent .= '<span style="' . $style . '">' . htmlspecialchars($cellElement->getText()) . '</span>';
+                                } elseif ($cellElement instanceof \PhpOffice\PhpWord\Element\TextRun) {
+                                    foreach ($cellElement->getElements() as $subElement) {
+                                        if ($subElement instanceof \PhpOffice\PhpWord\Element\Text) {
+                                            $fontStyle = $subElement->getFontStyle();
+                                            $style = $this->getFontStyleCss($fontStyle);
+                                            $htmlContent .= '<span style="' . $style . '">' . htmlspecialchars($subElement->getText()) . '</span>';
+                                        } elseif ($subElement instanceof \PhpOffice\PhpWord\Element\Image) {
+                                            $imageData = $subElement->getImageStringData(true);
+                                            $imageMime = $subElement->getImageType();
+                                            $imageName = uniqid('img_') . '.' . $imageMime;
+
+                                            $cloudinary = require __DIR__ . '/../config/cloudinary.php';
+                                            $upload = $cloudinary->uploadApi()->upload('data:image/' . $imageMime . ';base64,' . $imageData);
+                                            $imageUrl = $upload['secure_url'];
+
+                                            $htmlContent .= '<img src="' . $imageUrl . '" alt="Image from Word" style="max-width: 100%; height: auto;">';
+                                        }
+                                    }
+                                }
+                            }
+                            $htmlContent .= '</td>';
+                        }
+                        $htmlContent .= '</tr>';
+                    }
+                    $htmlContent .= '</table>';
+                }
+            }
+        }
+        $htmlContent .= '</div>';
+        return $htmlContent;
+    }
+
+    private function getFontStyleCss($fontStyle) {
+        $style = '';
+        if ($fontStyle instanceof \PhpOffice\PhpWord\Style\Font) {
+            if ($fontStyle->isBold()) {
+                $style .= 'font-weight: bold; ';
+            }
+            if ($fontStyle->isItalic()) {
+                $style .= 'font-style: italic; ';
+            }
+            if ($fontStyle->getColor()) {
+                $style .= 'color: #' . $fontStyle->getColor() . '; ';
+            }
+            if ($fontStyle->getSize()) {
+                $style .= 'font-size: ' . ($fontStyle->getSize() / 12) . 'em; ';
+            }
+        }
+        return $style;
+    }
+
+    public function createPost($title, $content, $albumId, $categoryId, $bannerUrl, $filePath = null, $fileType = null) {
+        if ($filePath && $fileType) {
+            $content = $this->extractContentFromFile($filePath, $fileType);
+        }
+
         $albumNumber = preg_replace('/[^0-9]/', '', $albumId);
-        // Ví dụ: "CATEGORY00001" -> "00001"
         $categoryNumber = preg_replace('/[^0-9]/', '', $categoryId);
 
-        // 2. Tìm post_id cuối cùng thuộc album và category này
-        // Điều này đảm bảo số thứ tự không bị trùng lặp trong cùng một album và thể loại
         $sqlLastPost = "SELECT post_id FROM posts 
                         WHERE album_id = ? AND category_id = ?
                         ORDER BY post_id DESC LIMIT 1";
@@ -168,19 +301,16 @@ class Post {
         $stmtLastPost->execute([$albumId, $categoryId]);
         $lastPost = $stmtLastPost->fetch(PDO::FETCH_ASSOC);
 
-        // 3. Tính số thứ tự bài viết mới
         $postNumber = $lastPost ? intval(substr($lastPost['post_id'], -6)) + 1 : 1;
-        
-        // 4. Khởi tạo và sử dụng IdGenerator với 3 tham số
+
         $idGenerator = new IdGenerator();
         $newId = $idGenerator->generatePostId($albumNumber, $categoryNumber, $postNumber);
 
-        // 5. Chèn bài viết mới vào database
         $sql = "INSERT INTO posts (post_id, title, content, album_id, category_id, banner_url) VALUES (?, ?, ?, ?, ?, ?)";
         $stmt = $this->pdo->prepare($sql);
         return $stmt->execute([$newId, $title, $content, $albumId, $categoryId, $bannerUrl]);
     }
-    
+
     // READ: Lấy một bài viết theo ID
     public function getPostById($postId) {
     $sql = "
