@@ -42,8 +42,8 @@
         <input type="hidden" name="content" id="hiddenContent">
         <br><br>
 
-        <label for="content_file">Hoặc upload file (PDF/Word):</label>
-        <input type="file" id="content_file" name="content_file" accept=".pdf,.doc,.docx">
+        <label for="content_file">Hoặc upload file (PDF):</label>
+        <input type="file" id="content_file" name="content_file" accept=".pdf">
         <div id="fileWarning" class="warning">Lưu ý: Upload file sẽ ghi đè nội dung trong trình soạn thảo!</div>
         <br><br>
 
@@ -134,7 +134,7 @@
 
             quill.on('text-change', function() {
                 if (contentFile.files.length > 0) {
-                    fileWarning.textContent = "Cảnh báo: Nội dung bạn đang gõ sẽ bị bỏ qua vì bạn đã chọn file!";
+                    fileWarning.textContent = "Cảnh báo: Nội dung bạn đang gõ sẽ bị bỏ qua vì bạn đã chọn file PDF!";
                     fileWarning.style.display = 'block';
                 }
             });

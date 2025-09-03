@@ -4,8 +4,6 @@ require_once __DIR__ . '/../config/Database.php';
 require_once __DIR__ . '/../services/IdGenerator.php';
 require_once __DIR__ . '/../vendor/autoload.php';
 
-use PhpOffice\PhpWord\IOFactory;
-use Smalot\PdfParser\Parser as PdfParser;
 
 class Post
 {
@@ -298,16 +296,20 @@ class Post
     {
         try {
             $processedContent = $content;
+
+            // Nếu có file PDF, không ghi đè content
             if ($fileUrl && $fileType) {
-                // Nếu có file, không ghi đè content để hỗ trợ cả văn bản và file
+                if ($fileType !== 'application/pdf') {
+                    throw new Exception("Chỉ hỗ trợ file PDF khi cập nhật.");
+                }
             } else {
                 $processedContent = $this->processBase64ImagesInContent($content);
             }
 
             $sql = "UPDATE posts 
-                    SET title = ?, content = ?, album_id = ?, category_id = ?, banner_url = ?, file_url = ?, file_type = ?
-                    WHERE post_id = ? 
-                    AND album_id IN (SELECT album_id FROM albums WHERE user_id = ?)";
+                SET title = ?, content = ?, album_id = ?, category_id = ?, banner_url = ?, file_url = ?, file_type = ?
+                WHERE post_id = ? 
+                AND album_id IN (SELECT album_id FROM albums WHERE user_id = ?)";
             $stmt = $this->pdo->prepare($sql);
             $success = $stmt->execute([$title, $processedContent, $albumId, $categoryId, $bannerUrl, $fileUrl, $fileType, $id, $userId]);
 
@@ -321,6 +323,7 @@ class Post
             throw $e;
         }
     }
+
 
     /**
      * DELETE: Xóa bài viết

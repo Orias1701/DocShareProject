@@ -115,6 +115,7 @@ class PostController
 
     public function create()
     {
+        // Chỉ cho phép POST và user đã đăng nhập
         if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !isset($_SESSION['user_id'])) {
             header("Location: index.php?action=login");
             exit;
@@ -128,11 +129,12 @@ class PostController
         $fileUrl = null;
         $fileType = null;
 
+        // Khởi tạo Cloudinary
         $cloudinary = require __DIR__ . '/../config/cloudinary.php';
         $baseUrl = 'http://' . $_SERVER['HTTP_HOST'] . '/'; // Điều chỉnh theo cấu hình server
 
         try {
-            // Upload banner
+            // Upload banner nếu có
             if (!empty($_FILES['banner']['tmp_name'])) {
                 $uploadBanner = $cloudinary->uploadApi()->upload($_FILES['banner']['tmp_name'], [
                     'folder' => 'post_banners'
@@ -140,21 +142,17 @@ class PostController
                 $bannerUrl = $uploadBanner['secure_url'];
             }
 
-            // Upload content file
+            // Upload file PDF nếu có
             if (!empty($_FILES['content_file']['tmp_name'])) {
                 $uploadedFile = $_FILES['content_file'];
                 $uploadedFileType = $uploadedFile['type'];
                 $uploadedFileExt = strtolower(pathinfo($uploadedFile['name'], PATHINFO_EXTENSION));
                 $maxFileSize = 10 * 1024 * 1024; // 10MB
 
-                $allowedFileTypes = [
-                    'application/pdf',
-                    'application/msword',
-                    'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-                ];
-
-                if (!in_array($uploadedFileType, $allowedFileTypes)) {
-                    throw new Exception("Định dạng file không được hỗ trợ. Chỉ hỗ trợ PDF và Word.");
+                // Chỉ chấp nhận PDF
+                $allowedFileTypes = ['application/pdf'];
+                if (!in_array($uploadedFileType, $allowedFileTypes) || $uploadedFileExt !== 'pdf') {
+                    throw new Exception("Định dạng file không được hỗ trợ. Chỉ hỗ trợ PDF.");
                 }
 
                 if ($uploadedFile['size'] > $maxFileSize) {
@@ -166,15 +164,14 @@ class PostController
                     throw new Exception("Lỗi upload file: Mã lỗi " . $uploadedFile['error']);
                 }
 
+                // Tạo tên file mới và di chuyển
                 $fileName = uniqid() . '.' . $uploadedFileExt;
                 $uploadDir = __DIR__ . '/../uploads/posts/';
-
                 if (!is_dir($uploadDir)) {
                     mkdir($uploadDir, 0755, true);
                 }
 
                 $targetPath = $uploadDir . $fileName;
-
                 if (move_uploaded_file($uploadedFile['tmp_name'], $targetPath)) {
                     $fileUrl = $baseUrl . 'uploads/posts/' . $fileName;
                     $fileType = $uploadedFileType;
@@ -185,7 +182,10 @@ class PostController
                 }
             }
 
+            // Tạo bài viết
             $this->postModel->createPost($title, $content, $albumId, $categoryId, $bannerUrl, $fileUrl, $fileType);
+
+            // Chuyển hướng về danh sách bài viết
             header("Location: index.php?action=list_all_posts");
             exit;
         } catch (Exception $e) {
@@ -193,6 +193,7 @@ class PostController
             die("Lỗi khi tạo bài viết: " . htmlspecialchars($e->getMessage()));
         }
     }
+
 
     public function showEditForm()
     {
@@ -248,21 +249,17 @@ class PostController
                 $bannerUrl = $upload['secure_url'];
             }
 
-            // Upload content file
+            // Upload content file (chỉ PDF)
             if (!empty($_FILES['content_file']['tmp_name'])) {
                 $uploadedFile = $_FILES['content_file'];
                 $uploadedFileType = $uploadedFile['type'];
                 $uploadedFileExt = strtolower(pathinfo($uploadedFile['name'], PATHINFO_EXTENSION));
                 $maxFileSize = 10 * 1024 * 1024; // 10MB
 
-                $allowedFileTypes = [
-                    'application/pdf',
-                    'application/msword',
-                    'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-                ];
+                $allowedFileTypes = ['application/pdf'];
 
-                if (!in_array($uploadedFileType, $allowedFileTypes)) {
-                    throw new Exception("Định dạng file không được hỗ trợ. Chỉ hỗ trợ PDF và Word.");
+                if (!in_array($uploadedFileType, $allowedFileTypes) || $uploadedFileExt !== 'pdf') {
+                    throw new Exception("Định dạng file không được hỗ trợ. Chỉ hỗ trợ PDF.");
                 }
 
                 if ($uploadedFile['size'] > $maxFileSize) {
@@ -282,11 +279,10 @@ class PostController
 
                 $fileName = uniqid() . '.' . $uploadedFileExt;
                 $uploadDir = __DIR__ . '/../uploads/posts/';
-                $targetPath = $uploadDir . $fileName;
-
                 if (!is_dir($uploadDir)) {
                     mkdir($uploadDir, 0755, true);
                 }
+                $targetPath = $uploadDir . $fileName;
 
                 if (move_uploaded_file($uploadedFile['tmp_name'], $targetPath)) {
                     $fileUrl = $baseUrl . 'uploads/posts/' . $fileName;
@@ -298,7 +294,9 @@ class PostController
                 }
             }
 
+            // Cập nhật bài viết
             $this->postModel->updatePost($postId, $title, $content, $albumId, $categoryId, $bannerUrl, $_SESSION['user_id'], $fileUrl, $fileType);
+
             header("Location: index.php?action=list_all_posts");
             exit;
         } catch (Exception $e) {
@@ -306,6 +304,7 @@ class PostController
             die("Lỗi khi cập nhật bài viết: " . htmlspecialchars($e->getMessage()));
         }
     }
+
 
     public function delete()
     {
