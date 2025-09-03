@@ -224,9 +224,19 @@ if (isset($_GET['action'])) {
             $postHashtagController->getPostsByHashtagId($_GET['hashtag_id'] ?? null);
             exit;
         case 'create_post_hashtag_form':
-            $postHashtagController->showCreateForm($_GET['post_id'] ?? null);
+            $postId = filter_var($_GET['post_id'] ?? null, FILTER_SANITIZE_STRING);
+            if (empty($postId)) {
+                http_response_code(400);
+                die("Lỗi: Post ID không được cung cấp!");
+            }
+            $postHashtagController->showCreateForm($postId);
             exit;
+
         case 'create_post_hashtag':
+            if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+                http_response_code(405);
+                die("Lỗi: Phương thức HTTP không được hỗ trợ!");
+            }
             $postHashtagController->create();
             exit;
         case 'edit_post_hashtag_form':
