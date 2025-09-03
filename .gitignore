@@ -1,4 +1,4 @@
 config
-vendors/
+/vendors
 /vendor/*
 !/vendor/empty.txt
