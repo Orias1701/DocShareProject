@@ -4,30 +4,26 @@ require_once __DIR__ . '/../models/Post.php';
 require_once __DIR__ . '/../models/Album.php';
 require_once __DIR__ . '/../models/Category.php';
 require_once __DIR__ . '/../models/PostReaction.php';
-// require_once __DIR__ . '/../services/ConvertPdftoDocx.php';
 require_once __DIR__ . '/../vendor/autoload.php';
 
-
-
-
-class PostController {
+class PostController
+{
     private $postModel;
     private $albumModel;
     private $categoryModel;
     private $reactionModel;
 
-
-    public function __construct() {
+    public function __construct()
+    {
         $this->postModel = new Post();
         $this->albumModel = new Album();
         $this->categoryModel = new Category();
         $this->reactionModel = new PostReaction();
-
-
     }
 
     // ==== JSON API ====
-    public function group1() {
+    public function group1()
+    {
         header('Content-Type: application/json; charset=utf-8');
         try {
             $data = $this->postModel->getGroup1List();
@@ -38,7 +34,8 @@ class PostController {
         }
     }
 
-    public function group2() {
+    public function group2()
+    {
         header('Content-Type: application/json; charset=utf-8');
         try {
             $data = $this->postModel->getGroup2List();
@@ -49,7 +46,8 @@ class PostController {
         }
     }
 
-    public function postDetail($postId = null) {
+    public function postDetail($postId = null)
+    {
         header('Content-Type: application/json; charset=utf-8');
         try {
             if (!$postId && isset($_GET['post_id'])) $postId = $_GET['post_id'];
@@ -69,50 +67,42 @@ class PostController {
         }
     }
 
-        // Hiển thị chi tiết bài viết (cho view, không phải JSON API)
-    public function showPostDetail() {
-    $postId = $_GET['post_id'] ?? null;
-    if (!$postId) {
-        echo "Thiếu post_id";
-        return;
+    public function showPostDetail()
+    {
+        $postId = $_GET['post_id'] ?? null;
+        if (!$postId) {
+            echo "Thiếu post_id";
+            return;
+        }
+
+        $post = $this->postModel->getPostById($postId);
+        if (!$post) {
+            echo "Bài viết không tồn tại";
+            return;
+        }
+
+        require_once __DIR__ . '/../models/PostComment.php';
+        $comments = (new PostComment())->getByPost($postId);
+
+        $reactionCounts = $this->reactionModel->getReactionCounts($postId);
+
+        $userReaction = null;
+        if (isset($_SESSION['user_id'])) {
+            $userReaction = $this->reactionModel->getUserReaction($postId, $_SESSION['user_id']);
+        }
+
+        include __DIR__ . '/../views/post_detail.php';
     }
-
-    $post = $this->postModel->getPostById($postId);
-    if (!$post) {
-        echo "Bài viết không tồn tại";
-        return;
-    }
-
-    // Lấy comment
-    require_once __DIR__ . '/../models/PostComment.php';
-    $comments = (new PostComment())->getByPost($postId);
-
-    // Reaction counts
-    $reactionCounts = $this->reactionModel->getReactionCounts($postId);
-
-    // Reaction của user hiện tại
-    $userReaction = null;
-    if (isset($_SESSION['user_id'])) {
-        $userReaction = $this->reactionModel->getUserReaction($postId, $_SESSION['user_id']);
-    }
-
-    // ✅ Bây giờ cả hai biến đều tồn tại
-    include __DIR__ . '/../views/post_detail.php';
-}
-
-
-
-
 
     // ==== CRUD ====
-    // List all posts
-    public function listAllPosts() {
+    public function listAllPosts()
+    {
         $posts = $this->postModel->getAllPosts();
         include __DIR__ . '/../views/post/list_all.php';
     }
 
-    // Show create form
-    public function showCreateForm() {
+    public function showCreateForm()
+    {
         if (!isset($_SESSION['user_id'])) {
             header("Location: index.php?action=login");
             exit;
@@ -123,65 +113,89 @@ class PostController {
         include __DIR__ . '/../views/post/create.php';
     }
 
-    // Create post
-   public function create() {
-        if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_SESSION['user_id'])) {
-            $title = $_POST['title'] ?? '';
-            $content = $_POST['content'] ?? '';
-            $albumId = $_POST['album_id'] ?? '';
-            $categoryId = $_POST['category_id'] ?? '';
-            $bannerUrl = null;
-            $fileUrl = null; // Biến lưu URL file từ Cloudinary
-            $fileType = null;
-            $cloudinary = require __DIR__ . '/../config/cloudinary.php';
+    public function create()
+    {
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !isset($_SESSION['user_id'])) {
+            header("Location: index.php?action=login");
+            exit;
+        }
 
-            try {
-                // Xử lý upload banner
-                if (!empty($_FILES['banner']['tmp_name'])) {
-                    $uploadBanner = $cloudinary->uploadApi()->upload($_FILES['banner']['tmp_name'], [
-                        'folder' => 'post_banners'
-                    ]);
-                    $bannerUrl = $uploadBanner['secure_url'];
-                }
+        $title = $_POST['title'] ?? '';
+        $content = $_POST['content'] ?? '';
+        $albumId = $_POST['album_id'] ?? '';
+        $categoryId = $_POST['category_id'] ?? '';
+        $bannerUrl = null;
+        $fileUrl = null;
+        $fileType = null;
 
-                // Xử lý upload file nội dung
-                if (!empty($_FILES['content_file']['tmp_name'])) {
-                    $uploadedFileType = $_FILES['content_file']['type'];
-                    $allowedFileTypes = [
-                        'application/pdf',
-                        'application/msword',
-                        'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-                    ];
+        $cloudinary = require __DIR__ . '/../config/cloudinary.php';
+        $baseUrl = 'http://' . $_SERVER['HTTP_HOST'] . '/'; // Điều chỉnh theo cấu hình server
 
-                    if (!in_array($uploadedFileType, $allowedFileTypes)) {
-                        throw new Exception("Định dạng file nội dung không được hỗ trợ.");
-                    }
-
-                    $uploadFile = $cloudinary->uploadApi()->upload($_FILES['content_file']['tmp_name'], [
-                        'folder' => 'post_docs',
-                        'resource_type' => 'raw' // Bắt buộc cho file tài liệu
-                    ]);
-
-                    $fileUrl = $uploadFile['secure_url'];
-                    $fileType = $uploadedFileType;
-                    $content = ''; // Đặt nội dung rỗng vì đã có file
-                }
-
-                // Gọi model để tạo bài viết, truyền URL file đã lưu trên Cloudinary
-                $this->postModel->createPost($title, $content, $albumId, $categoryId, $bannerUrl, $fileUrl, $fileType);
-
-                header("Location: index.php?action=list_all_posts");
-                exit;
-
-            } catch (Exception $e) {
-                // Trong trường hợp lỗi, không cần xóa file vì Cloudinary tự quản lý
-                die("Lỗi khi tạo bài viết: " . $e->getMessage());
+        try {
+            // Upload banner
+            if (!empty($_FILES['banner']['tmp_name'])) {
+                $uploadBanner = $cloudinary->uploadApi()->upload($_FILES['banner']['tmp_name'], [
+                    'folder' => 'post_banners'
+                ]);
+                $bannerUrl = $uploadBanner['secure_url'];
             }
+
+            // Upload content file
+            if (!empty($_FILES['content_file']['tmp_name'])) {
+                $uploadedFile = $_FILES['content_file'];
+                $uploadedFileType = $uploadedFile['type'];
+                $uploadedFileExt = strtolower(pathinfo($uploadedFile['name'], PATHINFO_EXTENSION));
+                $maxFileSize = 10 * 1024 * 1024; // 10MB
+
+                $allowedFileTypes = [
+                    'application/pdf',
+                    'application/msword',
+                    'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+                ];
+
+                if (!in_array($uploadedFileType, $allowedFileTypes)) {
+                    throw new Exception("Định dạng file không được hỗ trợ. Chỉ hỗ trợ PDF và Word.");
+                }
+
+                if ($uploadedFile['size'] > $maxFileSize) {
+                    throw new Exception("File quá lớn. Kích thước tối đa là 10MB.");
+                }
+
+                if ($uploadedFile['error'] !== UPLOAD_ERR_OK) {
+                    error_log("Upload error: " . $uploadedFile['error']);
+                    throw new Exception("Lỗi upload file: Mã lỗi " . $uploadedFile['error']);
+                }
+
+                $fileName = uniqid() . '.' . $uploadedFileExt;
+                $uploadDir = __DIR__ . '/../uploads/posts/';
+
+                if (!is_dir($uploadDir)) {
+                    mkdir($uploadDir, 0755, true);
+                }
+
+                $targetPath = $uploadDir . $fileName;
+
+                if (move_uploaded_file($uploadedFile['tmp_name'], $targetPath)) {
+                    $fileUrl = $baseUrl . 'uploads/posts/' . $fileName;
+                    $fileType = $uploadedFileType;
+                    error_log("File uploaded successfully: $fileUrl");
+                } else {
+                    error_log("Failed to move uploaded file to: $targetPath");
+                    throw new Exception("Lỗi khi di chuyển file đã tải lên.");
+                }
+            }
+
+            $this->postModel->createPost($title, $content, $albumId, $categoryId, $bannerUrl, $fileUrl, $fileType);
+            header("Location: index.php?action=list_all_posts");
+            exit;
+        } catch (Exception $e) {
+            error_log("Error in create: " . $e->getMessage());
+            die("Lỗi khi tạo bài viết: " . htmlspecialchars($e->getMessage()));
         }
     }
 
-    // Show edit form
-    public function showEditForm() {
+    public function showEditForm()
+    {
         if (!isset($_SESSION['user_id'])) {
             header("Location: index.php?action=login");
             exit;
@@ -202,9 +216,13 @@ class PostController {
         include __DIR__ . '/../views/post/edit.php';
     }
 
-    // Update post
-    public function update() {
-    if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_SESSION['user_id'])) {
+    public function update()
+    {
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !isset($_SESSION['user_id'])) {
+            header("Location: index.php?action=login");
+            exit;
+        }
+
         $postId = $_POST['post_id'] ?? null;
         $post = $this->postModel->getPostById($postId);
 
@@ -213,28 +231,84 @@ class PostController {
             exit;
         }
 
-        $title = $_POST['title'];
-        $content = $_POST['content'];
-        $albumId = $_POST['album_id'];
-        $categoryId = $_POST['category_id'];
-        $bannerUrl = $post['banner_url']; // giữ banner cũ nếu không upload mới
+        $title = $_POST['title'] ?? '';
+        $content = $_POST['content'] ?? '';
+        $albumId = $_POST['album_id'] ?? '';
+        $categoryId = $_POST['category_id'] ?? '';
+        $bannerUrl = $post['banner_url'];
+        $fileUrl = $post['file_url'];
+        $fileType = $post['file_type'];
+        $cloudinary = require __DIR__ . '/../config/cloudinary.php';
+        $baseUrl = 'http://' . $_SERVER['HTTP_HOST'] . '/'; // Điều chỉnh theo cấu hình server
 
-        // Upload banner mới nếu có file
-        if (!empty($_FILES['banner']['tmp_name'])) {
-            $cloudinary = require __DIR__ . '/../config/cloudinary.php';
-            $upload = $cloudinary->uploadApi()->upload($_FILES['banner']['tmp_name']);
-            $bannerUrl = $upload['secure_url'];
+        try {
+            // Upload banner
+            if (!empty($_FILES['banner']['tmp_name'])) {
+                $upload = $cloudinary->uploadApi()->upload($_FILES['banner']['tmp_name'], ['folder' => 'post_banners']);
+                $bannerUrl = $upload['secure_url'];
+            }
+
+            // Upload content file
+            if (!empty($_FILES['content_file']['tmp_name'])) {
+                $uploadedFile = $_FILES['content_file'];
+                $uploadedFileType = $uploadedFile['type'];
+                $uploadedFileExt = strtolower(pathinfo($uploadedFile['name'], PATHINFO_EXTENSION));
+                $maxFileSize = 10 * 1024 * 1024; // 10MB
+
+                $allowedFileTypes = [
+                    'application/pdf',
+                    'application/msword',
+                    'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+                ];
+
+                if (!in_array($uploadedFileType, $allowedFileTypes)) {
+                    throw new Exception("Định dạng file không được hỗ trợ. Chỉ hỗ trợ PDF và Word.");
+                }
+
+                if ($uploadedFile['size'] > $maxFileSize) {
+                    throw new Exception("File quá lớn. Kích thước tối đa là 10MB.");
+                }
+
+                if ($uploadedFile['error'] !== UPLOAD_ERR_OK) {
+                    error_log("Upload error: " . $uploadedFile['error']);
+                    throw new Exception("Lỗi upload file: Mã lỗi " . $uploadedFile['error']);
+                }
+
+                // Xóa file cũ nếu có
+                if ($post['file_url'] && file_exists(__DIR__ . '/../' . parse_url($post['file_url'], PHP_URL_PATH))) {
+                    unlink(__DIR__ . '/../' . parse_url($post['file_url'], PHP_URL_PATH));
+                    error_log("Deleted old file: " . $post['file_url']);
+                }
+
+                $fileName = uniqid() . '.' . $uploadedFileExt;
+                $uploadDir = __DIR__ . '/../uploads/posts/';
+                $targetPath = $uploadDir . $fileName;
+
+                if (!is_dir($uploadDir)) {
+                    mkdir($uploadDir, 0755, true);
+                }
+
+                if (move_uploaded_file($uploadedFile['tmp_name'], $targetPath)) {
+                    $fileUrl = $baseUrl . 'uploads/posts/' . $fileName;
+                    $fileType = $uploadedFileType;
+                    error_log("File updated successfully: $fileUrl");
+                } else {
+                    error_log("Failed to move uploaded file to: $targetPath");
+                    throw new Exception("Lỗi khi di chuyển file đã tải lên.");
+                }
+            }
+
+            $this->postModel->updatePost($postId, $title, $content, $albumId, $categoryId, $bannerUrl, $_SESSION['user_id'], $fileUrl, $fileType);
+            header("Location: index.php?action=list_all_posts");
+            exit;
+        } catch (Exception $e) {
+            error_log("Error in update: " . $e->getMessage());
+            die("Lỗi khi cập nhật bài viết: " . htmlspecialchars($e->getMessage()));
         }
-
-        $this->postModel->updatePost($postId, $title, $content, $albumId, $categoryId, $bannerUrl, $_SESSION['user_id']);
-
-        header("Location: index.php?action=list_all_posts");
-        exit;
     }
-}
 
-    // Delete post
-    public function delete() {
+    public function delete()
+    {
         if (!isset($_SESSION['user_id'])) {
             header("Location: index.php?action=login");
             exit;
@@ -248,9 +322,19 @@ class PostController {
             exit;
         }
 
-        $this->postModel->deletePost($postId, $_SESSION['user_id']);
+        try {
+            // Xóa file liên quan trước
+            if ($post['file_url'] && file_exists(__DIR__ . '/../' . parse_url($post['file_url'], PHP_URL_PATH))) {
+                unlink(__DIR__ . '/../' . parse_url($post['file_url'], PHP_URL_PATH));
+                error_log("Deleted file: " . $post['file_url']);
+            }
 
-        header("Location: index.php?action=list_all_posts");
-        exit;
+            $this->postModel->deletePost($postId, $_SESSION['user_id']);
+            header("Location: index.php?action=list_all_posts");
+            exit;
+        } catch (Exception $e) {
+            error_log("Error in delete: " . $e->getMessage());
+            die("Lỗi khi xóa bài viết: " . htmlspecialchars($e->getMessage()));
+        }
     }
 }
