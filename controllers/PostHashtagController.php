@@ -55,22 +55,43 @@ class PostHashtagController
         }
 
         $postId = filter_var($_POST['post_id'] ?? null, FILTER_SANITIZE_STRING);
-        $hashtagName = filter_var($_POST['hashtag_name'] ?? null, FILTER_SANITIZE_STRING);
+        $hashtagInput = filter_var($_POST['hashtag_name'] ?? null, FILTER_SANITIZE_STRING);
 
-        if (empty($postId) || empty($hashtagName)) {
-            $message = "Lỗi: Vui lòng nhập đầy đủ Post ID và tên hashtag.";
+        if (empty($postId)) {
+            $message = "Lỗi: Post ID không được cung cấp!";
             include __DIR__ . '/../views/post_hashtag/create.php';
             return;
         }
 
-        if (!preg_match('/^#[a-zA-Z0-9_]+$/', $hashtagName)) {
-            $message = "Lỗi: Hashtag phải bắt đầu bằng # và chỉ chứa chữ cái, số, hoặc dấu gạch dưới!";
+        if (empty($hashtagInput)) {
+            $message = "Lỗi: Vui lòng nhập ít nhất một hashtag.";
             include __DIR__ . '/../views/post_hashtag/create.php';
             return;
+        }
+
+        // Tách chuỗi hashtag thành mảng bằng dấu phẩy
+        $hashtags = array_filter(array_map('trim', explode(',', $hashtagInput)));
+
+        if (empty($hashtags)) {
+            $message = "Lỗi: Vui lòng nhập ít nhất một hashtag hợp lệ.";
+            include __DIR__ . '/../views/post_hashtag/create.php';
+            return;
+        }
+
+        // Kiểm tra định dạng từng hashtag
+        foreach ($hashtags as $hashtag) {
+            if (!preg_match('/^#[a-zA-Z0-9_]+$/', $hashtag)) {
+                $message = "Lỗi: Hashtag '$hashtag' không hợp lệ! Mỗi hashtag phải bắt đầu bằng # và chỉ chứa chữ cái, số, hoặc dấu gạch dưới.";
+                include __DIR__ . '/../views/post_hashtag/create.php';
+                return;
+            }
         }
 
         try {
-            $this->postHashtagModel->createHashtagToPost($postId, $hashtagName);
+            // Thêm từng hashtag
+            foreach ($hashtags as $hashtag) {
+                $this->postHashtagModel->createHashtagToPost($postId, $hashtag);
+            }
             header("Location: index.php?action=list_post_hashtags&post_id=" . urlencode($postId));
             exit;
         } catch (Exception $e) {

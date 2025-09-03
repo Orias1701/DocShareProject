@@ -103,12 +103,13 @@ class PostHashtag
         } catch (PDOException $e) {
             $this->pdo->rollBack();
             error_log("Lỗi PDO: " . $e->getMessage());
-            throw new Exception("Lỗi khi thêm hashtag: " . $e->getMessage());
+            throw new Exception("Lỗi khi thêm hashtag '$hashtagName': " . $e->getMessage());
         } catch (Exception $e) {
             $this->pdo->rollBack();
             throw $e;
         }
     }
+
     // Cập nhật hashtag của 1 bài post
     public function updateHashtagForPost($postId, $oldHashtagId, $newHashtagId)
     {

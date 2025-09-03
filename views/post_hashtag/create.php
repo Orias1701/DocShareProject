@@ -60,8 +60,8 @@
     <form method="POST" action="index.php?action=create_post_hashtag">
         <input type="hidden" name="post_id" value="<?php echo htmlspecialchars($_GET['post_id'] ?? ''); ?>">
         <div class="form-group">
-            <label for="hashtag_name">Tên Hashtag:</label>
-            <input type="text" id="hashtag_name" name="hashtag_name" value="#" required>
+            <label for="hashtag_name">Hashtag (cách nhau bằng dấu phẩy):</label>
+            <input type="text" id="hashtag_name" name="hashtag_name" value="#" placeholder="#tag1,#tag2,#tag3" required>
         </div>
         <button type="submit">Thêm Hashtag</button>
     </form>
@@ -75,21 +75,37 @@
     <script>
         const hashtagInput = document.getElementById('hashtag_name');
 
-        // Đảm bảo ô input luôn bắt đầu bằng #
+        // Xử lý khi nhập để đảm bảo định dạng hashtag và giữ dấu phẩy
         hashtagInput.addEventListener('input', function(e) {
-            if (!e.target.value.startsWith('#')) {
-                e.target.value = '#' + e.target.value.replace(/^#+/, '');
-            }
-            // Chỉ cho phép chữ cái, số, dấu gạch dưới sau #
-            e.target.value = e.target.value.replace(/[^#a-zA-Z0-9_]/g, '');
+            let value = e.target.value;
+            // Tách chuỗi thành các hashtag bằng dấu phẩy
+            let hashtags = value.split(',').map(tag => tag.trim());
+            // Đảm bảo mỗi hashtag bắt đầu bằng # và không chứa ký tự không hợp lệ
+            hashtags = hashtags.map(tag => {
+                if (!tag.startsWith('#')) {
+                    tag = '#' + tag.replace(/^#+/, '');
+                }
+                // Chỉ giữ #, chữ cái, số, dấu gạch dưới trong từng hashtag
+                return tag.replace(/[^#a-zA-Z0-9_]/g, '');
+            });
+            // Nối lại với dấu phẩy và khoảng trắng thẩm mỹ
+            e.target.value = hashtags.join(', ');
         });
 
-        // Ngăn submit nếu hashtag không hợp lệ
+        // Kiểm tra trước khi submit
         document.querySelector('form').addEventListener('submit', function(e) {
-            const hashtag = hashtagInput.value;
-            if (!hashtag.match(/^#[a-zA-Z0-9_]+$/)) {
+            const hashtags = hashtagInput.value.split(',').map(tag => tag.trim()).filter(tag => tag !== '');
+            if (hashtags.length === 0) {
                 e.preventDefault();
-                alert('Hashtag phải bắt đầu bằng # và chỉ chứa chữ cái, số, hoặc dấu gạch dưới.');
+                alert('Vui lòng nhập ít nhất một hashtag.');
+                return;
+            }
+            for (let hashtag of hashtags) {
+                if (!hashtag.match(/^#[a-zA-Z0-9_]+$/)) {
+                    e.preventDefault();
+                    alert('Mỗi hashtag phải bắt đầu bằng # và chỉ chứa chữ cái, số, hoặc dấu gạch dưới.');
+                    return;
+                }
             }
         });
     </script>
