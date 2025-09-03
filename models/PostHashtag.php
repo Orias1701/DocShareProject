@@ -2,15 +2,18 @@
 // models/PostHashtag.php
 require_once __DIR__ . '/../config/Database.php';
 
-class PostHashtag {
+class PostHashtag
+{
     private $pdo;
-    public function __construct() { 
-        $this->pdo = Database::getConnection(); 
+    public function __construct()
+    {
+        $this->pdo = Database::getConnection();
     }
 
     // Lấy tất cả hashtag của 1 bài post
-     // Lấy tất cả hashtag của 1 bài post
-    public function getPostsByHashtag($postId) {
+    // Lấy tất cả hashtag của 1 bài post
+    public function getPostsByHashtag($postId)
+    {
         $stmt = $this->pdo->prepare("
             SELECT h.hashtag_id, h.hashtag_name
             FROM post_hashtags ph
@@ -21,7 +24,8 @@ class PostHashtag {
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
-     public function getPostsByHashtagId($hashtagId) {
+    public function getPostsByHashtagId($hashtagId)
+    {
         $sql = "
             SELECT p.post_id, p.title, p.content, p.banner_url, p.created_at,
                    a.album_id, a.album_name,
@@ -39,7 +43,8 @@ class PostHashtag {
     }
 
     // Thêm hashtag cho 1 bài post
-    public function createHashtagToPost($postId, $hashtagId) {
+    public function createHashtagToPost($postId, $hashtagId)
+    {
         $stmt = $this->pdo->prepare("
             INSERT INTO post_hashtags (post_id, hashtag_id) VALUES (:pid, :hid)
         ");
@@ -47,7 +52,8 @@ class PostHashtag {
     }
 
     // Cập nhật hashtag của 1 bài post
-    public function updateHashtagForPost($postId, $oldHashtagId, $newHashtagId) {
+    public function updateHashtagForPost($postId, $oldHashtagId, $newHashtagId)
+    {
         $stmt = $this->pdo->prepare("
             UPDATE post_hashtags 
             SET hashtag_id = :newhid
@@ -61,7 +67,8 @@ class PostHashtag {
     }
 
     // Xóa hashtag khỏi bài post
-    public function deleteHashtagFromPost($postId, $hashtagId) {
+    public function deleteHashtagFromPost($postId, $hashtagId)
+    {
         $stmt = $this->pdo->prepare("
             DELETE FROM post_hashtags 
             WHERE post_id = :pid AND hashtag_id = :hid

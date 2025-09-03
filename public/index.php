@@ -121,6 +121,7 @@ if (isset($_GET['action'])) {
         case 'list_posts_by_category':
             $postController->getPostsByCategory();
             exit;
+            //http://localhost:3000/public/index.php?action=list_posts_by_hashtag&hashtag_ids=HASHTAG00000000001
         case 'list_posts_by_hashtag':
             $postController->getPostsByHashtag();
             exit;

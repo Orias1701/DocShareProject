@@ -3,17 +3,20 @@
 require_once __DIR__ . '/../models/PostHashtag.php';
 require_once __DIR__ . '/../models/Hashtag.php';
 
-class PostHashtagController {
+class PostHashtagController
+{
     private $postHashtagModel;
     private $hashtagModel;
 
-    public function __construct() {
+    public function __construct()
+    {
         $this->postHashtagModel = new PostHashtag();
         $this->hashtagModel = new Hashtag();
     }
 
     // Hiển thị danh sách hashtag của một bài post
-    public function listByPost($postId) {
+    public function listByPost($postId)
+    {
         $hashtags = $this->postHashtagModel->getPostsByHashtag($postId);
         if ($postId) {
             include __DIR__ . '/../views/post_hashtag/list.php';
@@ -21,7 +24,8 @@ class PostHashtagController {
             echo "Lỗi: Không tìm thấy bài viết.";
         }
     }
-      public function getPostsByHashtagId($hashtagId) {
+    public function getPostsByHashtagId($hashtagId)
+    {
         $posts = $this->postHashtagModel->getPostsByHashtagId($hashtagId);
 
         // Gửi dữ liệu sang view
@@ -29,12 +33,14 @@ class PostHashtagController {
     }
 
     // Hiển thị form để thêm hashtag cho một bài post
-    public function showCreateForm($postId) {
+    public function showCreateForm($postId)
+    {
         include __DIR__ . '/../views/post_hashtag/create.php';
     }
 
     // Xử lý logic thêm hashtag cho post
-    public function create() {
+    public function create()
+    {
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $postId = $_POST['post_id'] ?? null;
             $hashtagName = $_POST['hashtag_name'] ?? null;
@@ -51,15 +57,17 @@ class PostHashtagController {
             }
         }
     }
-    
+
     // Hiển thị form để sửa hashtag của một bài post
-    public function showEditForm($postId, $oldHashtagId) {
+    public function showEditForm($postId, $oldHashtagId)
+    {
         $allHashtags = $this->hashtagModel->getAllHashtags();
         include __DIR__ . '/../views/post_hashtag/edit.php';
     }
 
     // Xử lý logic cập nhật hashtag
-    public function update() {
+    public function update()
+    {
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $postId = $_POST['post_id'] ?? null;
             $oldHashtagId = $_POST['old_hashtag_id'] ?? null;
@@ -76,10 +84,11 @@ class PostHashtagController {
     }
 
     // Xử lý logic xóa hashtag
-    public function delete() {
+    public function delete()
+    {
         $postId = $_GET['post_id'] ?? null;
         $hashtagId = $_GET['hashtag_id'] ?? null;
-        
+
         if ($postId && $hashtagId) {
             $this->postHashtagModel->deleteHashtagFromPost($postId, $hashtagId);
             header("Location: index.php?action=list_post_hashtags&post_id=$postId");
