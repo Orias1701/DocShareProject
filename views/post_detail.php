@@ -61,6 +61,16 @@ $cleanContent = $purifier->purify($post['content']);
             margin-bottom: 20px;
         }
 
+        .post-description,
+        .post-summary {
+            font-size: 1.1em;
+            line-height: 1.6;
+            color: #333;
+            margin-bottom: 15px;
+            border-left: 3px solid #007bff;
+            padding-left: 10px;
+        }
+
         .post-content {
             font-size: 1.1em;
             line-height: 1.8;
@@ -173,6 +183,18 @@ $cleanContent = $purifier->purify($post['content']);
             | Danh mục: <?php echo htmlspecialchars($post['category_name'] ?? 'Không có danh mục'); ?>
         </div>
 
+        <?php if (!empty($post['description'])): ?>
+            <div class="post-description">
+                <p><strong>Mô tả:</strong> <?= htmlspecialchars($post['description']) ?></p>
+            </div>
+        <?php endif; ?>
+
+        <?php if (!empty($post['summary'])): ?>
+            <div class="post-summary">
+                <p><strong>Tóm tắt:</strong> <?= htmlspecialchars($post['summary']) ?></p>
+            </div>
+        <?php endif; ?>
+
         <div class="post-content">
             <?php if (!empty($post['file_url'])): ?>
                 <?php if ($post['file_type'] === 'application/pdf'): ?>
@@ -180,12 +202,6 @@ $cleanContent = $purifier->purify($post['content']);
                         <p><strong>File đính kèm (PDF):</strong></p>
                         <iframe src="<?php echo htmlspecialchars($post['file_url']); ?>" width="100%" height="600px" style="border: none;"></iframe>
                         <p><a href="<?php echo htmlspecialchars($post['file_url']); ?>" download>Tải xuống file PDF</a></p>
-                    </div>
-                <?php elseif (in_array($post['file_type'], ['application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'])): ?>
-                    <div class="file-attachment">
-                        <p><strong>Nội dung từ file Word:</strong></p>
-                        <?php echo $cleanContent; ?>
-                        <p><a href="<?php echo htmlspecialchars($post['file_url']); ?>" download>Tải xuống file Word gốc</a></p>
                     </div>
                 <?php endif; ?>
             <?php else: ?>

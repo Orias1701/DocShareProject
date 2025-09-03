@@ -164,7 +164,7 @@ class Post
     /**
      * CREATE: Thêm bài viết mới vào database
      */
-    public function createPost($title, $content, $albumId, $categoryId, $bannerUrl, $fileUrl = null, $fileType = null)
+    public function createPost($title, $content, $description, $summary, $albumId, $categoryId, $bannerUrl, $fileUrl = null, $fileType = null)
     {
         try {
             // Khởi tạo content
@@ -187,10 +187,10 @@ class Post
             $idGenerator = new IdGenerator();
             $newId = $idGenerator->generatePostId($albumNumber, $categoryNumber, $postNumber);
 
-            $sql = "INSERT INTO posts (post_id, title, content, album_id, category_id, banner_url, file_url, file_type) 
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+            $sql = "INSERT INTO posts (post_id, title, content, description, summary, album_id, category_id, banner_url, file_url, file_type) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
             $stmt = $this->pdo->prepare($sql);
-            $success = $stmt->execute([$newId, $title, $processedContent, $albumId, $categoryId, $bannerUrl, $fileUrl, $fileType]);
+            $success = $stmt->execute([$newId, $title, $processedContent, $description, $summary, $albumId, $categoryId, $bannerUrl, $fileUrl, $fileType]);
 
             if (!$success) {
                 error_log("Failed to create post: " . print_r($stmt->errorInfo(), true));
@@ -202,6 +202,7 @@ class Post
             throw $e;
         }
     }
+
 
     private function processBase64ImagesInContent($content)
     {
@@ -263,6 +264,79 @@ class Post
         }
     }
 
+    public function getPostByCategoryId($categoryId)
+    {
+        try {
+            $sql = "
+            SELECT p.*, a.user_id AS author_id, ui.full_name AS author_name, a.album_name, c.category_name
+            FROM posts p
+            LEFT JOIN albums a ON p.album_id = a.album_id
+            LEFT JOIN user_infos ui ON a.user_id = ui.user_id
+            LEFT JOIN categories c ON p.category_id = c.category_id
+            WHERE p.category_id = ?
+        ";
+            $stmt = $this->pdo->prepare($sql);
+            $stmt->execute([$categoryId]);
+            $posts = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            if (!$posts) {
+                // This is a normal case when a category has no posts, so we don't log it as an error
+                // You can log this if you wish, but it's not a critical error.
+                // error_log("No posts found for category_id: $categoryId");
+                return []; // Return an empty array instead of null for better predictability
+            }
+
+            return $posts;
+        } catch (Exception $e) {
+            error_log("Error in getPostByCategoryId: " . $e->getMessage());
+            return null;
+        }
+    }
+
+    // Trong file models/Post.php
+
+    public function getPostsByHashtagIds(array $hashtagIds)
+    {
+        // Kiểm tra xem mảng có rỗng không
+        if (empty($hashtagIds)) {
+            return [];
+        }
+
+        // Tạo chuỗi placeholders (?) cho mệnh đề IN
+        // Ví dụ: ["id1", "id2"] sẽ tạo ra "?,?"
+        $placeholders = implode(',', array_fill(0, count($hashtagIds), '?'));
+
+        try {
+            $sql = "
+            SELECT
+                p.*,
+                a.user_id AS author_id,
+                ui.full_name AS author_name,
+                a.album_name,
+                c.category_name
+            FROM posts p
+            LEFT JOIN albums a ON p.album_id = a.album_id
+            LEFT JOIN user_infos ui ON a.user_id = ui.user_id
+            LEFT JOIN categories c ON p.category_id = c.category_id
+            JOIN post_hashtags ph ON p.post_id = ph.post_id
+            WHERE ph.hashtag_id IN ($placeholders)
+            GROUP BY p.post_id -- Nhóm kết quả để tránh trùng lặp bài viết
+        ";
+
+            $stmt = $this->pdo->prepare($sql);
+
+            // Truyền mảng các ID vào execute
+            $stmt->execute($hashtagIds);
+
+            $posts = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            return $posts ?: []; // Trả về mảng rỗng nếu không có kết quả
+        } catch (Exception $e) {
+            error_log("Error in getPostsByHashtagIds: " . $e->getMessage());
+            return null;
+        }
+    }
+
     /**
      * READ: Lấy tất cả bài viết
      */
@@ -292,7 +366,7 @@ class Post
     /**
      * UPDATE: Cập nhật bài viết
      */
-    public function updatePost($id, $title, $content, $albumId, $categoryId, $bannerUrl, $userId, $fileUrl = null, $fileType = null)
+    public function updatePost($id, $title, $content, $description, $summary, $albumId, $categoryId, $bannerUrl, $userId, $fileUrl = null, $fileType = null)
     {
         try {
             $processedContent = $content;
@@ -307,11 +381,34 @@ class Post
             }
 
             $sql = "UPDATE posts 
-                SET title = ?, content = ?, album_id = ?, category_id = ?, banner_url = ?, file_url = ?, file_type = ?
-                WHERE post_id = ? 
-                AND album_id IN (SELECT album_id FROM albums WHERE user_id = ?)";
+            SET 
+                title = ?, 
+                content = ?, 
+                description = ?, 
+                summary = ?, 
+                album_id = ?, 
+                category_id = ?, 
+                banner_url = ?, 
+                file_url = ?, 
+                file_type = ?
+            WHERE post_id = ? 
+            AND album_id IN (SELECT album_id FROM albums WHERE user_id = ?)";
+
             $stmt = $this->pdo->prepare($sql);
-            $success = $stmt->execute([$title, $processedContent, $albumId, $categoryId, $bannerUrl, $fileUrl, $fileType, $id, $userId]);
+
+            $success = $stmt->execute([
+                $title,
+                $processedContent,
+                $description,
+                $summary,
+                $albumId,
+                $categoryId,
+                $bannerUrl,
+                $fileUrl,
+                $fileType,
+                $id,
+                $userId
+            ]);
 
             if (!$success) {
                 error_log("Failed to update post: " . print_r($stmt->errorInfo(), true));
@@ -323,7 +420,6 @@ class Post
             throw $e;
         }
     }
-
 
     /**
      * DELETE: Xóa bài viết

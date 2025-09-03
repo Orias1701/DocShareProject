@@ -8,17 +8,47 @@
     <style>
         body {
             font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            padding: 20px;
         }
 
         form {
             max-width: 800px;
             margin: 0 auto;
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+
+        input[type="text"],
+        input[type="file"],
+        select,
+        textarea {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 15px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+
+        textarea {
+            min-height: 100px;
         }
 
         #editor {
             height: 300px;
             background: #fff;
             border: 1px solid #ccc;
+            border-radius: 4px;
+            margin-bottom: 15px;
         }
 
         .warning {
@@ -26,6 +56,20 @@
             font-size: 0.9em;
             margin-top: 5px;
             display: none;
+        }
+
+        button[type="submit"] {
+            background-color: #4CAF50;
+            color: white;
+            padding: 15px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        button[type="submit"]:hover {
+            background-color: #45a049;
         }
     </style>
 </head>
@@ -46,6 +90,18 @@
         <input type="file" id="content_file" name="content_file" accept=".pdf">
         <div id="fileWarning" class="warning">Lưu ý: Upload file sẽ ghi đè nội dung trong trình soạn thảo!</div>
         <br><br>
+
+        <label for="description">Mô tả:</label>
+        <textarea id="description" name="description" placeholder="Nhập mô tả ngắn cho bài viết..."></textarea>
+        <br><br>
+
+        <label for="summary">Tóm tắt:</label>
+        <textarea id="summary" name="summary" placeholder="Nhập tóm tắt của bài viết..."></textarea>
+        <br><br>
+
+
+
+
 
         <label for="album_id">Chọn Album:</label>
         <select id="album_id" name="album_id" required>

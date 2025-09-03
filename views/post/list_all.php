@@ -18,6 +18,8 @@
             <th>Tiêu đề</th>
             <th>Tác giả</th>
             <th>Nội dung</th>
+            <th>Mô tả</th>
+            <th>Tóm tắt</th>
             <th>Album</th>
             <th>Thể loại</th>
             <th>Banner</th>
@@ -38,6 +40,8 @@
                         Không có nội dung.
                     <?php endif; ?>
                 </td>
+                <td><?= htmlspecialchars($post['description']) ?></td>
+                <td><?= htmlspecialchars($post['summary']) ?></td>
                 <td><?= htmlspecialchars($post['album_name']) ?></td>
                 <td><?= htmlspecialchars($post['category_name']) ?></td>
                 <td><img src="<?= htmlspecialchars($post['banner_url']) ?>" alt="Banner" style="max-width: 100px;"></td>

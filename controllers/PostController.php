@@ -67,6 +67,46 @@ class PostController
         }
     }
 
+    //Lấy bài viết theo categoryId
+    public function getPostsByCategory()
+    {
+        $categoryId = $_GET['category_id'] ?? null;
+
+        if ($categoryId === null || $categoryId === '') {
+            echo "Category ID không hợp lệ.";
+            return;
+        }
+
+        $posts = $this->postModel->getPostByCategoryId($categoryId);
+        include __DIR__ . '/../views/post/list.php';
+    }
+
+    // Trong file controllers/PostController.php
+
+    public function getPostsByHashtag()
+    {
+        // Lấy chuỗi hashtag ID từ URL, ví dụ: ?hashtag_ids=HASHTAG00001,HASHTAG00002
+        $hashtagIdsString = $_GET['hashtag_ids'] ?? '';
+
+        // Tách chuỗi thành mảng các ID
+        $hashtagIds = array_map('trim', explode(',', $hashtagIdsString));
+
+        // Lọc các ID rỗng
+        $hashtagIds = array_filter($hashtagIds);
+
+        if (empty($hashtagIds)) {
+            echo "Vui lòng cung cấp ít nhất một Hashtag ID hợp lệ.";
+            return;
+        }
+
+        // Gọi hàm từ Model với mảng các ID
+        $posts = $this->postModel->getPostsByHashtagIds($hashtagIds);
+
+        // Nạp View và truyền dữ liệu posts vào
+        include __DIR__ . '/../views/post/list_by_hashtag.php';
+    }
+
+
     public function showPostDetail()
     {
         $postId = $_GET['post_id'] ?? null;
@@ -123,6 +163,8 @@ class PostController
 
         $title = $_POST['title'] ?? '';
         $content = $_POST['content'] ?? '';
+        $description = $_POST['description'] ?? '';
+        $summary = $_POST['summary'] ?? '';
         $albumId = $_POST['album_id'] ?? '';
         $categoryId = $_POST['category_id'] ?? '';
         $bannerUrl = null;
@@ -183,7 +225,7 @@ class PostController
             }
 
             // Tạo bài viết
-            $this->postModel->createPost($title, $content, $albumId, $categoryId, $bannerUrl, $fileUrl, $fileType);
+            $this->postModel->createPost($title, $content, $description, $summary, $albumId, $categoryId, $bannerUrl, $fileUrl, $fileType);
 
             // Chuyển hướng về danh sách bài viết
             header("Location: index.php?action=list_all_posts");
@@ -234,6 +276,9 @@ class PostController
 
         $title = $_POST['title'] ?? '';
         $content = $_POST['content'] ?? '';
+        $description = $_POST['description'] ?? '';
+        $summary = $_POST['summary'] ?? '';
+
         $albumId = $_POST['album_id'] ?? '';
         $categoryId = $_POST['category_id'] ?? '';
         $bannerUrl = $post['banner_url'];
@@ -295,7 +340,7 @@ class PostController
             }
 
             // Cập nhật bài viết
-            $this->postModel->updatePost($postId, $title, $content, $albumId, $categoryId, $bannerUrl, $_SESSION['user_id'], $fileUrl, $fileType);
+            $this->postModel->updatePost($postId, $title, $content, $description, $summary, $albumId, $categoryId, $bannerUrl, $_SESSION['user_id'], $fileUrl, $fileType);
 
             header("Location: index.php?action=list_all_posts");
             exit;

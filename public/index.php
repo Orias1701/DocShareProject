@@ -16,9 +16,9 @@ require_once __DIR__ . '/../models/Role.php';
 require_once __DIR__ . '/../models/UserFollow.php';
 require_once __DIR__ . '/../models/Album.php';
 require_once __DIR__ . '/../models/PostHashtag.php';
-require_once __DIR__ . '/../models/PostComment.php'; 
-require_once __DIR__ . '/../models/PostReaction.php'; 
-require_once __DIR__ . '/../models/PostReport.php'; 
+require_once __DIR__ . '/../models/PostComment.php';
+require_once __DIR__ . '/../models/PostReaction.php';
+require_once __DIR__ . '/../models/PostReport.php';
 
 
 
@@ -32,9 +32,9 @@ require_once __DIR__ . '/../controllers/RoleController.php';
 require_once __DIR__ . '/../controllers/UserFollowController.php';
 require_once __DIR__ . '/../controllers/AlbumController.php';
 require_once __DIR__ . '/../controllers/PostHashtagController.php';
-require_once __DIR__ . '/../controllers/CommentController.php'; 
-require_once __DIR__ . '/../controllers/ReactionController.php'; 
-require_once __DIR__ . '/../controllers/ReportController.php'; 
+require_once __DIR__ . '/../controllers/CommentController.php';
+require_once __DIR__ . '/../controllers/ReactionController.php';
+require_once __DIR__ . '/../controllers/ReportController.php';
 
 
 
@@ -83,7 +83,7 @@ if (isset($_GET['action'])) {
             $auth->logout();
             exit;
 
-        // ==== API POSTS ====
+            // ==== API POSTS ====
         case 'group1':
             $postController->group1();
             exit;
@@ -94,12 +94,12 @@ if (isset($_GET['action'])) {
             $postController->postDetail($_GET['post_id'] ?? null);
             exit;
         case 'post_detail':
-    $postId = $_GET['post_id'] ?? null;
-        $postController->showPostDetail();
+            $postId = $_GET['post_id'] ?? null;
+            $postController->showPostDetail();
 
-    exit;
+            exit;
 
-        // ==== POST CRUD ====
+            // ==== POST CRUD ====
         case 'list_all_posts':
             $postController->listAllPosts();
             exit;
@@ -118,8 +118,14 @@ if (isset($_GET['action'])) {
         case 'delete_post':
             $postController->delete();
             exit;
-        
-        // ==== ALBUM CRUD ====
+        case 'list_posts_by_category':
+            $postController->getPostsByCategory();
+            exit;
+        case 'list_posts_by_hashtag':
+            $postController->getPostsByHashtag();
+            exit;
+
+            // ==== ALBUM CRUD ====
         case 'list_user_albums':
             $albumController->listUserAlbums();
             exit;
@@ -145,7 +151,7 @@ if (isset($_GET['action'])) {
             $albumController->listAlbumsByUserId();
             exit;
 
-        // ==== CATEGORY CRUD ====
+            // ==== CATEGORY CRUD ====
         case 'list_categories':
             $categoryController->listCategories();
             exit;
@@ -165,7 +171,7 @@ if (isset($_GET['action'])) {
             $categoryController->delete();
             exit;
 
-        // ==== HASHTAG CRUD ====
+            // ==== HASHTAG CRUD ====
         case 'list_hashtags':
             $hashtagController->listHashtags();
             exit;
@@ -185,7 +191,7 @@ if (isset($_GET['action'])) {
             $hashtagController->delete();
             exit;
 
-        // ==== USER INFO CRUD ====
+            // ==== USER INFO CRUD ====
         case 'list_user_infos':
             $userInfoController->listUserInfos();
             exit;
@@ -209,13 +215,13 @@ if (isset($_GET['action'])) {
             exit;
 
 
-        // ==== POST HASHTAG CRUD ====
+            // ==== POST HASHTAG CRUD ====
         case 'list_post_hashtags':
             $postHashtagController->listByPost($_GET['post_id'] ?? null);
             exit;
         case 'posts_by_hashtag':
-        $postHashtagController->getPostsByHashtagId($_GET['hashtag_id'] ?? null);
-        exit;
+            $postHashtagController->getPostsByHashtagId($_GET['hashtag_id'] ?? null);
+            exit;
         case 'create_post_hashtag_form':
             $postHashtagController->showCreateForm($_GET['post_id'] ?? null);
             exit;
@@ -231,8 +237,8 @@ if (isset($_GET['action'])) {
         case 'delete_post_hashtag':
             $postHashtagController->delete();
             exit;
-            
-        // ==== ROLE CRUD ====
+
+            // ==== ROLE CRUD ====
         case 'list_roles':
             $roleController->listRoles();
             exit;
@@ -251,15 +257,15 @@ if (isset($_GET['action'])) {
         case 'delete_role':
             $roleController->delete();
             exit;
-        // ==== COMMENT CRUD ====
+            // ==== COMMENT CRUD ====
 
         case 'create_comment':
-        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            $postId = $_POST['post_id'];
-            $content = $_POST['content'];
-            $commentController->createComment($postId, $content);
-        }
-        exit;
+            if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+                $postId = $_POST['post_id'];
+                $content = $_POST['content'];
+                $commentController->createComment($postId, $content);
+            }
+            exit;
 
         case 'edit_comment':
             if (isset($_GET['id'])) {
@@ -275,7 +281,7 @@ if (isset($_GET['action'])) {
                 $content = $_POST['content'];
                 $commentController->updateComment($commentId, $content);
             }
-        exit;
+            exit;
 
         case 'delete_comment':
             if (isset($_GET['id'])) {
@@ -286,53 +292,53 @@ if (isset($_GET['action'])) {
                 $userId = $_SESSION['user_id'];
                 $commentController->deleteComment($_GET['id'], $userId);
                 header("Location: " . $_SERVER['HTTP_REFERER']);
-            exit;
-        }
+                exit;
+            }
 
-        // ==== REACTION ====
+            // ==== REACTION ====
         case 'toggle_reaction':
             $postId = $_GET['post_id'] ?? null;
             $reactionType = $_GET['reaction_type'] ?? null;
 
             if (!$postId || !$reactionType) {
-                header("Location: index.php"); 
+                header("Location: index.php");
                 exit;
             }
 
             $reactionController->toggleReaction($postId, $reactionType);
             exit;
-                // ==== REPORT====
+            // ==== REPORT====
 
-            case 'toggle_report':
-                $postId = $_POST['post_id'] ?? null;  // đổi từ $_GET sang $_POST
-                $reason = $_POST['reason'] ?? null;
+        case 'toggle_report':
+            $postId = $_POST['post_id'] ?? null;  // đổi từ $_GET sang $_POST
+            $reason = $_POST['reason'] ?? null;
 
-                if (!$postId || !$reason) {
-                    http_response_code(400);
-                    echo "post_id và reason là bắt buộc";
-                    exit;
-                }
-
-                require_once __DIR__ . '/../controllers/ReportController.php';
-                $reportController = new ReportController();
-                $reportController->toggleReport($postId, $reason);
-                header("Location: index.php?action=post_detail&post_id=" . $postId);
-            exit;
-
-            case 'list_reports':
-                $reportController->listAllReports();
-            exit;
-                // ==== USER FOLLOW====
-
-            case 'toggle_follow':
-                $ctrl = new UserFollowController();
-                $ctrl->toggleFollow();
+            if (!$postId || !$reason) {
+                http_response_code(400);
+                echo "post_id và reason là bắt buộc";
                 exit;
+            }
+
+            require_once __DIR__ . '/../controllers/ReportController.php';
+            $reportController = new ReportController();
+            $reportController->toggleReport($postId, $reason);
+            header("Location: index.php?action=post_detail&post_id=" . $postId);
+            exit;
+
+        case 'list_reports':
+            $reportController->listAllReports();
+            exit;
+            // ==== USER FOLLOW====
+
+        case 'toggle_follow':
+            $ctrl = new UserFollowController();
+            $ctrl->toggleFollow();
+            exit;
 
 
 
 
-        
+
         default:
             // Nếu không có action nào khớp, chuyển hướng về trang chủ
             header("Location: index.php");
