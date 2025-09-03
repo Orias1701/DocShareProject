@@ -4,6 +4,10 @@ require_once __DIR__ . '/../models/Post.php';
 require_once __DIR__ . '/../models/Album.php';
 require_once __DIR__ . '/../models/Category.php';
 require_once __DIR__ . '/../models/PostReaction.php';
+// require_once __DIR__ . '/../services/ConvertPdftoDocx.php';
+require_once __DIR__ . '/../vendor/autoload.php';
+
+
 
 
 class PostController {
@@ -95,6 +99,11 @@ class PostController {
     // ✅ Bây giờ cả hai biến đều tồn tại
     include __DIR__ . '/../views/post_detail.php';
 }
+
+
+
+
+
     // ==== CRUD ====
     // List all posts
     public function listAllPosts() {
@@ -113,196 +122,64 @@ class PostController {
         $categories = $this->categoryModel->getAllCategories();
         include __DIR__ . '/../views/post/create.php';
     }
-    private function processBase64Images($content) {
-        require_once __DIR__ . '/../config/cloudinary.php';
-        $dom = new DOMDocument();
-        @$dom->loadHTML($content, LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD);
-        $images = $dom->getElementsByTagName('img');
 
-        foreach ($images as $img) {
-            $src = $img->getAttribute('src');
-            if (preg_match('/^data:image\/(\w+);base64,/', $src, $matches)) {
-                $imageData = base64_decode(preg_replace('/^data:image\/\w+;base64,/', '', $src));
-                $imageMime = $matches[1];
-                $tempFile = tempnam(sys_get_temp_dir(), 'img_');
-                file_put_contents($tempFile, $imageData);
-
-                try {
-                    $upload = $cloudinary->uploadApi()->upload($tempFile, [
-                        'folder' => 'docshareproject',
-                        'resource_type' => 'image'
-                    ]);
-                    if (isset($upload['secure_url'])) {
-                        $img->setAttribute('src', $upload['secure_url']);
-                    } else {
-                        error_log('Failed to upload base64 image to Cloudinary: No secure_url');
-                    }
-                } catch (Exception $e) {
-                    error_log('Failed to upload base64 image to Cloudinary: ' . $e->getMessage());
-                }
-                unlink($tempFile);
-            }
-        }
-
-        return $dom->saveHTML();
-    }
-
-    public function create() {
+    // Create post
+   public function create() {
         if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_SESSION['user_id'])) {
             $title = $_POST['title'] ?? '';
             $content = $_POST['content'] ?? '';
             $albumId = $_POST['album_id'] ?? '';
             $categoryId = $_POST['category_id'] ?? '';
-            $bannerUrl = '';
-            $filePath = null;
+            $bannerUrl = null;
+            $fileUrl = null; // Biến lưu URL file từ Cloudinary
             $fileType = null;
-
-            // Xử lý banner
-            if (!empty($_FILES['banner']['tmp_name'])) {
-                try {
-                    $cloudinary = require __DIR__ . '/../config/cloudinary.php';
-                    $upload = $cloudinary->uploadApi()->upload($_FILES['banner']['tmp_name'], [
-                        'folder' => 'docshareproject',
-                        'resource_type' => 'image'
-                    ]);
-                    if (isset($upload['secure_url'])) {
-                        $bannerUrl = $upload['secure_url'];
-                    } else {
-                        throw new Exception('Lỗi upload banner lên Cloudinary');
-                    }
-                } catch (Exception $e) {
-                    error_log('Lỗi upload banner: ' . $e->getMessage());
-                    echo "Lỗi khi upload banner: " . $e->getMessage();
-                    exit;
-                }
-            }
-
-            // Xử lý file Word/PDF nếu được upload
-            if (!empty($_FILES['content_file']['tmp_name'])) {
-                $fileType = $_FILES['content_file']['type'];
-                $filePath = $_FILES['content_file']['tmp_name'];
-
-                if (!in_array($fileType, [
-                    'application/pdf',
-                    'application/msword',
-                    'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-                ])) {
-                    echo "Chỉ hỗ trợ file PDF hoặc Word!";
-                    exit;
-                }
-            }
-
-            // Lọc nội dung HTML và xử lý ảnh base64
-            require_once __DIR__ . '/../vendor/autoload.php';
-            $config = HTMLPurifier_Config::createDefault();
-            $config->set('HTML.Allowed', 'p,span,table,tr,td,img[src|alt|style|class],br,div');
-            $config->set('CSS.AllowedProperties', 'float,margin,margin-left,margin-right,margin-top,margin-bottom,text-align,max-width,height');
-            $purifier = new HTMLPurifier($config);
-            $content = $this->processBase64Images($content);
-            $content = $purifier->purify($content);
+            $cloudinary = require __DIR__ . '/../config/cloudinary.php';
 
             try {
-                $postId = $this->postModel->createPost($title, $content, $albumId, $categoryId, $bannerUrl, $_SESSION['user_id'], $filePath, $fileType);
-                if ($postId) {
-                    header("Location: index.php?action=view&post_id=" . urlencode($postId));
-                    exit;
-                } else {
-                    echo "Lỗi khi tạo bài viết: Không thể lưu bài viết.";
-                    exit;
+                // Xử lý upload banner
+                if (!empty($_FILES['banner']['tmp_name'])) {
+                    $uploadBanner = $cloudinary->uploadApi()->upload($_FILES['banner']['tmp_name'], [
+                        'folder' => 'post_banners'
+                    ]);
+                    $bannerUrl = $uploadBanner['secure_url'];
                 }
-            } catch (Exception $e) {
-                error_log('Lỗi tạo bài viết: ' . $e->getMessage());
-                echo "Lỗi khi tạo bài viết: " . $e->getMessage();
+
+                // Xử lý upload file nội dung
+                if (!empty($_FILES['content_file']['tmp_name'])) {
+                    $uploadedFileType = $_FILES['content_file']['type'];
+                    $allowedFileTypes = [
+                        'application/pdf',
+                        'application/msword',
+                        'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+                    ];
+
+                    if (!in_array($uploadedFileType, $allowedFileTypes)) {
+                        throw new Exception("Định dạng file nội dung không được hỗ trợ.");
+                    }
+
+                    $uploadFile = $cloudinary->uploadApi()->upload($_FILES['content_file']['tmp_name'], [
+                        'folder' => 'post_docs',
+                        'resource_type' => 'raw' // Bắt buộc cho file tài liệu
+                    ]);
+
+                    $fileUrl = $uploadFile['secure_url'];
+                    $fileType = $uploadedFileType;
+                    $content = ''; // Đặt nội dung rỗng vì đã có file
+                }
+
+                // Gọi model để tạo bài viết, truyền URL file đã lưu trên Cloudinary
+                $this->postModel->createPost($title, $content, $albumId, $categoryId, $bannerUrl, $fileUrl, $fileType);
+
+                header("Location: index.php?action=list_all_posts");
                 exit;
+
+            } catch (Exception $e) {
+                // Trong trường hợp lỗi, không cần xóa file vì Cloudinary tự quản lý
+                die("Lỗi khi tạo bài viết: " . $e->getMessage());
             }
         }
     }
 
-    public function update() {
-        if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_SESSION['user_id'])) {
-            $postId = $_POST['post_id'] ?? null;
-            $post = $this->postModel->getPostById($postId);
-
-            if (!$post || $post['author_id'] !== $_SESSION['user_id']) {
-                echo "Bạn không có quyền cập nhật bài viết này!";
-                exit;
-            }
-
-            $title = $_POST['title'] ?? '';
-            $content = $_POST['content'] ?? '';
-            $albumId = $_POST['album_id'] ?? '';
-            $categoryId = $_POST['category_id'] ?? '';
-            $bannerUrl = $post['banner_url'];
-            $filePath = null;
-            $fileType = null;
-
-            // Xử lý banner mới nếu được upload
-            if (!empty($_FILES['banner']['tmp_name'])) {
-                try {
-                    $cloudinary = require __DIR__ . '/../config/cloudinary.php';
-                    $upload = $cloudinary->uploadApi()->upload($_FILES['banner']['tmp_name'], [
-                        'folder' => 'docshareproject',
-                        'resource_type' => 'image'
-                    ]);
-                    if (isset($upload['secure_url'])) {
-                        $bannerUrl = $upload['secure_url'];
-                    } else {
-                        throw new Exception('Lỗi upload banner lên Cloudinary');
-                    }
-                } catch (Exception $e) {
-                    error_log('Lỗi upload banner: ' . $e->getMessage());
-                    echo "Lỗi khi upload banner: " . $e->getMessage();
-                    exit;
-                }
-            }
-
-            // Xử lý file Word/PDF nếu được upload
-            if (!empty($_FILES['content_file']['tmp_name'])) {
-                $fileType = $_FILES['content_file']['type'];
-                $filePath = $_FILES['content_file']['tmp_name'];
-
-                if (!in_array($fileType, [
-                    'application/pdf',
-                    'application/msword',
-                    'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-                ])) {
-                    echo "Chỉ hỗ trợ file PDF hoặc Word!";
-                    exit;
-                }
-                // Cảnh báo nếu có nội dung CKEditor
-                if (!empty($content)) {
-                    echo "Cảnh báo: Upload file Word/PDF sẽ ghi đè nội dung CKEditor. Bạn có muốn tiếp tục?";
-                    // Có thể thêm logic để yêu cầu xác nhận từ người dùng
-                }
-            }
-
-            // Lọc nội dung HTML và xử lý ảnh base64
-            require_once __DIR__ . '/../vendor/autoload.php';
-            $config = HTMLPurifier_Config::createDefault();
-            $config->set('HTML.Allowed', 'p,span,table,tr,td,img[src|alt|style|class],br,div');
-            $config->set('CSS.AllowedProperties', 'float,margin,margin-left,margin-right,margin-top,margin-bottom,text-align,max-width,height');
-            $purifier = new HTMLPurifier($config);
-            if (!empty($content)) {
-                $content = $this->processBase64Images($content);
-                $content = $purifier->purify($content);
-            }
-
-            try {
-                $result = $this->postModel->updatePost($postId, $title, $content, $albumId, $categoryId, $bannerUrl, $_SESSION['user_id'], $filePath, $fileType);
-                if ($result) {
-                    header("Location: index.php?action=view&post_id=" . urlencode($postId));
-                    exit;
-                } else {
-                    echo "Lỗi khi cập nhật bài viết: Không thể lưu bài viết.";
-                    exit;
-                }
-            } catch (Exception $e) {
-                error_log('Lỗi cập nhật bài viết: ' . $e->getMessage());
-                echo "Lỗi khi cập nhật bài viết: " . $e->getMessage();
-                exit;
-            }
-        }
-    }
     // Show edit form
     public function showEditForm() {
         if (!isset($_SESSION['user_id'])) {
@@ -325,80 +202,36 @@ class PostController {
         include __DIR__ . '/../views/post/edit.php';
     }
 
-    // public function update() {
-    //     if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_SESSION['user_id'])) {
-    //         $postId = $_POST['post_id'] ?? null;
-    //         $post = $this->postModel->getPostById($postId);
+    // Update post
+    public function update() {
+    if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_SESSION['user_id'])) {
+        $postId = $_POST['post_id'] ?? null;
+        $post = $this->postModel->getPostById($postId);
 
-    //         if (!$post || $post['author_id'] !== $_SESSION['user_id']) {
-    //             echo "Bạn không có quyền cập nhật bài viết này!";
-    //             exit;
-    //         }
+        if (!$post || $post['author_id'] !== $_SESSION['user_id']) {
+            echo "Bạn không có quyền cập nhật bài viết này!";
+            exit;
+        }
 
-    //         $title = $_POST['title'] ?? '';
-    //         $content = $_POST['content'] ?? '';
-    //         $albumId = $_POST['album_id'] ?? '';
-    //         $categoryId = $_POST['category_id'] ?? '';
-    //         $bannerUrl = $post['banner_url']; // Giữ banner cũ nếu không upload mới
-    //         $filePath = null;
-    //         $fileType = null;
+        $title = $_POST['title'];
+        $content = $_POST['content'];
+        $albumId = $_POST['album_id'];
+        $categoryId = $_POST['category_id'];
+        $bannerUrl = $post['banner_url']; // giữ banner cũ nếu không upload mới
 
-    //         // Xử lý banner mới nếu được upload
-    //         if (!empty($_FILES['banner']['tmp_name'])) {
-    //             try {
-    //                 $cloudinary = require __DIR__ . '/../config/cloudinary.php';
-    //                 $upload = $cloudinary->uploadApi()->upload($_FILES['banner']['tmp_name']);
-    //                 if (isset($upload['secure_url'])) {
-    //                     $bannerUrl = $upload['secure_url'];
-    //                 } else {
-    //                     throw new Exception('Lỗi upload banner lên Cloudinary');
-    //                 }
-    //             } catch (Exception $e) {
-    //                 error_log('Lỗi upload banner: ' . $e->getMessage());
-    //                 echo "Lỗi khi upload banner: " . $e->getMessage();
-    //                 exit;
-    //             }
-    //         }
+        // Upload banner mới nếu có file
+        if (!empty($_FILES['banner']['tmp_name'])) {
+            $cloudinary = require __DIR__ . '/../config/cloudinary.php';
+            $upload = $cloudinary->uploadApi()->upload($_FILES['banner']['tmp_name']);
+            $bannerUrl = $upload['secure_url'];
+        }
 
-    //         // Xử lý file Word/PDF nếu được upload
-    //         if (!empty($_FILES['content_file']['tmp_name'])) {
-    //             $fileType = $_FILES['content_file']['type'];
-    //             $filePath = $_FILES['content_file']['tmp_name'];
+        $this->postModel->updatePost($postId, $title, $content, $albumId, $categoryId, $bannerUrl, $_SESSION['user_id']);
 
-    //             if (!in_array($fileType, [
-    //                 'application/pdf',
-    //                 'application/msword',
-    //                 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-    //             ])) {
-    //                 echo "Chỉ hỗ trợ file PDF hoặc Word!";
-    //                 exit;
-    //             }
-    //         }
-
-    //         // Lọc nội dung HTML từ CKEditor
-    //         require_once __DIR__ . '/../vendor/autoload.php';
-    //         $config = HTMLPurifier_Config::createDefault();
-    //         $config->set('HTML.Allowed', 'p,span,table,tr,td,img[src|alt|style|class],br,div');
-    //         $config->set('CSS.AllowedProperties', 'float,margin,margin-left,margin-right,margin-top,margin-bottom,text-align,max-width,height');
-    //         $purifier = new HTMLPurifier($config);
-    //         $content = $purifier->purify($content);
-
-    //         try {
-    //             $result = $this->postModel->updatePost($postId, $title, $content, $albumId, $categoryId, $bannerUrl, $_SESSION['user_id'], $filePath, $fileType);
-    //             if ($result) {
-    //                 header("Location: index.php?action=view&post_id=" . urlencode($postId));
-    //                 exit;
-    //             } else {
-    //                 echo "Lỗi khi cập nhật bài viết: Không thể lưu bài viết.";
-    //                 exit;
-    //             }
-    //         } catch (Exception $e) {
-    //             error_log('Lỗi cập nhật bài viết: ' . $e->getMessage());
-    //             echo "Lỗi khi cập nhật bài viết: " . $e->getMessage();
-    //                 exit;
-    //         }
-    //     }
-    // }
+        header("Location: index.php?action=list_all_posts");
+        exit;
+    }
+}
 
     // Delete post
     public function delete() {
@@ -421,4 +254,3 @@ class PostController {
         exit;
     }
 }
-
