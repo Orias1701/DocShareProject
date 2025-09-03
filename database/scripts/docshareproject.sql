@@ -94,6 +94,8 @@ CREATE TABLE posts (
   album_id VARCHAR(30) DEFAULT NULL,
   category_id VARCHAR(20) NOT NULL,
   banner_url VARCHAR(500) DEFAULT NULL,
+  file_url VARCHAR(500) DEFAULT NULL,
+  banner_type VARCHAR(500) DEFAULT NULL,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (post_id),
   KEY idx_album_id (album_id),
