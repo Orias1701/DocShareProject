@@ -88,7 +88,9 @@ CREATE TABLE categories (
 CREATE TABLE posts (
   post_id VARCHAR(40) NOT NULL COMMENT 'POST+(album_id_number)+(category_id_number)+000001->999999',
   title VARCHAR(255) NOT NULL,
-  content TEXT NOT NULL,
+  description TEXT,
+  summary TEXT,
+  content TEXT,
   album_id VARCHAR(30) DEFAULT NULL,
   category_id VARCHAR(20) NOT NULL,
   banner_url VARCHAR(500) DEFAULT NULL,
