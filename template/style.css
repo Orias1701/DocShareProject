@@ -1,0 +1,33 @@
+:root {
+    /* --- Colors --- */
+    --color-bg: #0E1217;
+    --color-header-border: #444;
+    --color-input-bg: #222;
+    --color-text: #FFF;
+    --color-text-darker: #DDD;
+    --color-user: #ffde4b;
+    --color-info: #AAA;
+
+    /* --- Sizes --- */
+    --header-height: 60px;
+    --sidebar-width: 250px;
+    --header-font-size: 1.6em;
+    --icon-font-size: 1.7em;
+    --small-font-size: 0.8em;
+    --input-height: 65%;
+    --input-radius: 8px;
+
+    /* --- Spacing --- */
+    --padding-main: 20px;
+    --padding-header: 5%;
+    --gap-header-right: 16px;
+    --gap-header-span: 5px 15px 0 5px;
+}
+
+body {
+    margin: 0;
+    font-family: "Poppins";
+    font-size: 16px;
+    background-color: var(--color-bg);
+    color: var(--color-text);
+}
