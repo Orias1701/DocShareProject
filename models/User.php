@@ -1,34 +1,62 @@
 <?php
 require_once __DIR__ . '/../config/Database.php';
+require_once __DIR__ . '/../services/IdGenerator.php';
 
-class User {
+
+class User
+{
     private $conn;
 
-    public function __construct() {
+    public function __construct()
+    {
         $this->conn = Database::getConnection();
     }
 
-    public function getByEmail($email) {
+    public function getByEmail($email)
+    {
         $stmt = $this->conn->prepare("SELECT * FROM users WHERE email = ?");
         $stmt->execute([$email]);
         return $stmt->fetch(PDO::FETCH_ASSOC);
     }
 
-    public function createUser($username, $email, $password, $role_id = "ROLE_USER") {
-        // Tạo user_id dạng USER + 12 chữ số
+    public function createUser($username, $email, $password, $role_id = "ROLE011")
+    {
+        $idGenerator = new IdGenerator();
+
+        // Lấy user_id cuối cùng
         $stmt = $this->conn->query("SELECT user_id FROM users ORDER BY user_id DESC LIMIT 1");
         $last = $stmt->fetch(PDO::FETCH_ASSOC);
 
-        if ($last) {
-            $num = intval(substr($last['user_id'], 4)) + 1;
-        } else {
-            $num = 1;
-        }
-        $newId = "USER" . str_pad($num, 10, "0", STR_PAD_LEFT);
+        $lastUserNumber = $last ? intval(substr($last['user_id'], 4)) : 0;
+        $newUserId = $idGenerator->generateUserId($lastUserNumber);
 
+        // Thêm user mới
         $sql = "INSERT INTO users (user_id, username, email, password, role_id) 
-                VALUES (?, ?, ?, ?, ?)";
+            VALUES (?, ?, ?, ?, ?)";
         $stmt = $this->conn->prepare($sql);
-        return $stmt->execute([$newId, $username, $email, $password, $role_id]);
+        $userInserted = $stmt->execute([$newUserId, $username, $email, $password, $role_id]);
+
+        if ($userInserted) {
+            // Lấy album_id cuối cùng của user này
+            $stmtAlbum = $this->conn->prepare("SELECT album_id FROM albums WHERE user_id = ? ORDER BY album_id DESC LIMIT 1");
+            $stmtAlbum->execute([$newUserId]);
+            $lastAlbum = $stmtAlbum->fetch(PDO::FETCH_ASSOC);
+
+            $lastAlbumNumber = $lastAlbum ? intval(substr($lastAlbum['album_id'], -3)) + 1 : 1;
+
+            // Trích số trong user_id (vd: USER0000000001 => 1)
+            $userNumber = intval(preg_replace('/[^0-9]/', '', $newUserId));
+
+            // Sinh album_id từ IdGenerator
+            $newAlbumId = $idGenerator->generateAlbumId($userNumber, $lastAlbumNumber);
+
+            // Insert album mặc định
+            $sqlAlbum = "INSERT INTO albums (album_id, album_name, description, user_id) VALUES (?, ?, ?, ?)";
+            $stmtAlbumInsert = $this->conn->prepare($sqlAlbum);
+            $stmtAlbumInsert->execute([$newAlbumId, "macdinh", "Album mặc định của user", $newUserId]);
+        }
+
+
+        return $userInserted;
     }
 }
