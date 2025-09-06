@@ -41,10 +41,9 @@ const navSections = [
   },
 ];
 
-function NavBar({ isCollapsed, setIsCollapsed }) {
+function NavBar({ isCollapsed, setIsCollapsed, onNewAlbumClick }) {
   return (
     <motion.nav
-      // Đồng bộ width của sidebar
       animate={{ width: isCollapsed ? 80 : 250 }}
       transition={{ duration: 0.3, ease: "easeInOut" }}
       className="
@@ -54,7 +53,7 @@ function NavBar({ isCollapsed, setIsCollapsed }) {
         flex flex-col overflow-hidden z-[999]
       "
     >
-      {/* Header */}
+      {/* Header (giữ nguyên) */}
       <div className="flex items-center justify-between px-6 py-3 text-gray-400 flex-shrink-0">
         <AnimatePresence>
           {!isCollapsed && (
@@ -82,31 +81,54 @@ function NavBar({ isCollapsed, setIsCollapsed }) {
 
       {/* Content */}
       <div className="px-4 overflow-y-auto flex-grow">
+        
         {/* Action buttons */}
         <div className="flex flex-col gap-2">
-          {actionButtons.map(({ icon, text, path }) => (
-            <ActionButton key={text} icon={icon} text={text} path={path} collapsed={isCollapsed} />
-          ))}
+          {/* THAY ĐỔI 2: Xử lý các nút một cách riêng biệt */}
+          {actionButtons.map(({ icon, text, path }) => {
+            // Nếu là nút "New Album", render một <button> để mở modal
+            if (text === "New Album") {
+              return (
+                <button
+                  key={text}
+                  type="button"
+                  onClick={onNewAlbumClick} // Gọi hàm được truyền từ App.js
+                  // Sao chép y hệt class của ActionButton để giao diện không đổi
+                  className="bg-white/10 hover:bg-white/20 rounded-lg py-2 text-sm w-full flex items-center justify-center gap-3 overflow-hidden"
+                >
+                  <i className={`${icon} flex-shrink-0`} aria-hidden="true" />
+                  <AnimatePresence>
+                    {!isCollapsed && (
+                      <motion.span
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1, transition: { delay: 0.08 } }}
+                        exit={{ opacity: 0 }}
+                        className="whitespace-nowrap"
+                      >
+                        {text}
+                      </motion.span>
+                    )}
+                  </AnimatePresence>
+                </button>
+              );
+            }
+            // Các nút khác vẫn là ActionButton (NavLink) như cũ
+            return <ActionButton key={text} icon={icon} text={text} path={path} collapsed={isCollapsed} />;
+          })}
         </div>
 
         <div className="w-full h-px bg-[#444] my-4" />
 
-        {/* Sections */}
+        {/* Sections (giữ nguyên) */}
         {navSections.map((section) => (
           <div key={section.key} className="mb-2">
             <AnimatePresence>
               {section.title && !isCollapsed && (
-                <motion.p
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1, transition: { delay: 0.15 } }}
-                  exit={{ opacity: 0 }}
-                  className="text-gray-400 text-sm px-2 mb-1"
-                >
+                <motion.p /* ... */ >
                   {section.title}
                 </motion.p>
               )}
             </AnimatePresence>
-
             {section.items.map(({ icon, avatar, text, path }) =>
               avatar ? (
                 <UserNavItem key={text} avatar={avatar} text={text} path={path} collapsed={isCollapsed} />

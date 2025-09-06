@@ -132,8 +132,8 @@ main {
   margin-top: var(--header-height);
 
   /* chừa chỗ cho sidebar và CHIẾM HẾT phần còn lại */
-  margin-left: calc(-5% + var(--sidebar-width));
-  width: calc(110% - var(--sidebar-width));
+  margin-left: calc(-8% + var(--sidebar-width));
+  width: calc(118% - var(--sidebar-width));
 
   /* layout */
   padding: var(--padding-main);

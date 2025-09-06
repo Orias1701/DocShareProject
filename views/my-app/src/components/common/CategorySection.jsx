@@ -10,7 +10,7 @@ export default function CategorySection({ title, posts = [] }) {
       <h2 className="text-2xl font-bold mb-6 text-white text-start">{title}</h2>
 
       {posts.length === 0 ? (
-        <div className="text-center text-gray-400 border border-dashed border-gray-700/60 rounded-xl py-10">
+        <div className="text-start text-gray-400 border border-dashed border-gray-700/60 rounded-xl py-10">
           Chưa có bài viết.
         </div>
       ) : (

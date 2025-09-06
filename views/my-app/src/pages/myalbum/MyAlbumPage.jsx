@@ -6,7 +6,7 @@ import CategorySection from "../../components/common/CategorySection";
  * Tránh dùng Array(n).fill({...}) vì sẽ trỏ chung 1 reference.
  */
 const makePosts = (avatarIdx) =>
-  Array.from({ length: 4 }, (_, i) => ({
+  Array.from({ length: 8 }, (_, i) => ({
     id: `demo-${avatarIdx}-${i}`,
     authorName: "Name",
     authorAvatar: `https://i.pravatar.cc/32?img=${avatarIdx}`,
@@ -20,7 +20,6 @@ const makePosts = (avatarIdx) =>
 
 const categoriesData = [
   { title: "Album 1", posts: makePosts(3) },
-  { title: "Album 2", posts: makePosts(4) },
 ];
 
 /**
@@ -31,7 +30,7 @@ const categoriesData = [
  * Giả định phần LAYOUT TRÁI đã được bọc ở component cha (vd: AppLayout).
  * File này chỉ render CONTENT PHẢI, nhưng mình thêm container chuẩn để khớp layout.
  */
-export default function MyPostsPage() {
+export default function MyAlbumPage() {
   return (
     <div className="w-full">
       {/* Header tabs của content */}

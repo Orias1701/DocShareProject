@@ -51,7 +51,7 @@ export default function PostCard({ post }) {
       {/* Body */}
       <div className="flex-grow">
         {/* Giới hạn đúng 3 dòng tiêu đề */}
-        <p className="text-base leading-snug line-clamp-3 whitespace-pre-line">
+        <p className="text-base text-start leading-snug line-clamp-3 whitespace-pre-line">
           {title}
         </p>
 
@@ -74,7 +74,7 @@ export default function PostCard({ post }) {
       </div>
 
       {/* Nguồn */}
-      <div className="bg-white text-black p-4 rounded-lg flex items-center justify-between text-lg">
+      <div className="bg-white text-black p-4 rounded-lg flex items-center justify-start text-lg">
         <span className="font-semibold truncate">{sourceName}</span>
         <img
           src={sourceIcon}

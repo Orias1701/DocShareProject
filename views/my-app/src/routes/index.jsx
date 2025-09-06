@@ -1,20 +1,23 @@
-// src/app/App.jsx
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { useState, useEffect } from "react";
+
+// Layout & Components
 import NavBar from "../components/layouts/NavBar";
+import Header from "../components/layouts/Header";
+import Footer from "../components/layouts/Footer";
+import Modal from "../components/common/Modal"; // THAY ĐỔI: Import component Modal
+import NewAlbumForm from "../components/common/NewAlbumForm"; // THAY ĐỔI: Import form tạo Album
 
 // Pages
-import FollowingPage from "../pages/following/FollowingPage";
 import ExplorePage from "../pages/explore/ExplorePage";
+import FollowingPage from "../pages/following/FollowingPage";
 import HistoryPage from "../pages/history/HistoryPage";
 import MyPostsPage from "../pages/myposts/MyPostsPage";
 import BookmarksPage from "../pages/bookmarks/BookmarksPage";
+import MyAlbumPage from "../pages/myalbum/MyAlbumPage";
+import NewPostPage from "../pages/new-post/NewPostPage";
 
-// Layout parts
-import Header from "../components/layouts/Header";
-import Footer from "../components/layouts/Footer";
-
-// Global icons/css (tùy bạn có thể đặt ở entry file)
+// Global icons/css
 import "../assets/font-awesome-6.6.0-pro-full-main/css/all.css";
 
 const Placeholder = ({ name }) => (
@@ -23,12 +26,13 @@ const Placeholder = ({ name }) => (
 
 function App() {
   const [isCollapsed, setIsCollapsed] = useState(false);
+  
+  // THAY ĐỔI: Thêm state để quản lý modal "New Album"
+  const [isNewAlbumModalOpen, setNewAlbumModalOpen] = useState(false);
 
-  // Đồng bộ class trên <body> để CSS var --sidebar-width áp dụng cho cả nav & main
   useEffect(() => {
     document.body.classList.toggle("sidebar--collapsed", isCollapsed);
     return () => {
-      // cleanup nếu component unmount
       document.body.classList.remove("sidebar--collapsed");
     };
   }, [isCollapsed]);
@@ -37,29 +41,28 @@ function App() {
     <BrowserRouter>
       <Header />
 
-      {/* App shell: bọc Nav + Main để nền tối phủ kín */}
       <div className="app-shell">
-        {/* Sidebar (điều khiển collapse qua setIsCollapsed) */}
-        <NavBar isCollapsed={isCollapsed} setIsCollapsed={setIsCollapsed} />
+        {/* THAY ĐỔI: Truyền hàm để mở modal xuống NavBar */}
+        <NavBar 
+          isCollapsed={isCollapsed} 
+          setIsCollapsed={setIsCollapsed}
+          onNewAlbumClick={() => setNewAlbumModalOpen(true)}
+        />
 
-        {/* Content: dùng class .app-main để ăn theo --sidebar-width */}
         <main>
           <Routes>
-            {/* Giữ "/" là ExplorePage; nếu muốn redirect -> /explore thì thay 2 dòng dưới */}
             <Route path="/" element={<ExplorePage />} />
-            {/* <Route path="/" element={<Navigate to="/explore" replace />} />
-            <Route path="/explore" element={<ExplorePage />} /> */}
-
             <Route path="/following" element={<FollowingPage />} />
             <Route path="/history" element={<HistoryPage />} />
             <Route path="/my-posts" element={<MyPostsPage />} />
             <Route path="/bookmarks" element={<BookmarksPage />} />
-
-            {/* Các route NavBar khác */}
+            <Route path="/my-albums" element={<MyAlbumPage/>} />
+            <Route path="/new-post" element={<NewPostPage />} />
             <Route path="/profile" element={<Placeholder name="Profile" />} />
-            <Route path="/new-post" element={<Placeholder name="New Post" />} />
-            <Route path="/new-album" element={<Placeholder name="New Album" />} />
-            <Route path="/my-albums" element={<Placeholder name="My Albums" />} />
+            
+            {/* THAY ĐỔI: Xóa route "/new-album" vì đã dùng modal */}
+            {/* <Route path="/new-album" element={<Placeholder name="New Album" />} /> */}
+            
             <Route path="/leaderboard" element={<Placeholder name="Leaderboard" />} />
             <Route path="/categories" element={<Placeholder name="Categories" />} />
             <Route path="/hashtags" element={<Placeholder name="Hashtags" />} />
@@ -68,6 +71,12 @@ function App() {
       </div>
 
       <Footer />
+      
+      {/* THAY ĐỔI: Render Modal ở đây. Nó sẽ chỉ hiện khi isNewAlbumModalOpen là true */}
+      <Modal isOpen={isNewAlbumModalOpen} onClose={() => setNewAlbumModalOpen(false)}>
+        <NewAlbumForm onClose={() => setNewAlbumModalOpen(false)} />
+      </Modal>
+
     </BrowserRouter>
   );
 }
