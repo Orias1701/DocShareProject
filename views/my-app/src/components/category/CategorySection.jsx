@@ -1,5 +1,5 @@
 import React from "react";
-import PostCard from "../common/PostCard";
+import PostCard from "../leaderboard/PostCard";
 
 /**
  * Hiển thị một category gồm tiêu đề + grid các post

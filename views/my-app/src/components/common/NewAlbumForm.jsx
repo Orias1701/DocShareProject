@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import FileUpload from './FileUpload'; // Dùng lại component FileUpload
-import FormField from './FormField';   // Dùng lại component FormField
+import FileUpload from '../new-post/FileUpload'; // Dùng lại component FileUpload
+import FormField from '../new-post/FormField';   // Dùng lại component FormField
 
 /**
  * Component `NewAlbumForm`

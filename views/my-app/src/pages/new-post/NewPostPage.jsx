@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import FormField from '../../components/common/FormField';
-import FileUpload from '../../components/common/FileUpload';
-import FilePreview from '../../components/common/FilePreview';
+import FormField from '../../components/new-post/FormField';
+import FileUpload from '../../components/new-post/FileUpload';
+import FilePreview from '../../components/new-post/FilePreview';
 
 const NewPostPage = () => {
   const [mainFile, setMainFile] = useState(null);

@@ -1,5 +1,5 @@
 import React from "react";
-import CategorySection from "../../components/common/CategorySection";
+import CategorySection from "../../components/category/CategorySection";
 
 /**
  * DỮ LIỆU DEMO

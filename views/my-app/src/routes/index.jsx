@@ -16,7 +16,10 @@ import MyPostsPage from "../pages/myposts/MyPostsPage";
 import BookmarksPage from "../pages/bookmarks/BookmarksPage";
 import MyAlbumPage from "../pages/myalbum/MyAlbumPage";
 import NewPostPage from "../pages/new-post/NewPostPage";
-
+import LeaderboardPage from "../pages/leaderboard/LeaderboardPage";
+import CategoriesPage from "../pages/categories/CategoriesPage";
+import HashtagsPage from "../pages/hashtags/HashtagsPage";
+import ProfilePage from "../pages/profile/ProfilePage";
 // Global icons/css
 import "../assets/font-awesome-6.6.0-pro-full-main/css/all.css";
 
@@ -58,14 +61,12 @@ function App() {
             <Route path="/bookmarks" element={<BookmarksPage />} />
             <Route path="/my-albums" element={<MyAlbumPage/>} />
             <Route path="/new-post" element={<NewPostPage />} />
-            <Route path="/profile" element={<Placeholder name="Profile" />} />
-            
+            <Route path="/profile" element={<ProfilePage/>} />
+            <Route path="/leaderboard" element={< LeaderboardPage />} />
+            <Route path="/categories" element={<CategoriesPage/>} />
+            <Route path="/hashtags" element={<HashtagsPage/>} />
             {/* THAY ĐỔI: Xóa route "/new-album" vì đã dùng modal */}
             {/* <Route path="/new-album" element={<Placeholder name="New Album" />} /> */}
-            
-            <Route path="/leaderboard" element={<Placeholder name="Leaderboard" />} />
-            <Route path="/categories" element={<Placeholder name="Categories" />} />
-            <Route path="/hashtags" element={<Placeholder name="Hashtags" />} />
           </Routes>
         </main>
       </div>

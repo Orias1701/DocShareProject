@@ -1,8 +1,8 @@
 import React from 'react';
-import CategorySection from '../../components/common/CategorySection';
+import CategorySection from '../../components/category/CategorySection';
 // THAY ĐỔI: Import 2 component mới
-import CategoryCard from '../../components/common/CategoryCard';
-import HashtagButton from '../../components/common/HashtagButton';
+import CategoryCard from '../../components/category/CategoryCard';
+import HashtagButton from '../../components/hashtag/HashtagButton';
 
 // --- Dữ liệu mẫu (giữ nguyên) ---
 const postsData = [
