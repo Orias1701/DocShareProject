@@ -7,6 +7,7 @@ import Header from "../components/layouts/Header";
 import Footer from "../components/layouts/Footer";
 import Modal from "../components/common/Modal"; // THAY ĐỔI: Import component Modal
 import NewAlbumForm from "../components/common/NewAlbumForm"; // THAY ĐỔI: Import form tạo Album
+import AuthLayout from "../layouts/AuthLayout";
 
 // Pages
 import ExplorePage from "../pages/explore/ExplorePage";
@@ -20,6 +21,7 @@ import LeaderboardPage from "../pages/leaderboard/LeaderboardPage";
 import CategoriesPage from "../pages/categories/CategoriesPage";
 import HashtagsPage from "../pages/hashtags/HashtagsPage";
 import ProfilePage from "../pages/profile/ProfilePage";
+import RegisterPage from "../pages/auth/RegisterPage"
 // Global icons/css
 import "../assets/font-awesome-6.6.0-pro-full-main/css/all.css";
 
@@ -29,8 +31,6 @@ const Placeholder = ({ name }) => (
 
 function App() {
   const [isCollapsed, setIsCollapsed] = useState(false);
-  
-  // THAY ĐỔI: Thêm state để quản lý modal "New Album"
   const [isNewAlbumModalOpen, setNewAlbumModalOpen] = useState(false);
 
   useEffect(() => {
@@ -42,42 +42,55 @@ function App() {
 
   return (
     <BrowserRouter>
-      <Header />
-
-      <div className="app-shell">
-        {/* THAY ĐỔI: Truyền hàm để mở modal xuống NavBar */}
-        <NavBar 
-          isCollapsed={isCollapsed} 
-          setIsCollapsed={setIsCollapsed}
-          onNewAlbumClick={() => setNewAlbumModalOpen(true)}
+      <Routes>
+        {/* Routes sử dụng layout chung */}
+        <Route
+          path="/"
+          element={
+            <>
+              <Header />
+              <div className="app-shell">
+                <NavBar
+                  isCollapsed={isCollapsed}
+                  setIsCollapsed={setIsCollapsed}
+                  onNewAlbumClick={() => setNewAlbumModalOpen(true)}
+                />
+                <main>
+                  <Routes>
+                    <Route path="/" element={<ExplorePage />} />
+                    <Route path="/following" element={<FollowingPage />} />
+                    <Route path="/history" element={<HistoryPage />} />
+                    <Route path="/my-posts" element={<MyPostsPage />} />
+                    <Route path="/bookmarks" element={<BookmarksPage />} />
+                    <Route path="/my-albums" element={<MyAlbumPage />} />
+                    <Route path="/new-post" element={<NewPostPage />} />
+                    <Route path="/profile" element={<ProfilePage />} />
+                    <Route path="/leaderboard" element={<LeaderboardPage />} />
+                    <Route path="/categories" element={<CategoriesPage />} />
+                    <Route path="/hashtags" element={<HashtagsPage />} />
+                  </Routes>
+                </main>
+              </div>
+              <Footer />
+            </>
+          }
         />
 
-        <main>
-          <Routes>
-            <Route path="/" element={<ExplorePage />} />
-            <Route path="/following" element={<FollowingPage />} />
-            <Route path="/history" element={<HistoryPage />} />
-            <Route path="/my-posts" element={<MyPostsPage />} />
-            <Route path="/bookmarks" element={<BookmarksPage />} />
-            <Route path="/my-albums" element={<MyAlbumPage/>} />
-            <Route path="/new-post" element={<NewPostPage />} />
-            <Route path="/profile" element={<ProfilePage/>} />
-            <Route path="/leaderboard" element={< LeaderboardPage />} />
-            <Route path="/categories" element={<CategoriesPage/>} />
-            <Route path="/hashtags" element={<HashtagsPage/>} />
-            {/* THAY ĐỔI: Xóa route "/new-album" vì đã dùng modal */}
-            {/* <Route path="/new-album" element={<Placeholder name="New Album" />} /> */}
-          </Routes>
-        </main>
-      </div>
+        {/* Route register sử dụng AuthLayout */}
+        <Route
+          path="/register"
+          element={
+            <AuthLayout>
+              <RegisterPage />
+            </AuthLayout>
+          }
+        />
+      </Routes>
 
-      <Footer />
-      
-      {/* THAY ĐỔI: Render Modal ở đây. Nó sẽ chỉ hiện khi isNewAlbumModalOpen là true */}
+      {/* Modal tạo album */}
       <Modal isOpen={isNewAlbumModalOpen} onClose={() => setNewAlbumModalOpen(false)}>
         <NewAlbumForm onClose={() => setNewAlbumModalOpen(false)} />
       </Modal>
-
     </BrowserRouter>
   );
 }
