@@ -6,3 +6,4 @@ export function fetchPosts() {
       console.error('Error fetching posts:', error);
       throw error;
     });
+}
