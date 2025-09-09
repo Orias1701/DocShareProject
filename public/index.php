@@ -76,7 +76,17 @@ if (isset($_GET['action'])) {
             exit;
         case 'register_post':
             if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-                $auth->register($_POST['username'], $_POST['email'], $_POST['password']);
+                // Lấy dữ liệu từ form và kiểm tra
+                $username   = $_POST['username'] ?? '';
+                $email      = $_POST['email'] ?? '';
+                $password   = $_POST['password'] ?? '';
+                $full_name  = $_POST['full_name'] ?? '';
+                $birth_date = $_POST['birth_date'] ?? '';
+                $avatar_url = $_POST['avatar_url'] ?? null;
+                $bio        = $_POST['bio'] ?? null;
+
+                // Gọi hàm register với đầy đủ tham số
+                $auth->register($username, $email, $password, $full_name, $birth_date, $avatar_url, $bio);
             }
             exit;
         case 'logout':

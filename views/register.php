@@ -14,6 +14,10 @@
         <input type="text" name="username" placeholder="Tên người dùng" required><br>
         <input type="email" name="email" placeholder="Email" required><br>
         <input type="password" name="password" placeholder="Mật khẩu" required><br>
+        <input type="text" name="full_name" placeholder="Họ và tên" required><br>
+        <input type="date" name="birth_date" placeholder="Ngày sinh" required><br>
+        <input type="url" name="avatar_url" placeholder="Link avatar (tùy chọn)"><br>
+        <textarea name="bio" placeholder="Giới thiệu bản thân (tùy chọn)"></textarea><br>
         <button type="submit">Đăng ký</button>
     </form>
     <?php if (!empty($error)) echo "<p style='color:red'>$error</p>"; ?>
