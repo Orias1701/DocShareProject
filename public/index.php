@@ -99,7 +99,8 @@ $userFollowController  = new UserFollowController();
 /*************************************************
  * 5) TIỆN ÍCH NHỎ
  *************************************************/
-function wants_json(): bool {
+function wants_json(): bool
+{
     // Ưu tiên Accept: application/json
     if (isset($_SERVER['HTTP_ACCEPT']) && stripos($_SERVER['HTTP_ACCEPT'], 'application/json') !== false) {
         return true;
@@ -115,13 +116,15 @@ function wants_json(): bool {
     return false;
 }
 
-function read_json_body(): array {
+function read_json_body(): array
+{
     $raw = file_get_contents('php://input');
     $data = json_decode($raw, true);
     return is_array($data) ? $data : [];
 }
 
-function respond_json($payload, int $status = 200): void {
+function respond_json($payload, int $status = 200): void
+{
     http_response_code($status);
     header('Content-Type: application/json; charset=utf-8');
     echo json_encode($payload, JSON_UNESCAPED_UNICODE);
@@ -169,9 +172,10 @@ if (isset($_GET['action'])) {
             $auth->apiLogout();
             exit;
 
+
         /*************** AUTH (API JSON) ************
-         * Dùng cho frontend fetch, không redirect
-         ********************************************/
+             * Dùng cho frontend fetch, không redirect
+             ********************************************/
         case 'api_login':
             if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
                 respond_json(['status' => 'error', 'message' => 'Method Not Allowed'], 405);
@@ -198,7 +202,7 @@ if (isset($_GET['action'])) {
                         'username'  => $user['username'],
                         'email'     => $user['email'],
                         'full_name' => $user['full_name'] ?? null,
-                        'avatar_url'=> $user['avatar_url'] ?? null,
+                        'avatar_url' => $user['avatar_url'] ?? null,
                     ]
                 ], 200);
             } else {
@@ -251,21 +255,11 @@ if (isset($_GET['action'])) {
             }
             exit;
 
-        // Lấy thông tin user đang đăng nhập theo session (tiện cho FE)
+            // Lấy thông tin user đang đăng nhập theo session (tiện cho FE)
         case 'api_me':
-            if (!empty($_SESSION['user'])) {
-                $u = $_SESSION['user'];
-                respond_json(['status' => 'ok', 'user' => [
-                    'user_id'   => $u['user_id'],
-                    'username'  => $u['username'],
-                    'email'     => $u['email'],
-                    'full_name' => $u['full_name'] ?? null,
-                    'avatar_url'=> $u['avatar_url'] ?? null,
-                ]]);
-            } else {
-                respond_json(['status' => 'error', 'message' => 'Chưa đăng nhập'], 401);
-            }
+            (new AuthController())->apiMe();
             exit;
+
 
         /*************** API POSTS ***************/
         case 'group1':

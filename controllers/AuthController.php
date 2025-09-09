@@ -65,7 +65,7 @@ class AuthController
                 'username'  => $user['username'],
                 'email'     => $user['email'],
                 'full_name' => $user['full_name'] ?? null,
-                'avatar_url'=> $user['avatar_url'] ?? null,
+                'avatar_url' => $user['avatar_url'] ?? null,
             ];
 
             $this->json([
@@ -161,5 +161,38 @@ class AuthController
         session_destroy();
 
         $this->json(['status' => 'ok', 'message' => 'Đã đăng xuất'], 200);
+    }
+
+    // controllers/AuthController.php
+
+    public function apiMe(): void
+    {
+        if (isset($_SESSION['user'])) {
+            $user = $_SESSION['user'];
+            $userId = $user['user_id'];
+
+            // Lấy thêm thông tin user_infos từ DB
+            require_once __DIR__ . '/../models/UserInfo.php';
+            $userInfoModel = new UserInfo();
+            $info = $userInfoModel->getUserInfoById($userId);
+
+            $this->json([
+                'status' => 'ok',
+                'user'   => [
+                    'user_id'    => $user['user_id'],
+                    'username'   => $user['username'],
+                    'email'      => $user['email'],
+                    'full_name'  => $info['full_name'] ?? null,
+                    'phone'      => $info['phone'] ?? null,
+                    'bio'    => $info['bio'] ?? null,
+                    'avatar_url' => $info['avatar_url'] ?? null,
+                ]
+            ], 200);
+        } else {
+            $this->json([
+                'status' => 'error',
+                'message' => 'Chưa đăng nhập'
+            ], 401);
+        }
     }
 }

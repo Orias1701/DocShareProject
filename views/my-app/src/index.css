@@ -95,7 +95,9 @@ header {
   width: 100%;
   height: 100%;
 }
-
+.auth-btn{
+  font-size: 18px !important;
+}
 .header-right {
   height: 100%;
   align-items: center;
@@ -257,7 +259,7 @@ nav .nav-header {
 
 /* --- Left Panel --- */
 .register-page .left-panel {
-  flex: 1;
+  /* flex: 1;
   background: #0c0a1a url('https://www.transparenttextures.com/patterns/stardust.png');
   color: #fff;
   display: flex;
@@ -266,7 +268,7 @@ nav .nav-header {
   text-align: left;
   padding: 50px;
   position: relative;
-  overflow: hidden;
+  overflow: hidden; */
 }
 
 .register-page .left-content {

@@ -22,6 +22,7 @@ import CategoriesPage from "../pages/categories/CategoriesPage";
 import HashtagsPage from "../pages/hashtags/HashtagsPage";
 import ProfilePage from "../pages/profile/ProfilePage";
 import RegisterPage from "../pages/auth/RegisterPage"
+import LoginPage from "../pages/auth/LoginPage";
 // Global icons/css
 import "../assets/font-awesome-6.6.0-pro-full-main/css/all.css";
 
@@ -85,6 +86,15 @@ function App() {
           element={
             <AuthLayout>
               <RegisterPage />
+            </AuthLayout>
+          }
+        />
+
+        <Route
+          path="/login"
+          element={
+            <AuthLayout>
+              <LoginPage />
             </AuthLayout>
           }
         />

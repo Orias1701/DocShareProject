@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+
 import './Regis.css';
 
 // Dùng endpoint JSON mới:
@@ -18,6 +20,7 @@ const RegisterPage = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError]     = useState(null);
   const [success, setSuccess] = useState(null);
+  const navigate = useNavigate();  // để chuyển hướng
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -68,6 +71,7 @@ const RegisterPage = () => {
 
       if (res.ok && data.status === 'ok') {
         setSuccess(data.message || 'Đăng ký thành công!');
+        navigate("/login");
         // tuỳ chọn: reset form
         setFormData({
           username: '',
@@ -200,7 +204,7 @@ const RegisterPage = () => {
           </form>
 
           <p className="login-link">
-            Already have an account? <a href="#">Sign in +</a>
+            Already have an account? <a href="/login">Sign in +</a>
           </p>
         </div>
       </div>
