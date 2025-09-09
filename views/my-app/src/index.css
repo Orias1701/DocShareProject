@@ -1,8 +1,8 @@
 @import "tailwindcss";
 
 /* --- Root Variables (relative units) --- */
-:root {
-  /* Colors giữ nguyên... */
+/* Chỉ áp dụng khi body có class "main-page" */
+.main-page {
   --color-bg: #0E1217;
   --color-header-border: #444;
   --color-input-bg: #222;
@@ -11,7 +11,6 @@
   --color-user: #ffde4b;
   --color-info: #AAA;
 
-  /* Sizes */
   --header-height: 3.75rem; /* 60px */
   --header-font-size: 1.6em;
   --icon-font-size: 1.7em;
@@ -19,12 +18,11 @@
   --input-height: 65%;
   --input-radius: 0.5rem;
 
-  /* Spacing */
-  /* --padding-main: 1.25rem; */
   --padding-header: 5%;
   --gap-header-right: 1rem;
   --gap-header-span: 0.3125rem 0.9375rem 0 0.3125rem;
 }
+
 
 /* Đặt sidebar-width theo trạng thái body */
 body {
@@ -238,6 +236,215 @@ nav .nav-header {
   font-weight: 500;
   color: var(--color-user);
   margin: 1rem 0;
+}
+
+/* Scope toàn bộ CSS cho trang register */
+.register-page #root {
+  max-width: none;
+  margin: 0;
+  padding: 0;
+  text-align: initial;
+  font-family: "Inter", system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+}
+
+/* --- Layout --- */
+.register-page .signup-container {
+  display: flex;
+  width: 100%;
+  min-height: 100vh;
+  background-color: #fff;
+}
+
+/* --- Left Panel --- */
+.register-page .left-panel {
+  flex: 1;
+  background: #0c0a1a url('https://www.transparenttextures.com/patterns/stardust.png');
+  color: #fff;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  text-align: left;
+  padding: 50px;
+  position: relative;
+  overflow: hidden;
+}
+
+.register-page .left-content {
+  z-index: 2;
+  max-width: 400px;
+}
+
+.register-page .left-panel h1 {
+  font-size: 2.8rem;
+  font-weight: 700;
+  margin-bottom: 20px;
+}
+
+.register-page .left-panel p {
+  font-size: 1.1rem;
+  line-height: 1.6;
+  color: #ccc;
+  margin-bottom: 30px;
+}
+
+.register-page .left-panel a {
+  color: #fff;
+  text-decoration: none;
+  font-weight: 500;
+  font-size: 1.1rem;
+  transition: letter-spacing 0.3s ease;
+}
+
+.register-page .left-panel a:hover {
+  letter-spacing: 1px;
+}
+
+.register-page .floating-icon {
+  position: absolute;
+  z-index: 1;
+  animation: float 6s ease-in-out infinite;
+}
+
+.register-page .floating-icon img {
+  width: 100%;
+}
+
+.register-page .icon1 { width: 150px; bottom: 10%; left: 15%; animation-delay: 0s; }
+.register-page .icon2 { width: 120px; top: 15%; left: 30%; animation-delay: 2s; }
+.register-page .icon3 { width: 100px; bottom: 25%; left: 60%; animation-delay: 4s; }
+
+@keyframes float {
+  0% { transform: translateY(0px); }
+  50% { transform: translateY(-20px); }
+  100% { transform: translateY(0px); }
+}
+
+/* --- Right Panel --- */
+.register-page .right-panel {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 40px;
+  background-color: #fff;
+  overflow-y: auto;
+}
+
+.register-page .form-wrapper {
+  width: 100%;
+  max-width: 450px;
+}
+
+.register-page .right-panel h2 {
+  font-size: 1.8rem;
+  color: #333;
+  margin-bottom: 30px;
+}
+
+/* --- Form --- */
+.register-page .form-group {
+  margin-bottom: 20px;
+}
+
+.register-page .form-group label {
+  display: block;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #555;
+  margin-bottom: 8px;
+}
+
+.register-page .form-group input,
+.register-page .form-group textarea {
+  width: 100%;
+  padding: 12px 15px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 1rem;
+  box-sizing: border-box;
+  transition: border-color 0.3s ease;
+}
+
+.register-page .form-group input:focus,
+.register-page .form-group textarea:focus {
+  outline: none;
+  border-color: #6d28d9;
+}
+
+.register-page textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+.register-page .password-hint {
+  font-size: 0.8rem;
+  color: #888;
+  margin-top: 5px;
+}
+
+.register-page .file-drop-area {
+  border: 2px dashed #ddd;
+  border-radius: 8px;
+  padding: 25px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.3s ease;
+}
+
+.register-page .file-drop-area:hover {
+  border-color: #6d28d9;
+}
+
+.register-page .upload-icon {
+  font-size: 3rem;
+  color: #555;
+}
+
+.register-page .file-drop-area p { margin: 10px 0 5px 0; font-weight: 500; color: #333; }
+.register-page .file-drop-area span { font-size: 0.9rem; color: #888; display: block; margin-bottom: 15px; }
+.register-page .browse-button { background-color: #f0f0f0; border: 1px solid #ccc; border-radius: 5px; padding: 8px 16px; font-weight: 500; cursor: pointer; display: inline-block; }
+
+.register-page .signup-button {
+  width: 100%;
+  padding: 15px;
+  background-color: #222;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.register-page .signup-button:hover { background-color: #444; }
+.register-page .signup-button:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
+.register-page .login-link { text-align: center; margin-top: 20px; font-size: 0.9rem; color: #555; }
+.register-page .login-link a { color: #6d28d9; text-decoration: none; font-weight: 500; }
+
+/* --- Alerts --- */
+.register-page .alert {
+  padding: 15px;
+  margin-bottom: 20px;
+  border-radius: 8px;
+  font-weight: 500;
+  text-align: center;
+}
+
+.register-page .alert-error {
+  background-color: #f8d7da;
+  color: #721c24;
+  border: 1px solid #f5c6cb;
+}
+
+.register-page .alert-success {
+  background-color: #d4edda;
+  color: #155724;
+  border: 1px solid #c3e6cb;
 }
 
 /* --- Responsive --- */

@@ -1,12 +1,15 @@
-// pages/layouts/AuthLayout.js
-import React from "react";
+// src/layouts/AuthLayout.jsx
+import { useEffect } from "react";
 
 export default function AuthLayout({ children }) {
-  return (
-    <div className="auth-layout" >
-      <div className="auth-container" >
-        {children}
-      </div>
-    </div>
-  );
+  useEffect(() => {
+    // Đảm bảo không dính style của main
+    document.body.classList.remove("main-page");
+    document.body.classList.add("register-page");
+    return () => {
+      document.body.classList.remove("register-page");
+    };
+  }, []);
+
+  return <>{children}</>;
 }

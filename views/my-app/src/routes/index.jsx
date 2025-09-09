@@ -45,36 +45,39 @@ function App() {
       <Routes>
         {/* Routes sử dụng layout chung */}
         <Route
-          path="/"
-          element={
-            <>
-              <Header />
-              <div className="app-shell">
-                <NavBar
-                  isCollapsed={isCollapsed}
-                  setIsCollapsed={setIsCollapsed}
-                  onNewAlbumClick={() => setNewAlbumModalOpen(true)}
-                />
-                <main>
-                  <Routes>
-                    <Route path="/" element={<ExplorePage />} />
-                    <Route path="/following" element={<FollowingPage />} />
-                    <Route path="/history" element={<HistoryPage />} />
-                    <Route path="/my-posts" element={<MyPostsPage />} />
-                    <Route path="/bookmarks" element={<BookmarksPage />} />
-                    <Route path="/my-albums" element={<MyAlbumPage />} />
-                    <Route path="/new-post" element={<NewPostPage />} />
-                    <Route path="/profile" element={<ProfilePage />} />
-                    <Route path="/leaderboard" element={<LeaderboardPage />} />
-                    <Route path="/categories" element={<CategoriesPage />} />
-                    <Route path="/hashtags" element={<HashtagsPage />} />
-                  </Routes>
-                </main>
-              </div>
-              <Footer />
-            </>
-          }
+  path="/"
+  element={
+    <>
+      {/* Gán class cho body */}
+      {document.body.classList.add("main-page")}
+      <Header />
+      <div className="app-shell">
+        <NavBar
+          isCollapsed={isCollapsed}
+          setIsCollapsed={setIsCollapsed}
+          onNewAlbumClick={() => setNewAlbumModalOpen(true)}
         />
+        <main>
+          <Routes>
+            <Route path="/" element={<ExplorePage />} />
+            <Route path="/following" element={<FollowingPage />} />
+            <Route path="/history" element={<HistoryPage />} />
+            <Route path="/my-posts" element={<MyPostsPage />} />
+            <Route path="/bookmarks" element={<BookmarksPage />} />
+            <Route path="/my-albums" element={<MyAlbumPage />} />
+            <Route path="/new-post" element={<NewPostPage />} />
+            <Route path="/profile" element={<ProfilePage />} />
+            <Route path="/leaderboard" element={<LeaderboardPage />} />
+            <Route path="/categories" element={<CategoriesPage />} />
+            <Route path="/hashtags" element={<HashtagsPage />} />
+          </Routes>
+        </main>
+      </div>
+      <Footer />
+    </>
+  }
+/>
+
 
         {/* Route register sử dụng AuthLayout */}
         <Route
