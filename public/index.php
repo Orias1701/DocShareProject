@@ -511,6 +511,17 @@ if (isset($_GET['action'])) {
             $ctrl = new UserFollowController();
             $ctrl->toggleFollow();
             exit;
+        case 'api_top_followed':
+            // $limit = $_GET['limit'] ?? 10;
+            // $ufModel = new UserFollow();
+            // $users = $ufModel->getTopFollowedUsers((int)$limit);
+            $ufModel = new UserFollow();
+            $users = $ufModel->getTopFollowedUsers(10);
+            respond_json([
+                'status' => 'ok',
+                'data'   => $users
+            ], 200);
+            exit;
 
         default:
             header("Location: index.php");
