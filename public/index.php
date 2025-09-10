@@ -447,11 +447,17 @@ if (isset($_GET['action'])) {
         /*************** COMMENT ***************/
         case 'create_comment':
             if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-                $postId = $_POST['post_id'];
-                $content = $_POST['content'];
-                $commentController->createComment($postId, $content);
+                if (!isset($_SESSION['user_id'])) {
+                    header("Location: index.php?action=login");
+                    exit;
+                }
+                $postId  = $_POST['post_id'];
+                $content = trim($_POST['content']);
+                $parentId = $_POST['parent_id'] ?? null; // hỗ trợ comment nhiều cấp
+                $commentController->createComment($postId, $content, $parentId);
             }
             exit;
+
         case 'edit_comment':
             if (isset($_GET['id'])) {
                 $comment = (new PostComment())->getById($_GET['id']);
@@ -477,6 +483,7 @@ if (isset($_GET['action'])) {
                 exit;
             }
             exit;
+
 
         /*************** REACTION ***************/
         case 'toggle_reaction':

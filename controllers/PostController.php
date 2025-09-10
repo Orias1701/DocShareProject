@@ -122,7 +122,7 @@ class PostController
         }
 
         require_once __DIR__ . '/../models/PostComment.php';
-        $comments = (new PostComment())->getByPost($postId);
+        $comments = (new PostComment())->getRootByPost($postId);
 
         $reactionCounts = $this->reactionModel->getReactionCounts($postId);
 

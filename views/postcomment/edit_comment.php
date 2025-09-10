@@ -1,7 +1,7 @@
 <?php
 if (!$comment) {
     echo "<p>Comment không tồn tại.</p>";
-    return;
+    exit;
 }
 ?>
 
