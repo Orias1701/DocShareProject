@@ -262,11 +262,11 @@ if (isset($_GET['action'])) {
 
 
         /*************** API POSTS ***************/
-        case 'group1':
-            $postController->group1(); // controller này đã trả JSON
+        case 'latest_posts':       
+            $postController->getLatestPosts();  
             exit;
-        case 'group2':
-            $postController->group2();
+        case 'popular_posts':      
+            $postController->getPopularPosts(); 
             exit;
         case 'post_detail_api':
             $postController->postDetail($_GET['post_id'] ?? null);
@@ -281,14 +281,8 @@ if (isset($_GET['action'])) {
         case 'list_all_posts':
             $postController->listAllPosts();
             exit;
-        case 'create_post_form':
-            $postController->showCreateForm();
-            exit;
         case 'create_post':
             $postController->create();
-            exit;
-        case 'edit_post_form':
-            $postController->showEditForm();
             exit;
         case 'update_post':
             $postController->update();
@@ -307,14 +301,8 @@ if (isset($_GET['action'])) {
         case 'list_user_albums':
             $albumController->listUserAlbums();
             exit;
-        case 'create_album_form':
-            $albumController->showCreateForm();
-            exit;
         case 'create_album':
             $albumController->create();
-            exit;
-        case 'edit_album_form':
-            $albumController->showEditForm();
             exit;
         case 'update_album':
             $albumController->update();
@@ -333,14 +321,8 @@ if (isset($_GET['action'])) {
         case 'list_categories':
             $categoryController->listCategories();
             exit;
-        case 'create_category_form':
-            $categoryController->showCreateForm();
-            exit;
         case 'create_category':
             $categoryController->create();
-            exit;
-        case 'edit_category_form':
-            $categoryController->showEditForm();
             exit;
         case 'update_category':
             $categoryController->update();
@@ -353,14 +335,8 @@ if (isset($_GET['action'])) {
         case 'list_hashtags':
             $hashtagController->listHashtags();
             exit;
-        case 'create_hashtag_form':
-            $hashtagController->showCreateForm();
-            exit;
         case 'create_hashtag':
             $hashtagController->create();
-            exit;
-        case 'edit_hashtag_form':
-            $hashtagController->showEditForm();
             exit;
         case 'update_hashtag':
             $hashtagController->update();
@@ -369,26 +345,54 @@ if (isset($_GET['action'])) {
             $hashtagController->delete();
             exit;
 
-        /*************** USER INFO CRUD ***************/
-        case 'list_user_infos':
-            $userInfoController->listUserInfos();
+        /*************** USER INFO (API JSON) ***************/
+        case 'list_user_infos':            // GET
+            if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
+                respond_json(['status'=>'error','message'=>'Method Not Allowed'], 405);
+            }
+            $userInfoController->listUserInfos(); // controller đã respond_json
             exit;
-        case 'create_user_info_form':
+
+        case 'create_user_info_form':      // GET: trả danh sách user còn trống user_info (nếu FE cần)
+            if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
+                respond_json(['status'=>'error','message'=>'Method Not Allowed'], 405);
+            }
             $userInfoController->showCreateForm();
             exit;
-        case 'create_user_info':
+
+        case 'create_user_info':           // POST
+            if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+                respond_json(['status'=>'error','message'=>'Method Not Allowed'], 405);
+            }
             $userInfoController->create();
             exit;
-        case 'edit_user_info_form':
+
+        case 'edit_user_info_form':        // GET: lấy dữ liệu để edit (nếu FE cần)
+            if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
+                respond_json(['status'=>'error','message'=>'Method Not Allowed'], 405);
+            }
             $userInfoController->showEditForm();
             exit;
-        case 'update_user_info':
+
+        case 'update_user_info':           // POST (hoặc PUT/PATCH tuỳ bạn)
+            if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+                respond_json(['status'=>'error','message'=>'Method Not Allowed'], 405);
+            }
             $userInfoController->update();
             exit;
-        case 'delete_user_info':
+
+        case 'delete_user_info':           // DELETE hoặc POST (tuỳ client)
+            $m = strtoupper($_SERVER['REQUEST_METHOD'] ?? 'GET');
+            if (!in_array($m, ['DELETE','POST'], true)) {
+                respond_json(['status'=>'error','message'=>'Method Not Allowed','allowed'=>'DELETE, POST'], 405);
+            }
             $userInfoController->delete();
             exit;
-        case 'user_detail':
+
+        case 'user_detail':                // GET
+            if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
+                respond_json(['status'=>'error','message'=>'Method Not Allowed'], 405);
+            }
             $userInfoController->showUserInfo();
             exit;
 

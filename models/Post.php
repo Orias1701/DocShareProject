@@ -17,7 +17,7 @@ class Post
     /**
      * View A: user_infos, user_follows, albums, posts, post_comments, post_reactions, post_reports
      */
-    public function getGroup1List()
+    public function getLatestPosts()
     {
         try {
             $sql = "
@@ -47,7 +47,7 @@ class Post
     /**
      * View B: posts, user_infos, categories, post_hashtags, albums, post_comments, post_reactions, post_reports
      */
-    public function getGroup2List()
+    public function getPopularPosts()
     {
         try {
             $sql = "

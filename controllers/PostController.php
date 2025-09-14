@@ -15,168 +15,169 @@ class PostController
 
     public function __construct()
     {
-        $this->postModel = new Post();
-        $this->albumModel = new Album();
+        $this->postModel     = new Post();
+        $this->albumModel    = new Album();
         $this->categoryModel = new Category();
         $this->reactionModel = new PostReaction();
     }
 
-    // ==== JSON API ====
-    public function group1()
-    {
+    /** ===== Helpers ===== */
+    private function respondJson($payload, int $code = 200): void {
+        http_response_code($code);
         header('Content-Type: application/json; charset=utf-8');
+        echo json_encode($payload, JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
+    private function respondError(string $msg, int $code = 400, array $extra = []): void {
+        $this->respondJson(array_merge([
+            'status'  => 'error',
+            'message' => $msg,
+        ], $extra), $code);
+    }
+
+    /** ===== JSON API ===== */
+
+    /** Lấy danh sách bài viết mới nhất (đổi từ group1) */
+    public function getLatestPosts()
+    {
         try {
-            $data = $this->postModel->getGroup1List();
-            echo json_encode(['status' => 'ok', 'data' => $data], JSON_UNESCAPED_UNICODE);
+            // NOTE: đổi tên hàm trong Model: getGroup1List() -> getLatestPosts()
+            // Nếu bạn chưa đổi trong Model, tạm thời gọi hàm cũ:
+            $method = method_exists($this->postModel, 'getLatestPosts') ? 'getLatestPosts' : 'getGroup1List';
+            $data = $this->postModel->{$method}();
+            $this->respondJson(['status' => 'ok', 'data' => $data]);
         } catch (Exception $e) {
-            http_response_code(500);
-            echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
+            $this->respondError($e->getMessage(), 500);
         }
     }
 
-    public function group2()
+    /** Lấy danh sách bài viết phổ biến (đổi từ group2) */
+    public function getPopularPosts()
     {
-        header('Content-Type: application/json; charset=utf-8');
         try {
-            $data = $this->postModel->getGroup2List();
-            echo json_encode(['status' => 'ok', 'data' => $data], JSON_UNESCAPED_UNICODE);
+            // NOTE: đổi tên hàm trong Model: getGroup2List() -> getPopularPosts()
+            $method = method_exists($this->postModel, 'getPopularPosts') ? 'getPopularPosts' : 'getGroup2List';
+            $data = $this->postModel->{$method}();
+            $this->respondJson(['status' => 'ok', 'data' => $data]);
         } catch (Exception $e) {
-            http_response_code(500);
-            echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
+            $this->respondError($e->getMessage(), 500);
         }
     }
 
+    /** Chi tiết 1 bài viết “gọn” */
     public function postDetail($postId = null)
     {
-        header('Content-Type: application/json; charset=utf-8');
         try {
             if (!$postId && isset($_GET['post_id'])) $postId = $_GET['post_id'];
-            if (!$postId) {
-                echo json_encode(['status' => 'error', 'message' => 'post_id required']);
-                return;
-            }
+            if (!$postId) $this->respondError('post_id required', 422);
+
             $data = $this->postModel->getPostDetail($postId);
-            if ($data === null) {
-                echo json_encode(['status' => 'error', 'message' => 'Post not found']);
-                return;
-            }
-            echo json_encode(['status' => 'ok', 'data' => $data], JSON_UNESCAPED_UNICODE);
+            if (!$data) $this->respondError('Post not found', 404);
+
+            $this->respondJson(['status' => 'ok', 'data' => $data]);
         } catch (Exception $e) {
-            http_response_code(500);
-            echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
+            $this->respondError($e->getMessage(), 500);
         }
     }
 
-    //Lấy bài viết theo categoryId
+    /** Bài viết theo category */
     public function getPostsByCategory()
     {
         $categoryId = $_GET['category_id'] ?? null;
+        if (!$categoryId) $this->respondError('Category ID không hợp lệ', 422);
 
-        if ($categoryId === null || $categoryId === '') {
-            echo "Category ID không hợp lệ.";
-            return;
+        try {
+            $posts = $this->postModel->getPostByCategoryId($categoryId);
+            $this->respondJson(['status' => 'ok', 'data' => $posts]);
+        } catch (Exception $e) {
+            $this->respondError($e->getMessage(), 500);
         }
-
-        $posts = $this->postModel->getPostByCategoryId($categoryId);
-        include __DIR__ . '/../views/post/list.php';
     }
 
-    // Trong file controllers/PostController.php
-
+    /** Bài viết theo nhiều hashtag ids (CSV) */
     public function getPostsByHashtag()
     {
-        // Lấy chuỗi hashtag ID từ URL, ví dụ: ?hashtag_ids=HASHTAG00001,HASHTAG00002
         $hashtagIdsString = $_GET['hashtag_ids'] ?? '';
-
-        // Tách chuỗi thành mảng các ID
-        $hashtagIds = array_map('trim', explode(',', $hashtagIdsString));
-
-        // Lọc các ID rỗng
-        $hashtagIds = array_filter($hashtagIds);
-
+        $hashtagIds = array_filter(array_map('trim', explode(',', $hashtagIdsString)));
         if (empty($hashtagIds)) {
-            echo "Vui lòng cung cấp ít nhất một Hashtag ID hợp lệ.";
-            return;
+            $this->respondError('Vui lòng cung cấp ít nhất một Hashtag ID hợp lệ.', 422);
         }
 
-        // Gọi hàm từ Model với mảng các ID
-        $posts = $this->postModel->getPostsByHashtagIds($hashtagIds);
-
-        // Nạp View và truyền dữ liệu posts vào
-        include __DIR__ . '/../views/post/list_by_hashtag.php';
+        try {
+            $posts = $this->postModel->getPostsByHashtagIds($hashtagIds);
+            $this->respondJson(['status' => 'ok', 'data' => $posts]);
+        } catch (Exception $e) {
+            $this->respondError($e->getMessage(), 500);
+        }
     }
 
-
+    /** Chi tiết bài viết đầy đủ (post + comments + reactions + userReaction) */
     public function showPostDetail()
     {
         $postId = $_GET['post_id'] ?? null;
-        if (!$postId) {
-            echo "Thiếu post_id";
-            return;
-        }
-
-        $post = $this->postModel->getPostById($postId);
-        if (!$post) {
-            echo "Bài viết không tồn tại";
-            return;
-        }
-
-        require_once __DIR__ . '/../models/PostComment.php';
-        $comments = (new PostComment())->getRootByPost($postId);
-
-        $reactionCounts = $this->reactionModel->getReactionCounts($postId);
-
-        $userReaction = null;
-        if (isset($_SESSION['user_id'])) {
-            $userReaction = $this->reactionModel->getUserReaction($postId, $_SESSION['user_id']);
-        }
-
-        include __DIR__ . '/../views/post_detail.php';
-    }
-
-    // ==== CRUD ====
-    public function listAllPosts()
-    {
-        $posts = $this->postModel->getAllPosts();
-        include __DIR__ . '/../views/post/list_all.php';
-    }
-
-    public function showCreateForm()
-    {
-        if (!isset($_SESSION['user_id'])) {
-            header("Location: index.php?action=login");
-            exit;
-        }
-        $userId = $_SESSION['user_id'];
-        $albums = $this->albumModel->getAlbumsByUserId($userId);
-        $categories = $this->categoryModel->getAllCategories();
-        include __DIR__ . '/../views/post/create.php';
-    }
-
-    public function create()
-    {
-        // Chỉ cho phép POST và user đã đăng nhập
-        if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !isset($_SESSION['user_id'])) {
-            header("Location: index.php?action=login");
-            exit;
-        }
-
-        $title = $_POST['title'] ?? '';
-        $content = $_POST['content'] ?? '';
-        $description = $_POST['description'] ?? '';
-        $summary = $_POST['summary'] ?? '';
-        $albumId = $_POST['album_id'] ?? '';
-        $categoryId = $_POST['category_id'] ?? '';
-        $bannerUrl = null;
-        $fileUrl = null;
-        $fileType = null;
-
-        // Khởi tạo Cloudinary
-        $cloudinary = require __DIR__ . '/../config/cloudinary.php';
-        $baseUrl = 'http://' . $_SERVER['HTTP_HOST'] . '/'; // Điều chỉnh theo cấu hình server
+        if (!$postId) $this->respondError("Thiếu post_id", 422);
 
         try {
-            // Upload banner nếu có
+            $post = $this->postModel->getPostById($postId);
+            if (!$post) $this->respondError("Bài viết không tồn tại", 404);
+
+            require_once __DIR__ . '/../models/PostComment.php';
+            $comments       = (new PostComment())->getRootByPost($postId);
+            $reactionCounts = $this->reactionModel->getReactionCounts($postId);
+
+            $userReaction = null;
+            if (isset($_SESSION['user_id'])) {
+                $userReaction = $this->reactionModel->getUserReaction($postId, $_SESSION['user_id']);
+            }
+
+            $this->respondJson([
+                'status' => 'ok',
+                'data'   => [
+                    'post'         => $post,
+                    'comments'     => $comments,
+                    'reactions'    => $reactionCounts,
+                    'userReaction' => $userReaction
+                ]
+            ]);
+        } catch (Exception $e) {
+            $this->respondError($e->getMessage(), 500);
+        }
+    }
+
+    /** Danh sách tất cả bài viết */
+    public function listAllPosts()
+    {
+        try {
+            $posts = $this->postModel->getAllPosts();
+            $this->respondJson(['status' => 'ok', 'data' => $posts]);
+        } catch (Exception $e) {
+            $this->respondError($e->getMessage(), 500);
+        }
+    }
+
+    /** Tạo bài viết */
+    public function create()
+    {
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !isset($_SESSION['user_id'])) {
+            $this->respondError('Unauthorized', 401);
+        }
+
+        $title       = $_POST['title']       ?? '';
+        $content     = $_POST['content']     ?? '';
+        $description = $_POST['description'] ?? '';
+        $summary     = $_POST['summary']     ?? '';
+        $albumId     = $_POST['album_id']    ?? '';
+        $categoryId  = $_POST['category_id'] ?? '';
+        $bannerUrl   = null;
+        $fileUrl     = null;
+        $fileType    = null;
+
+        $cloudinary = require __DIR__ . '/../config/cloudinary.php';
+        $baseUrl    = 'http://' . $_SERVER['HTTP_HOST'] . '/';
+
+        try {
+            // Upload banner (tuỳ chọn)
             if (!empty($_FILES['banner']['tmp_name'])) {
                 $uploadBanner = $cloudinary->uploadApi()->upload($_FILES['banner']['tmp_name'], [
                     'folder' => 'post_banners'
@@ -184,201 +185,142 @@ class PostController
                 $bannerUrl = $uploadBanner['secure_url'];
             }
 
-            // Upload file PDF nếu có
+            // Upload PDF (tuỳ chọn)
             if (!empty($_FILES['content_file']['tmp_name'])) {
-                $uploadedFile = $_FILES['content_file'];
+                $uploadedFile     = $_FILES['content_file'];
                 $uploadedFileType = $uploadedFile['type'];
-                $uploadedFileExt = strtolower(pathinfo($uploadedFile['name'], PATHINFO_EXTENSION));
-                $maxFileSize = 10 * 1024 * 1024; // 10MB
+                $uploadedFileExt  = strtolower(pathinfo($uploadedFile['name'], PATHINFO_EXTENSION));
+                $maxFileSize      = 10 * 1024 * 1024; // 10MB
 
-                // Chỉ chấp nhận PDF
-                $allowedFileTypes = ['application/pdf'];
-                if (!in_array($uploadedFileType, $allowedFileTypes) || $uploadedFileExt !== 'pdf') {
-                    throw new Exception("Định dạng file không được hỗ trợ. Chỉ hỗ trợ PDF.");
-                }
+                if ($uploadedFileExt !== 'pdf') throw new Exception("Chỉ hỗ trợ PDF.");
+                if ($uploadedFile['size'] > $maxFileSize) throw new Exception("File quá lớn (>10MB).");
+                if ($uploadedFile['error'] !== UPLOAD_ERR_OK) throw new Exception("Lỗi upload file");
 
-                if ($uploadedFile['size'] > $maxFileSize) {
-                    throw new Exception("File quá lớn. Kích thước tối đa là 10MB.");
-                }
-
-                if ($uploadedFile['error'] !== UPLOAD_ERR_OK) {
-                    error_log("Upload error: " . $uploadedFile['error']);
-                    throw new Exception("Lỗi upload file: Mã lỗi " . $uploadedFile['error']);
-                }
-
-                // Tạo tên file mới và di chuyển
-                $fileName = uniqid() . '.' . $uploadedFileExt;
+                $fileName  = uniqid() . '.' . $uploadedFileExt;
                 $uploadDir = __DIR__ . '/../uploads/posts/';
-                if (!is_dir($uploadDir)) {
-                    mkdir($uploadDir, 0755, true);
-                }
-
+                if (!is_dir($uploadDir)) mkdir($uploadDir, 0755, true);
                 $targetPath = $uploadDir . $fileName;
+
                 if (move_uploaded_file($uploadedFile['tmp_name'], $targetPath)) {
-                    $fileUrl = $baseUrl . 'uploads/posts/' . $fileName;
+                    $fileUrl  = $baseUrl . 'uploads/posts/' . $fileName;
                     $fileType = $uploadedFileType;
-                    error_log("File uploaded successfully: $fileUrl");
                 } else {
-                    error_log("Failed to move uploaded file to: $targetPath");
-                    throw new Exception("Lỗi khi di chuyển file đã tải lên.");
+                    throw new Exception("Không thể lưu file upload.");
                 }
             }
 
-            // Tạo bài viết
-            $this->postModel->createPost($title, $content, $description, $summary, $albumId, $categoryId, $bannerUrl, $fileUrl, $fileType);
+            $postId = $this->postModel->createPost(
+                $title, $content, $description, $summary,
+                $albumId, $categoryId, $bannerUrl, $fileUrl, $fileType
+            );
 
-            // Chuyển hướng về danh sách bài viết
-            header("Location: index.php?action=list_all_posts");
-            exit;
+            $this->respondJson(['status' => 'ok', 'post_id' => $postId], 201);
         } catch (Exception $e) {
-            error_log("Error in create: " . $e->getMessage());
-            die("Lỗi khi tạo bài viết: " . htmlspecialchars($e->getMessage()));
+            $this->respondError($e->getMessage(), 500);
         }
     }
 
-
-    public function showEditForm()
-    {
-        if (!isset($_SESSION['user_id'])) {
-            header("Location: index.php?action=login");
-            exit;
-        }
-
-        $postId = $_GET['id'] ?? null;
-        $post = $this->postModel->getPostById($postId);
-
-        if (!$post || $post['author_id'] !== $_SESSION['user_id']) {
-            echo "Bạn không có quyền chỉnh sửa bài viết này!";
-            exit;
-        }
-
-        $userId = $_SESSION['user_id'];
-        $albums = $this->albumModel->getAlbumsByUserId($userId);
-        $categories = $this->categoryModel->getAllCategories();
-
-        include __DIR__ . '/../views/post/edit.php';
-    }
-
+    /** Cập nhật bài viết */
     public function update()
     {
         if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !isset($_SESSION['user_id'])) {
-            header("Location: index.php?action=login");
-            exit;
+            $this->respondError('Unauthorized', 401);
         }
 
         $postId = $_POST['post_id'] ?? null;
+        if (!$postId) $this->respondError("Thiếu post_id", 422);
+
         $post = $this->postModel->getPostById($postId);
+        if (!$post) $this->respondError("Bài viết không tồn tại", 404);
+        if ($post['author_id'] !== $_SESSION['user_id']) $this->respondError("Forbidden", 403);
 
-        if (!$post || $post['author_id'] !== $_SESSION['user_id']) {
-            echo "Bạn không có quyền cập nhật bài viết này!";
-            exit;
-        }
-
-        $title = $_POST['title'] ?? '';
-        $content = $_POST['content'] ?? '';
+        $title       = $_POST['title']       ?? '';
+        $content     = $_POST['content']     ?? '';
         $description = $_POST['description'] ?? '';
-        $summary = $_POST['summary'] ?? '';
+        $summary     = $_POST['summary']     ?? '';
+        $albumId     = $_POST['album_id']    ?? '';
+        $categoryId  = $_POST['category_id'] ?? '';
+        $bannerUrl   = $post['banner_url'];
+        $fileUrl     = $post['file_url'];
+        $fileType    = $post['file_type'];
 
-        $albumId = $_POST['album_id'] ?? '';
-        $categoryId = $_POST['category_id'] ?? '';
-        $bannerUrl = $post['banner_url'];
-        $fileUrl = $post['file_url'];
-        $fileType = $post['file_type'];
         $cloudinary = require __DIR__ . '/../config/cloudinary.php';
-        $baseUrl = 'http://' . $_SERVER['HTTP_HOST'] . '/'; // Điều chỉnh theo cấu hình server
+        $baseUrl    = 'http://' . $_SERVER['HTTP_HOST'] . '/';
 
         try {
-            // Upload banner
+            // Banner mới (tuỳ chọn)
             if (!empty($_FILES['banner']['tmp_name'])) {
                 $upload = $cloudinary->uploadApi()->upload($_FILES['banner']['tmp_name'], ['folder' => 'post_banners']);
                 $bannerUrl = $upload['secure_url'];
             }
 
-            // Upload content file (chỉ PDF)
+            // File PDF mới (tuỳ chọn)
             if (!empty($_FILES['content_file']['tmp_name'])) {
-                $uploadedFile = $_FILES['content_file'];
+                $uploadedFile     = $_FILES['content_file'];
                 $uploadedFileType = $uploadedFile['type'];
-                $uploadedFileExt = strtolower(pathinfo($uploadedFile['name'], PATHINFO_EXTENSION));
-                $maxFileSize = 10 * 1024 * 1024; // 10MB
+                $uploadedFileExt  = strtolower(pathinfo($uploadedFile['name'], PATHINFO_EXTENSION));
+                $maxFileSize      = 10 * 1024 * 1024;
 
-                $allowedFileTypes = ['application/pdf'];
+                if ($uploadedFileExt !== 'pdf') throw new Exception("Chỉ hỗ trợ PDF.");
+                if ($uploadedFile['size'] > $maxFileSize) throw new Exception("File quá lớn (>10MB).");
+                if ($uploadedFile['error'] !== UPLOAD_ERR_OK) throw new Exception("Lỗi upload file");
 
-                if (!in_array($uploadedFileType, $allowedFileTypes) || $uploadedFileExt !== 'pdf') {
-                    throw new Exception("Định dạng file không được hỗ trợ. Chỉ hỗ trợ PDF.");
+                // Xoá file cũ nếu có
+                $oldPath = $post['file_url'] ? (__DIR__ . '/../' . ltrim(parse_url($post['file_url'], PHP_URL_PATH), '/')) : null;
+                if ($oldPath && file_exists($oldPath)) {
+                    @unlink($oldPath);
                 }
 
-                if ($uploadedFile['size'] > $maxFileSize) {
-                    throw new Exception("File quá lớn. Kích thước tối đa là 10MB.");
-                }
-
-                if ($uploadedFile['error'] !== UPLOAD_ERR_OK) {
-                    error_log("Upload error: " . $uploadedFile['error']);
-                    throw new Exception("Lỗi upload file: Mã lỗi " . $uploadedFile['error']);
-                }
-
-                // Xóa file cũ nếu có
-                if ($post['file_url'] && file_exists(__DIR__ . '/../' . parse_url($post['file_url'], PHP_URL_PATH))) {
-                    unlink(__DIR__ . '/../' . parse_url($post['file_url'], PHP_URL_PATH));
-                    error_log("Deleted old file: " . $post['file_url']);
-                }
-
-                $fileName = uniqid() . '.' . $uploadedFileExt;
+                $fileName  = uniqid() . '.' . $uploadedFileExt;
                 $uploadDir = __DIR__ . '/../uploads/posts/';
-                if (!is_dir($uploadDir)) {
-                    mkdir($uploadDir, 0755, true);
-                }
+                if (!is_dir($uploadDir)) mkdir($uploadDir, 0755, true);
                 $targetPath = $uploadDir . $fileName;
 
                 if (move_uploaded_file($uploadedFile['tmp_name'], $targetPath)) {
-                    $fileUrl = $baseUrl . 'uploads/posts/' . $fileName;
+                    $fileUrl  = $baseUrl . 'uploads/posts/' . $fileName;
                     $fileType = $uploadedFileType;
-                    error_log("File updated successfully: $fileUrl");
                 } else {
-                    error_log("Failed to move uploaded file to: $targetPath");
-                    throw new Exception("Lỗi khi di chuyển file đã tải lên.");
+                    throw new Exception("Không thể lưu file upload.");
                 }
             }
 
-            // Cập nhật bài viết
-            $this->postModel->updatePost($postId, $title, $content, $description, $summary, $albumId, $categoryId, $bannerUrl, $_SESSION['user_id'], $fileUrl, $fileType);
+            $this->postModel->updatePost(
+                $postId, $title, $content, $description, $summary,
+                $albumId, $categoryId, $bannerUrl, $_SESSION['user_id'], $fileUrl, $fileType
+            );
 
-            header("Location: index.php?action=list_all_posts");
-            exit;
+            $this->respondJson(['status' => 'ok', 'message' => 'Cập nhật thành công']);
         } catch (Exception $e) {
-            error_log("Error in update: " . $e->getMessage());
-            die("Lỗi khi cập nhật bài viết: " . htmlspecialchars($e->getMessage()));
+            $this->respondError($e->getMessage(), 500);
         }
     }
 
-
+    /** Xoá bài viết */
     public function delete()
     {
         if (!isset($_SESSION['user_id'])) {
-            header("Location: index.php?action=login");
-            exit;
+            $this->respondError('Unauthorized', 401);
         }
 
-        $postId = $_GET['id'] ?? null;
+        $postId = $_GET['id'] ?? ($_POST['id'] ?? null);
+        if (!$postId) $this->respondError("Thiếu id", 422);
+
         $post = $this->postModel->getPostById($postId);
-
-        if (!$post || $post['author_id'] !== $_SESSION['user_id']) {
-            echo "Bạn không có quyền xóa bài viết này!";
-            exit;
-        }
+        if (!$post) $this->respondError("Bài viết không tồn tại", 404);
+        if ($post['author_id'] !== $_SESSION['user_id']) $this->respondError("Forbidden", 403);
 
         try {
-            // Xóa file liên quan trước
-            if ($post['file_url'] && file_exists(__DIR__ . '/../' . parse_url($post['file_url'], PHP_URL_PATH))) {
-                unlink(__DIR__ . '/../' . parse_url($post['file_url'], PHP_URL_PATH));
-                error_log("Deleted file: " . $post['file_url']);
+            // Xoá file đính kèm nếu có
+            $oldPath = $post['file_url'] ? (__DIR__ . '/../' . ltrim(parse_url($post['file_url'], PHP_URL_PATH), '/')) : null;
+            if ($oldPath && file_exists($oldPath)) {
+                @unlink($oldPath);
             }
 
             $this->postModel->deletePost($postId, $_SESSION['user_id']);
-            header("Location: index.php?action=list_all_posts");
-            exit;
+
+            $this->respondJson(['status' => 'ok', 'message' => 'Đã xoá', 'id' => (int)$postId]);
         } catch (Exception $e) {
-            error_log("Error in delete: " . $e->getMessage());
-            die("Lỗi khi xóa bài viết: " . htmlspecialchars($e->getMessage()));
+            $this->respondError($e->getMessage(), 500);
         }
     }
 }

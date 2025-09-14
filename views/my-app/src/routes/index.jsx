@@ -1,12 +1,15 @@
+// src/app/App.jsx
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { useState, useEffect } from "react";
+import { AuthProvider } from "../hook/useAuth";
+import RequireAuth from "../pages/auth/RequireAuth";
 
 // Layout & Components
 import NavBar from "../components/layouts/NavBar";
 import Header from "../components/layouts/Header";
 import Footer from "../components/layouts/Footer";
-import Modal from "../components/common/Modal"; // THAY ĐỔI: Import component Modal
-import NewAlbumForm from "../components/common/NewAlbumForm"; // THAY ĐỔI: Import form tạo Album
+import Modal from "../components/common/Modal";
+import NewAlbumForm from "../components/common/NewAlbumForm";
 import AuthLayout from "../layouts/AuthLayout";
 
 // Pages
@@ -21,36 +24,25 @@ import LeaderboardPage from "../pages/leaderboard/LeaderboardPage";
 import CategoriesPage from "../pages/categories/CategoriesPage";
 import HashtagsPage from "../pages/hashtags/HashtagsPage";
 import ProfilePage from "../pages/profile/ProfilePage";
-import RegisterPage from "../pages/auth/RegisterPage"
+import RegisterPage from "../pages/auth/RegisterPage";
 import LoginPage from "../pages/auth/LoginPage";
-// Global icons/css
+
+// Global css
 import "../assets/font-awesome-6.6.0-pro-full-main/css/all.css";
 
-const Placeholder = ({ name }) => (
-  <div style={{ fontSize: "20px", padding: "1rem" }}>{name} Page</div>
-);
-
-function App() {
-  const [isCollapsed, setIsCollapsed] = useState(false);
-  const [isNewAlbumModalOpen, setNewAlbumModalOpen] = useState(false);
+function ProtectedLayout({ isCollapsed, setIsCollapsed, isNewAlbumModalOpen, setNewAlbumModalOpen }) {
+  useEffect(() => {
+    document.body.classList.add("main-page");
+    return () => document.body.classList.remove("main-page");
+  }, []);
 
   useEffect(() => {
     document.body.classList.toggle("sidebar--collapsed", isCollapsed);
-    return () => {
-      document.body.classList.remove("sidebar--collapsed");
-    };
+    return () => document.body.classList.remove("sidebar--collapsed");
   }, [isCollapsed]);
 
   return (
-    <BrowserRouter>
-      <Routes>
-        {/* Routes sử dụng layout chung */}
-        <Route
-  path="/"
-  element={
     <>
-      {/* Gán class cho body */}
-      {document.body.classList.add("main-page")}
       <Header />
       <div className="app-shell">
         <NavBar
@@ -60,51 +52,71 @@ function App() {
         />
         <main>
           <Routes>
-            <Route path="/" element={<ExplorePage />} />
-            <Route path="/following" element={<FollowingPage />} />
-            <Route path="/history" element={<HistoryPage />} />
-            <Route path="/my-posts" element={<MyPostsPage />} />
-            <Route path="/bookmarks" element={<BookmarksPage />} />
-            <Route path="/my-albums" element={<MyAlbumPage />} />
-            <Route path="/new-post" element={<NewPostPage />} />
-            <Route path="/profile" element={<ProfilePage />} />
-            <Route path="/leaderboard" element={<LeaderboardPage />} />
-            <Route path="/categories" element={<CategoriesPage />} />
-            <Route path="/hashtags" element={<HashtagsPage />} />
+            <Route index element={<ExplorePage />} />
+            <Route path="following" element={<FollowingPage />} />
+            <Route path="history" element={<HistoryPage />} />
+            <Route path="my-posts" element={<MyPostsPage />} />
+            <Route path="bookmarks" element={<BookmarksPage />} />
+            <Route path="my-albums" element={<MyAlbumPage />} />
+            <Route path="new-post" element={<NewPostPage />} />
+            <Route path="profile" element={<ProfilePage />} />
+            <Route path="leaderboard" element={<LeaderboardPage />} />
+            <Route path="categories" element={<CategoriesPage />} />
+            <Route path="hashtags" element={<HashtagsPage />} />
           </Routes>
         </main>
       </div>
       <Footer />
-    </>
-  }
-/>
-
-
-        {/* Route register sử dụng AuthLayout */}
-        <Route
-          path="/register"
-          element={
-            <AuthLayout>
-              <RegisterPage />
-            </AuthLayout>
-          }
-        />
-
-        <Route
-          path="/login"
-          element={
-            <AuthLayout>
-              <LoginPage />
-            </AuthLayout>
-          }
-        />
-      </Routes>
-
-      {/* Modal tạo album */}
       <Modal isOpen={isNewAlbumModalOpen} onClose={() => setNewAlbumModalOpen(false)}>
         <NewAlbumForm onClose={() => setNewAlbumModalOpen(false)} />
       </Modal>
-    </BrowserRouter>
+    </>
+  );
+}
+
+function App() {
+  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isNewAlbumModalOpen, setNewAlbumModalOpen] = useState(false);
+
+  return (
+    <AuthProvider>
+      <BrowserRouter>
+        <Routes>
+          {/* Public */}
+          <Route
+            path="/login"
+            element={
+              <AuthLayout>
+                <LoginPage />
+              </AuthLayout>
+            }
+          />
+          <Route
+            path="/register"
+            element={
+              <AuthLayout>
+                <RegisterPage />
+              </AuthLayout>
+            }
+          />
+
+          {/* Private (bọc toàn bộ main) */}
+          <Route
+            path="/*"
+            element={
+              <RequireAuth>
+                <ProtectedLayout
+                  isCollapsed={isCollapsed}
+                  setIsCollapsed={setIsCollapsed}
+                  isNewAlbumModalOpen={isNewAlbumModalOpen}
+                  setNewAlbumModalOpen={setNewAlbumModalOpen}
+                />
+              </RequireAuth>
+            }
+          />
+        </Routes>
+      </BrowserRouter>
+    </AuthProvider>
   );
 }
 

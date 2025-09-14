@@ -3,3 +3,4 @@ config
 /vendor/*
 !/vendor/empty.txt
 vendor
+/vendor
