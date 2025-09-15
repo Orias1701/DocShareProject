@@ -344,6 +344,9 @@ if (isset($_GET['action'])) {
         case 'delete_hashtag':
             $hashtagController->delete();
             exit;
+        case 'hashtag_detail':
+            $hashtagController->detail();
+            exit;
 
         /*************** USER INFO (API JSON) ***************/
         case 'list_user_infos':            // GET

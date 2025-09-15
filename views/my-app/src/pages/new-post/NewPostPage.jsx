@@ -3,18 +3,25 @@ import React, { useEffect, useMemo, useState } from 'react';
 import FormField from '../../components/new-post/FormField';
 import FileUpload from '../../components/new-post/FileUpload';
 import FilePreview from '../../components/new-post/FilePreview';
-import { postApi } from '../../services/postService';
+import postService from '../../services/postService';
+import albumService from '../../services/albumService';
+import hashtagService from '../../services/hashtagService';
+import Toast from '../../components/common/Toast';
 
 const NewPostPage = () => {
   const [mainFile, setMainFile] = useState(null);          // PDF
   const [thumbnailFile, setThumbnailFile] = useState(null);// Image
   const [submitting, setSubmitting] = useState(false);
   const [errors, setErrors] = useState({});
+  const [toast, setToast] = useState({ open: false, message: "", type: "success" });
+  const showToast = (message, type = "success") => {
+    setToast({ open: true, message, type });
+  };
 
   // ▼ state dữ liệu động
   const [categories, setCategories] = useState([]);
   const [albums, setAlbums] = useState([]);
-  const [hashtags, setHashtags] = useState([]);
+  const [hashtags, setHashtags] = useState([]); // [{id,name}] sau normalize
 
   const [loadingOpts, setLoadingOpts] = useState({
     categories: true,
@@ -27,7 +34,7 @@ const NewPostPage = () => {
     title: '',
     category: '',         // id
     album: '',            // id
-    hashtagIds: [],       // array id cho đa chọn
+    hashtagIds: [],       // (giữ lại nếu nơi khác cần), nhưng sẽ parse từ hashtagInput khi submit
     summary: '',
     description: '',
   });
@@ -36,35 +43,72 @@ const NewPostPage = () => {
     setNewPost(prev => ({ ...prev, [name]: value }));
   };
 
-  // ▼ fetch dữ liệu động từ DB
+  // 👇👇👇 Hashtag input: dùng raw string để người dùng gõ, giữ dấu cách/phẩy 👇👇👇
+  const [hashtagInput, setHashtagInput] = useState(''); // 👈 UPDATED
+
+  // 1) Format để HIỂN THỊ: thêm # cho từng từ; giữ dấu cách/comma cuối để gõ tiếp
+  const formatHashtagInput = (raw) => { // 👈 UPDATED
+    const s = String(raw ?? '');
+    const endsWithDelim = /[,\s]$/.test(s); // có đang gõ dấu phân tách không
+    const parts = s
+      .split(/[,\s]+/)
+      .map(x => x.trim())
+      .filter(Boolean)
+      .map(x => x.replace(/^#+/, ''))   // bỏ # thừa ở đầu 1 token
+      .map(x => x.toLowerCase())
+      .map(x => (x ? `#${x}` : ''));
+    let out = parts.filter(Boolean).join(' ');
+    if (endsWithDelim) out += ' '; // giữ khoảng trắng khi người dùng vừa nhấn space/comma
+    return out;
+  };
+
+  // 2) Parse để GỬI BE (lúc submit): cắt theo space/comma, thêm #, gọn ký tự
+  const parseHashtagForSubmit = (raw) => { // 👈 UPDATED
+    return Array.from(
+      new Set(
+        String(raw || '')
+          .split(/[,\s]+/)
+          .map(s => s.trim())
+          .filter(Boolean)
+          .map(s => s.toLowerCase())
+          .map(s => s.replace(/^#+/, ''))         // bỏ mọi # đầu vào
+          .map(s => s.replace(/\s+/g, '-'))       // thay space giữa từ thành '-'
+          .map(s => s.replace(/[^\p{L}\p{N}_-]/gu, '')) // lọc ký tự lạ
+          .filter(Boolean)
+          .map(s => `#${s}`)
+      )
+    );
+  };
+
   useEffect(() => {
     const loadAll = async () => {
       try {
-        console.log("Loading categories, albums, hashtags...");
         const [cats, albs, tags] = await Promise.all([
-          postApi.listCategories().catch(e => { 
-            console.error("Lỗi load categories:", e);
+          postService.listCategories().catch(e => { 
             setOptErrors(p => ({...p, categories: e.message})); 
             return []; 
           }),
-          postApi.listAlbums().catch(e => { 
-            console.error("Lỗi load albums:", e);
+          albumService.listMyAlbums().catch(e => { 
             setOptErrors(p => ({...p, albums: e.message})); 
             return []; 
           }),
-          postApi.listHashtags().catch(e => { 
-            console.error("Lỗi load hashtags:", e);
-            setOptErrors(p => ({...p, hashtags: e.message})); 
-            return []; 
+          hashtagService.list().catch(e => {
+            setOptErrors(p => ({...p, hashtags: e.message}));
+            return [];
           }),
         ]);
-        console.log("Categories:", cats);
-        console.log("Albums:", albs);
-        console.log("Hashtags:", tags);
 
         setCategories(Array.isArray(cats) ? cats : []);
-        setAlbums(Array.isArray(albs) ? albs : []);
-        setHashtags(Array.isArray(tags) ? tags : []);
+
+        const normAlbums = (Array.isArray(albs) ? albs : [])
+          .map(a => ({ id: a.id ?? a.album_id, name: a.name ?? a.album_name }))
+          .filter(x => x.id && x.name);
+        setAlbums(normAlbums);
+
+        const normTags = (Array.isArray(tags) ? tags : [])
+          .map(t => ({ id: t.id ?? t.hashtag_id, name: t.name ?? t.hashtag_name }))
+          .filter(x => x.id && x.name);
+        setHashtags(normTags);
       } finally {
         setLoadingOpts({ categories: false, albums: false, hashtags: false });
       }
@@ -80,38 +124,64 @@ const NewPostPage = () => {
     if (mainFile && mainFile.type !== 'application/pdf') e.mainFile = 'File chính phải là PDF';
     if (thumbnailFile && !/^image\//.test(thumbnailFile.type)) e.thumbnailFile = 'Thumbnail phải là ảnh';
     setErrors(e);
-
-    console.log("Validate result:", e);
     return Object.keys(e).length === 0;
   };
 
   const handleSubmit = async () => {
-    console.log("Submit pressed, newPost:", newPost);
-    if (!validate()) {
-      console.warn("Validation failed:", errors);
-      return;
-    }
-
-    const fd = new FormData();
-    fd.append('title', newPost.title);
-    if (newPost.summary) fd.append('summary', newPost.summary);
-    if (newPost.description) fd.append('content', newPost.description);
-    if (newPost.category) fd.append('category_id', newPost.category);
-    if (newPost.album) fd.append('album_id', newPost.album);
-
-    if (newPost.hashtagIds?.length) {
-      fd.append('hashtag_ids', newPost.hashtagIds.join(','));
-    }
-
-    if (mainFile) fd.append('content_file', mainFile);
-    if (thumbnailFile) fd.append('banner', thumbnailFile);
+    if (!validate()) return;
 
     try {
       setSubmitting(true);
-      console.log("Sending FormData...");
-      const res = await postApi.create(fd);
-      console.log('Create post result:', res);
-      alert('Tạo bài viết thành công!');
+
+      // 👇 Lấy mảng hashtag từ raw input để gán ID
+      const uniqueNames = parseHashtagForSubmit(hashtagInput); // 👈 UPDATED
+
+      // Resolve name -> id (tạo nếu chưa có)
+      const resolvedTagIds = [];
+      for (const name of uniqueNames) {
+        const found = hashtags.find(h => (h.name || '').toLowerCase() === name.toLowerCase());
+        if (found) {
+          resolvedTagIds.push(found.id);
+          continue;
+        }
+        try {
+          const created = await hashtagService.create({ hashtag_name: name });
+          const newId = created?.id ?? created?.hashtag_id;
+          const newName = created?.name ?? created?.hashtag_name ?? name;
+          if (newId) {
+            resolvedTagIds.push(newId);
+            setHashtags(prev => [...prev, { id: newId, name: newName }]);
+          }
+        } catch (e) {
+          console.warn('Tạo hashtag lỗi:', name, e);
+        }
+      }
+
+      // Tạo post
+      const res = await postService.create({
+        title: newPost.title,
+        content: newPost.description || "",
+        description: newPost.summary || "",
+        summary: newPost.summary || "",
+        category_id: newPost.category || "",
+        album_id: newPost.album || "",
+        banner: thumbnailFile || undefined,
+        content_file: mainFile || undefined,
+      });
+
+      // Gán hashtag vào post
+      const postId = res?.post_id ?? res?.data?.post_id;
+      if (postId && resolvedTagIds.length) {
+        for (const hid of Array.from(new Set(resolvedTagIds))) {
+          try {
+            await postService.addHashtagToPost({ post_id: postId, hashtag_id: hid });
+          } catch (e) {
+            console.warn("Gán hashtag lỗi:", hid, e);
+          }
+        }
+      }
+
+      showToast('Tạo bài viết thành công!', 'success');
 
       // reset
       setNewPost({
@@ -122,18 +192,19 @@ const NewPostPage = () => {
         summary: '',
         description: '',
       });
+      setHashtagInput(''); // 👈 UPDATED
       setMainFile(null);
       setThumbnailFile(null);
       setErrors({});
     } catch (err) {
       console.error("Create post failed:", err);
-      alert('Tạo bài viết thất bại. Vui lòng thử lại!');
+      showToast(err?.message || 'Tạo bài viết thất bại. Vui lòng thử lại!', 'error');
     } finally {
       setSubmitting(false);
     }
   };
 
-  // helper render options
+  // helper render options (đã normalized: [{id,name}])
   const renderOptions = (items) =>
     items.map(it => (
       <option key={it.id} value={it.id}>
@@ -226,30 +297,24 @@ const NewPostPage = () => {
           <FormField
             label="Album"
             type="select"
-            value={newPost.album_id}
+            value={newPost.album}
             onChange={e => handleChange('album', e.target.value)}
           >
             {albOptions}
           </FormField>
 
-          {/* Hashtag: multi-select từ DB → lưu mảng id */}
+          {/* Hashtag: tự thêm #; phân tách bằng space hoặc comma */}
           <FormField
             label="Hashtags"
-            type="select"
-            multiple
-            value={newPost.hashtagIds}
-            onChange={e =>
-              handleChange(
-                'hashtagIds',
-                Array.from(e.target.selectedOptions).map(o => o.value)
-              )
-            }
+            placeholder="#ai, #ml   hoặc   ai ml"
+            value={hashtagInput} // 👈 UPDATED (hiển thị raw)
+            onChange={e => setHashtagInput(formatHashtagInput(e.target.value))} // 👈 UPDATED
           >
             {loadingOpts.hashtags && <option>Loading hashtags...</option>}
             {!loadingOpts.hashtags && optErrors.hashtags && <option>Không tải được hashtags</option>}
             {!loadingOpts.hashtags && !optErrors.hashtags &&
               hashtags.map(h => (
-                <option key={h.id} value={h.id}>{h.name}</option>
+                <option key={h.id} value={h.name}>{h.name}</option>
               ))
             }
           </FormField>
@@ -271,6 +336,14 @@ const NewPostPage = () => {
           {submitting ? 'Submitting...' : 'Submit'}
         </button>
       </div>
+
+      {/* Toast */}
+      <Toast
+        open={toast.open}
+        message={toast.message}
+        type={toast.type}
+        onClose={() => setToast(t => ({ ...t, open: false }))}
+      />
     </div>
   );
 };

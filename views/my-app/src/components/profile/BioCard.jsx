@@ -1,34 +1,57 @@
 import React from 'react';
 
-/**
- * Dòng thông tin phụ (ví dụ: Birthday, Following)
- */
-const InfoRow = ({ icon, label, value }) => (
-    <div className="flex items-center gap-3 text-sm">
-      <i className={`${icon} text-gray-400 w-5 text-center`}></i>
-      <span className="text-white font-medium">{value}</span>
-    </div>
+/** Hàng thông tin đơn giản */
+const InfoRow = ({ icon, text }) => (
+  <div className="flex items-center gap-3 text-sm">
+    <i className={`${icon} text-gray-400 w-5 text-center`} />
+    <span className="text-white font-medium">{text}</span>
+  </div>
 );
 
 /**
- * Component `BioCard`
- * @description Hiển thị card chứa thông tin "Biography" và các chi tiết khác.
+ * BioCard linh hoạt:
+ * - Prop `user` có thể là string (bio text) hoặc object (từ DB).
+ * - Tự map: biography | bio, birthday | birth_date, followingCount | following_count, totalPosts | total_posts
+ * - Ẩn row nếu không có dữ liệu.
  */
 const BioCard = ({ user }) => {
-    return (
-        <div className="bg-[#1621] p-6 rounded-lg border border-[#2d2d33] sticky top-24">
-            <h3 className="text-lg font-bold mb-3">Biography</h3>
-            {/* `whitespace-pre-line` để giữ lại các ký tự xuống dòng */}
-            <p className="text-sm text-gray-300 mb-6 whitespace-pre-line">{user.biography}</p>
+  const isString = typeof user === 'string';
+  const u = isString ? {} : (user || {});
 
-            {/* Các thông tin chi tiết */}
-            <div className="flex flex-col gap-3">
-                <InfoRow icon="fa-solid fa-cake-candles" value={user.birthday} />
-                <InfoRow icon="fa-solid fa-user-plus" value={`${user.followingCount} following`} />
-                <InfoRow icon="fa-solid fa-file-lines" value={`${user.totalPosts} posts`} />
-            </div>
-        </div>
-    );
+  const biography =
+    (isString ? user : (u.biography ?? u.bio)) || 'Chưa có bio';
+
+  const birthday = u.birthday ?? u.birth_date ?? null;
+
+  // tuỳ backend có hay không, nếu không thì null để ẩn dòng
+  const followingCount =
+    u.followingCount ?? u.following_count ?? null;
+
+  const totalPosts =
+    u.totalPosts ?? u.total_posts ?? null;
+
+  return (
+    <div className="bg-[#161621] p-6 rounded-lg border border-[#2d2d33] sticky top-24">
+      <h3 className="text-lg font-bold mb-3">Biography</h3>
+
+      {/* giữ xuống dòng từ text */}
+      <p className="text-sm text-gray-300 mb-6 whitespace-pre-line">
+        {biography}
+      </p>
+
+      <div className="flex flex-col gap-3">
+        {birthday && (
+          <InfoRow icon="fa-solid fa-cake-candles" text={birthday} />
+        )}
+        {Number.isFinite(Number(followingCount)) && (
+          <InfoRow icon="fa-solid fa-user-plus" text={`${followingCount} following`} />
+        )}
+        {Number.isFinite(Number(totalPosts)) && (
+          <InfoRow icon="fa-solid fa-file-lines" text={`${totalPosts} posts`} />
+        )}
+      </div>
+    </div>
+  );
 };
 
 export default BioCard;

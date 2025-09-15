@@ -184,6 +184,7 @@ class AuthController
                     'email'      => $user['email'],
                     'full_name'  => $info['full_name'] ?? null,
                     'phone'      => $info['phone'] ?? null,
+                    'birth_date' => $info['birth_date'] ?? null,
                     'bio'    => $info['bio'] ?? null,
                     'avatar_url' => $info['avatar_url'] ?? null,
                 ]

@@ -106,43 +106,56 @@ class UserInfoController {
     // POST /?action=update_user_info
     public function update() {
         $this->requireMethod('POST');
-
+    
         $userId    = $_POST['user_id'] ?? null;
         $fullName  = $_POST['full_name'] ?? null;
         $bio       = $_POST['bio'] ?? null;
         $birthDate = $_POST['birth_date'] ?? null;
-
+    
         if (!$userId || !$fullName) {
             $this->respondError('Thiếu user_id hoặc full_name', 422);
         }
-
+    
+        // Chuẩn hoá birthDate rỗng về null
+        if ($birthDate === '') $birthDate = null;
+    
         $userInfo = $this->userInfoModel->getUserInfoById($userId);
-        if (!$userInfo) $this->respondError('Người dùng không tồn tại', 404);
-
+        if (!$userInfo) {
+            $this->respondError('Người dùng không tồn tại', 404);
+        }
+    
         $avatarUrl = $userInfo['avatar_url'] ?? null;
-
+    
         // Upload avatar mới (nếu có)
         if (!empty($_FILES['avatar']['tmp_name'])) {
             try {
                 $cloudinary = require __DIR__ . '/../config/cloudinary.php';
                 $upload     = $cloudinary->uploadApi()->upload($_FILES['avatar']['tmp_name']);
-                $avatarUrl  = $upload['secure_url'] ?? $avatarUrl;
+                if (!empty($upload['secure_url'])) {
+                    $avatarUrl = $upload['secure_url'];
+                }
             } catch (\Throwable $e) {
                 $this->respondError('Upload avatar thất bại', 500, ['detail' => $e->getMessage()]);
             }
         }
-
+    
+        // 🔽 PHẦN QUAN TRỌNG: luôn cập nhật + trả JSON chuẩn
         try {
             $this->userInfoModel->updateUserInfo($userId, $fullName, $avatarUrl, $bio, $birthDate);
             $updated = $this->userInfoModel->getUserInfoById($userId);
+    
+            // Trả JSON thống nhất, để frontend parse được
             $this->respondJson([
                 'status' => 'ok',
-                'data'   => $updated,
+                'data'   => [
+                    'user' => $updated,   // React sẽ lấy fresh profile từ đây
+                ],
             ]);
         } catch (\Throwable $e) {
             $this->respondError('Cập nhật user info thất bại', 500, ['detail' => $e->getMessage()]);
         }
     }
+    
 
     // DELETE /?action=delete_user_info&id=123  (nếu khó gửi DELETE, có thể dùng POST)
     public function delete() {

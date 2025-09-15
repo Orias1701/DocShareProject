@@ -1,24 +1,21 @@
-import React from 'react';
-import ProfileHeader from '../../components/profile/ProfileHeader';
-import BioCard from '../../components/profile/BioCard';
-import PostFeed from '../../components/profile/PostFeed';
-import {userInfoApi} from '../../services/user_infoServices';
-import {authApi} from '../../services/usersServices';
-import { useEffect } from 'react';
-// --- Dữ liệu mẫu ---
-// Trong ứng dụng thực tế, bạn sẽ lấy dữ liệu này từ API dựa vào ID của người dùng
-// const userData = {
-//   avatar: 'https://i.pravatar.cc/150?img=1',
-//   realName: 'Real name',
-//   userName: 'User name',
-//   followerCount: 'Follower number',
-//   biography: 'User biography\nHeight based on the length of biography that user want it be',
-//   birthday: 'Birthday',
-//   followingCount: 'Following number',
-//   totalPosts: 'Total post number',
-// };
+// src/pages/profile/ProfilePage.jsx
+import React, { useEffect, useState } from "react";
+import ProfileHeader from "../../components/profile/ProfileHeader";
+import BioCard from "../../components/profile/BioCard";
+import PostFeed from "../../components/profile/PostFeed";
+import { authApi } from "../../services/usersServices";
+import { userInfoApi } from "../../services/user_infoServices";
+import EditProfileModal from "../../components/profile/EditProfileModal";
 
-const userPosts = [
+function ProfilePage() {
+  const [userData, setUserData] = useState(null);   // dữ liệu user để hiển thị
+  const [loading, setLoading] = useState(true);     // trạng thái loading
+  const [error, setError] = useState(null);    
+  const [me, setMe] = useState(null); 
+  const [openEdit, setOpenEdit] = useState(false);   
+
+  // demo feed (khi có API bài viết thì thay vào)
+  const userPosts = [
     {
         id: 1,
         author: { realName: 'Real name', avatar: 'https://i.pravatar.cc/40?img=1' },
@@ -42,61 +39,100 @@ const userPosts = [
     }
 ];
 
-/**
- * Component Trang Profile
- * @description Hiển thị thông tin chi tiết và các bài viết của một người dùng.
- */
-function ProfilePage() {
-  const [userData, setUserData] = React.useState(null);
-  // const [userPosts , setUserPosts] = React.useState([]);
-  useEffect(() => {
-    async function loadData() {
+useEffect(() => {
+  (async () => {
+    try {
+      // 1) Lấy user hiện tại qua api_me
+      const meRes = await authApi.me();             // { status, user }
+      const id = meRes?.user?.user_id;
+      if (!id) throw new Error("Không tìm thấy user_id từ api_me");
+      setMe(meRes.user);
+
+      // 2) Lấy chi tiết từ show_user_info; nếu lỗi thì fallback dùng api_me
       try {
-        // Lấy user đang đăng nhập
-        const me = await authApi.me();
-        console.log("User hiện tại:", me);
-
-        // Sau đó lấy thêm chi tiết user info theo id (nếu cần)
-        if (me?.user?.user_id) {
-          const info = await userInfoApi.detail(me.user.user_id);
-          console.log("Chi tiết user info:", info);
-          setUserData(info.data.user); // backend đang trả { user, isFollowing }
-        }
-      } catch (err) {
-        console.error("Lỗi load dữ liệu profile:", err);
-      } finally {
-        setLoading(false);
+        const infoRes = await userInfoApi.showUserInfo(id);
+        const fromInfo = infoRes?.user ?? infoRes?.data?.user ?? infoRes ?? null;
+        setUserData(fromInfo || meRes.user);
+      } catch {
+        setUserData(meRes.user);
       }
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
     }
+  })();
+}, []);
 
-    loadData();
-  }, []);
+// submit cập nhật
+const handleUpdate = async ({ full_name, bio, birth_date, avatar }) => {
+  if (!me?.user_id) throw new Error("Thiếu user_id");
+
+  await userInfoApi.updateUserInfo({
+    user_id: me.user_id,
+    full_name,
+    bio,
+    birth_date,
+    avatar, // File | undefined
+  });
+
+  // reload dữ liệu mới để cập nhật UI
+  const fresh = await userInfoApi.showUserInfo(me.user_id);
+  const u = fresh?.user ?? fresh?.data?.user ?? fresh;
+  setUserData(u);
+
+  // đóng modal (nếu muốn)
+  setOpenEdit(false);
+};
+
+
+if (loading) return <div className="text-white p-4">Đang tải...</div>;
+if (error) {
   return (
     <div className="text-white p-4 max-w-6xl mx-auto">
-      {/* Phần Header của trang Profile */}
-      <ProfileHeader 
-          avatar={userData?.avatar_url || "https://i.pravatar.cc/40?img=1"}
-          realName={userData?.full_name || "Anonymous"}
-          userName={userData?.username || "no-username"}
-          followerCount={123}   // 👈 gắn cứng để test
-        />
-
-
-      {/* Grid layout chính chia làm 2 cột */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-6">
-        
-        {/* === CỘT TRÁI (Thông tin Bio) === */}
-        <div className="lg:col-span-1">
-          <BioCard user={userData?.bio || "Chưa có bio"} />
-        </div>
-
-        {/* === CỘT PHẢI (Dòng thời gian các bài viết) === */}
-        <div className="lg:col-span-2">
-          <PostFeed posts={userPosts } />
-        </div>
+      <div className="bg-red-900/40 border border-red-700 rounded-lg p-4">
+        <div className="font-semibold">Không tải được hồ sơ</div>
+        <div className="text-red-200 mt-1">{error}</div>
       </div>
     </div>
   );
+}
+
+const avatarUrl = userData?.avatar_url || "https://i.pravatar.cc/150?img=1";
+const fullName  = userData?.full_name || "Anonymous";
+const userName  = userData?.username || "no-username";
+const bioText   = userData?.bio || "Chưa có bio";
+const birthday  = userData?.birth_date || "N/A";
+
+return (
+  <div className="text-white p-4 max-w-6xl mx-auto">
+    <ProfileHeader
+      avatar={avatarUrl}
+      realName={fullName}
+      userName={userName}
+      followerCount={123}     // demo
+      birthday={birthday}  
+      onEdit={() => setOpenEdit(true)}  
+    />
+
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-6">
+      <div className="lg:col-span-1">
+        <BioCard user={userData} />
+      </div>
+
+      <div className="lg:col-span-2">
+        <PostFeed posts={userPosts} />
+      </div>
+    </div>
+
+    <EditProfileModal
+      isOpen={openEdit}
+      onClose={() => setOpenEdit(false)}
+      user={userData}
+      onSubmit={handleUpdate}
+    />
+  </div>
+);
 }
 
 export default ProfilePage;

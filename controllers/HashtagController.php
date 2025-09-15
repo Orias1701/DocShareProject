@@ -7,6 +7,9 @@ class HashtagController {
 
     public function __construct() {
         $this->hashtagModel = new Hashtag();
+        if (session_status() === PHP_SESSION_NONE) {
+            session_start();
+        }
     }
 
     /* ============ Helpers ============ */
@@ -37,14 +40,33 @@ class HashtagController {
         return is_array($data) ? $data : [];
     }
 
+    /**
+     * Chuẩn hoá tên hashtag:
+     * - Bỏ hết dấu # ở đầu rồi thêm lại đúng 1 dấu #
+     * - Trim
+     * - Thay khoảng trắng thành '-'
+     * - Chỉ giữ: chữ (Unicode), số (Unicode), '_', '-'  (regex \p{L}\p{N})
+     * - Lowercase
+     * - Trả '' nếu sau chuẩn hoá rỗng
+     */
     private function normalizeName(string $name): string {
         $name = trim($name);
-        if ($name === '') return $name;
-        // thêm '#' nếu chưa có ở đầu
-        if (strpos($name, '#') !== 0) {
-            $name = '#' . $name;
-        }
-        return $name;
+        if ($name === '') return '';
+
+        // bỏ tất cả '#' ở đầu:
+        $name = ltrim($name, '#');
+
+        // thay nhiều khoảng trắng thành '-'
+        $name = preg_replace('/\s+/u', '-', $name);
+
+        // chỉ giữ chữ/số unicode, '_' và '-'
+        $name = preg_replace('/[^\p{L}\p{N}_-]/u', '', $name);
+
+        // lowercase
+        $name = mb_strtolower($name, 'UTF-8');
+
+        if ($name === '') return '';
+        return '#' . $name;
     }
 
     /* ============ JSON Endpoints ============ */
@@ -60,7 +82,7 @@ class HashtagController {
         }
     }
 
-    /** GET /?action=hashtag_detail&id=... (tuỳ chọn) */
+    /** GET /?action=hashtag_detail&id=... */
     public function detail() {
         $this->requireMethod('GET');
         $id = $_GET['id'] ?? null;
@@ -82,18 +104,20 @@ class HashtagController {
         $isJson = isset($_SERVER['CONTENT_TYPE']) && stripos($_SERVER['CONTENT_TYPE'], 'application/json') !== false;
         $body   = $isJson ? $this->readJsonBody() : $_POST;
 
-        $name = $body['hashtag_name'] ?? '';
-        $name = $this->normalizeName($name);
+        $raw  = $body['hashtag_name'] ?? '';
+        $name = $this->normalizeName($raw);
 
-        if ($name === '') {
-            $this->respondError('Thiếu hashtag_name', 422);
+        if ($name === '' || $name === '#') {
+            $this->respondError('hashtag_name không hợp lệ', 422);
         }
 
         try {
-            $id   = $this->hashtagModel->createHashtag($name);
-            $tag  = $this->hashtagModel->getHashtagById($id);
+            $id  = $this->hashtagModel->createHashtag($name);
+            $tag = $this->hashtagModel->getHashtagById($id);
             $this->respondJson(['status' => 'ok', 'data' => $tag], 201);
         } catch (Throwable $e) {
+            // Gợi ý: nếu DB có unique index, duplicate nên trả 409
+            // Ở đây tạm trả 500 kèm detail
             $this->respondError('Tạo hashtag thất bại', 500, ['detail' => $e->getMessage()]);
         }
     }
@@ -108,12 +132,15 @@ class HashtagController {
         $isJson = isset($_SERVER['CONTENT_TYPE']) && stripos($_SERVER['CONTENT_TYPE'], 'application/json') !== false;
         $body   = $isJson ? $this->readJsonBody() : $_POST;
 
-        $id   = $body['hashtag_id']   ?? null;
-        $name = $body['hashtag_name'] ?? null;
-        if (!$id)  $this->respondError('Thiếu hashtag_id', 422);
-        if ($name === null) $this->respondError('Thiếu hashtag_name', 422);
+        $id  = $body['hashtag_id']   ?? null;
+        $raw = $body['hashtag_name'] ?? null;
+        if (!$id)                  $this->respondError('Thiếu hashtag_id', 422);
+        if ($raw === null)         $this->respondError('Thiếu hashtag_name', 422);
 
-        $name = $this->normalizeName($name);
+        $name = $this->normalizeName($raw);
+        if ($name === '' || $name === '#') {
+            $this->respondError('hashtag_name không hợp lệ', 422);
+        }
 
         try {
             $tag = $this->hashtagModel->getHashtagById($id);
