@@ -39,7 +39,7 @@ export const hashtagService = {
   },
 
   /** Xoá hashtag */
-  remove(id) {
+  delete(id) {
     return postJson(ACTIONS.delete, { id });
     // hoặc: return fetchJson(`${ACTIONS.delete}&id=${encodeURIComponent(id)}`, { method:'POST' })
   },

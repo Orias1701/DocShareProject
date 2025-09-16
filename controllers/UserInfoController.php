@@ -1,4 +1,5 @@
 <?php
+// controllers/UserInfoController.php
 require_once __DIR__ . '/../models/UserInfo.php';
 require_once __DIR__ . '/../models/User.php';
 
@@ -7,8 +8,12 @@ class UserInfoController {
     private $userModel;
 
     public function __construct() {
+        // Đảm bảo có session trước khi dùng $_SESSION
+        if (session_status() === PHP_SESSION_NONE) {
+            session_start();
+        }
         $this->userInfoModel = new UserInfo();
-        $this->userModel = new User();
+        $this->userModel     = new User();
     }
 
     /** -------- Helpers -------- */
@@ -27,8 +32,9 @@ class UserInfoController {
     }
 
     private function requireMethod(string $method): void {
-        if (strcasecmp($_SERVER['REQUEST_METHOD'] ?? '', $method) !== 0) {
-            $this->respondError('Method Not Allowed', 405, ['allowed' => $method]);
+        $req = $_SERVER['REQUEST_METHOD'] ?? '';
+        if (strcasecmp($req, $method) !== 0) {
+            $this->respondError('Method Not Allowed', 405, ['allowed' => strtoupper($method)]);
         }
     }
 
@@ -36,6 +42,7 @@ class UserInfoController {
 
     // GET /?action=list_user_infos
     public function listUserInfos() {
+        $this->requireMethod('GET');
         $infos = $this->userInfoModel->getAllUserInfos();
         $this->respondJson([
             'status' => 'ok',
@@ -45,6 +52,7 @@ class UserInfoController {
 
     // GET /?action=show_create_form  -> trả về các user còn trống user_info (nếu bạn còn dùng)
     public function showCreateForm() {
+        $this->requireMethod('GET');
         $availableUsers = $this->userInfoModel->getAvailableUserIds();
         $this->respondJson([
             'status' => 'ok',
@@ -82,7 +90,7 @@ class UserInfoController {
             $created = $this->userInfoModel->getUserInfoById($userId);
             $this->respondJson([
                 'status' => 'ok',
-                'data'   => $created,
+                'data'   => $created,   // FE sẽ nhận object user_info
             ], 201);
         } catch (\Throwable $e) {
             $this->respondError('Tạo user info thất bại', 500, ['detail' => $e->getMessage()]);
@@ -91,6 +99,7 @@ class UserInfoController {
 
     // GET /?action=show_edit_form&id=123  -> trả về dữ liệu hiện tại (nếu còn dùng)
     public function showEditForm() {
+        $this->requireMethod('GET');
         $userId = $_GET['id'] ?? null;
         if (!$userId) $this->respondError('Thiếu id', 422);
 
@@ -106,26 +115,26 @@ class UserInfoController {
     // POST /?action=update_user_info
     public function update() {
         $this->requireMethod('POST');
-    
+
         $userId    = $_POST['user_id'] ?? null;
         $fullName  = $_POST['full_name'] ?? null;
         $bio       = $_POST['bio'] ?? null;
         $birthDate = $_POST['birth_date'] ?? null;
-    
+
         if (!$userId || !$fullName) {
             $this->respondError('Thiếu user_id hoặc full_name', 422);
         }
-    
+
         // Chuẩn hoá birthDate rỗng về null
         if ($birthDate === '') $birthDate = null;
-    
+
         $userInfo = $this->userInfoModel->getUserInfoById($userId);
         if (!$userInfo) {
             $this->respondError('Người dùng không tồn tại', 404);
         }
-    
+
         $avatarUrl = $userInfo['avatar_url'] ?? null;
-    
+
         // Upload avatar mới (nếu có)
         if (!empty($_FILES['avatar']['tmp_name'])) {
             try {
@@ -138,27 +147,26 @@ class UserInfoController {
                 $this->respondError('Upload avatar thất bại', 500, ['detail' => $e->getMessage()]);
             }
         }
-    
-        // 🔽 PHẦN QUAN TRỌNG: luôn cập nhật + trả JSON chuẩn
+
         try {
             $this->userInfoModel->updateUserInfo($userId, $fullName, $avatarUrl, $bio, $birthDate);
             $updated = $this->userInfoModel->getUserInfoById($userId);
-    
-            // Trả JSON thống nhất, để frontend parse được
+
+            // Thống nhất trả về { status, data: { user: {...} } }
             $this->respondJson([
                 'status' => 'ok',
                 'data'   => [
-                    'user' => $updated,   // React sẽ lấy fresh profile từ đây
+                    'user' => $updated,
                 ],
             ]);
         } catch (\Throwable $e) {
             $this->respondError('Cập nhật user info thất bại', 500, ['detail' => $e->getMessage()]);
         }
     }
-    
 
     // DELETE /?action=delete_user_info&id=123  (nếu khó gửi DELETE, có thể dùng POST)
     public function delete() {
+        // Không ép method để hỗ trợ GET/POST/DELETE như bạn đang dùng router
         $userId = $_GET['id'] ?? ($_POST['id'] ?? null);
         if (!$userId) $this->respondError('Thiếu id', 422);
 
@@ -166,7 +174,10 @@ class UserInfoController {
             $ok = $this->userInfoModel->deleteUserInfo($userId);
             $this->respondJson([
                 'status' => 'ok',
-                'data'   => [ 'deleted' => (bool)$ok, 'id' => (int)$userId ],
+                'data'   => [
+                    'deleted' => (bool)$ok,
+                    'id'      => $userId,  // ❗ giữ nguyên chuỗi, không ép (int)
+                ],
             ]);
         } catch (\Throwable $e) {
             $this->respondError('Xoá user info thất bại', 500, ['detail' => $e->getMessage()]);
@@ -175,6 +186,8 @@ class UserInfoController {
 
     // GET /?action=show_user_info&id=123
     public function showUserInfo() {
+        $this->requireMethod('GET');
+
         $userId = $_GET['id'] ?? null;
         if (!$userId) $this->respondError('Thiếu user_id', 422);
 

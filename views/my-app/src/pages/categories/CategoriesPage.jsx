@@ -1,61 +1,59 @@
-import React from 'react';
+// src/pages/categories/CategoriesPage.jsx
+import React, { useEffect, useState } from 'react';
 import CategoryInfoCard from '../../components/category/CategoryInfoCard';
+import categoryServices from '../../services/categoryServices';
 
-// --- Dữ liệu mẫu ---
-// Trong ứng dụng thực tế, dữ liệu này sẽ được lấy từ API.
-const viewedCategories = Array(4).fill({
-  icon: 'fa-solid fa-house',
-  title: 'Category title',
-  subtitle: 'Maximum is 2 lines.',
-  description: "Short category description... Lorem Ipsum is simply dummy text of the printing and typesetting industry's standard dummy text."
-});
-
-const allCategories = Array(12).fill({
-  icon: 'fa-solid fa-house',
-  title: 'Category title',
-  subtitle: 'Maximum is 2 lines.',
-  description: "Short category description... Lorem Ipsum is simply dummy text of the printing and typesetting industry's standard dummy text."
-});
-
-
-/**
- * Component Trang Categories
- * @description Hiển thị các khu vực category, ví dụ như "đã xem" và "tất cả".
- */
 function CategoriesPage() {
+  const [allCategories, setAllCategories] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState(null);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        // categoryServices.list() -> [ { category_id, category_name }, ... ]
+        const data = await categoryServices.list();
+        setAllCategories(Array.isArray(data) ? data : []);
+      } catch (e) {
+        setErr(e?.message || 'Không tải được categories');
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
+
+  const viewedCategories = allCategories.slice(0, 4); // tạm coi 4 cái đầu là "đã xem"
+  const iconClass = 'fa-solid fa-folder'; // icon mặc định
+
+  if (loading) {
+    return <div className="text-white p-4">Đang tải categories...</div>;
+  }
+
+  if (err) {
+    return (
+      <div className="text-white p-4">
+        <div className="bg-red-900/40 border border-red-700 rounded-lg p-4">
+          <div className="font-semibold">Lỗi tải Categories</div>
+          <div className="text-red-200 mt-1">{err}</div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="text-white p-4">
-      {/* Container cho tất cả các khu vực category */}
       <div className="space-y-12">
-        
-        {/* Khu vực: Các category bạn đã xem */}
-        <section>
-          <h2 className="text-2xl font-bold mb-6">Categories you have viewed</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-            {/* Lặp qua dữ liệu và render mỗi mục thành một card */}
-            {viewedCategories.map((cat, index) => (
-              <CategoryInfoCard 
-                key={`viewed-${index}`} 
-                icon={cat.icon} 
-                title={cat.title} 
-                subtitle={cat.subtitle}
-                description={cat.description}
-              />
-            ))}
-          </div>
-        </section>
-        
         {/* Khu vực: Tất cả category */}
         <section>
           <h2 className="text-2xl font-bold mb-6">All categories</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-            {allCategories.map((cat, index) => (
-              <CategoryInfoCard 
-                key={`all-${index}`} 
-                icon={cat.icon} 
-                title={cat.title} 
-                subtitle={cat.subtitle}
-                description={cat.description}
+            {allCategories.map((cat) => (
+              <CategoryInfoCard
+                key={cat.category_id}
+                icon={iconClass}
+                title={cat.category_name}
+                subtitle={`ID: ${cat.category_id}`}
+                description="Short category description..."
               />
             ))}
           </div>

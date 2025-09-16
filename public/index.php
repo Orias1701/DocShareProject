@@ -370,19 +370,13 @@ if (isset($_GET['action'])) {
             $userInfoController->create();
             exit;
 
-        case 'edit_user_info_form':        // GET: lấy dữ liệu để edit (nếu FE cần)
-            if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
-                respond_json(['status'=>'error','message'=>'Method Not Allowed'], 405);
-            }
-            $userInfoController->showEditForm();
-            exit;
+        case 'show_edit_form':
+            $userInfoController->showEditForm(); // ➜ trả JSON
+        exit;
 
-        case 'update_user_info':           // POST (hoặc PUT/PATCH tuỳ bạn)
-            if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-                respond_json(['status'=>'error','message'=>'Method Not Allowed'], 405);
-            }
-            $userInfoController->update();
-            exit;
+        case 'update_user_info':
+            $userInfoController->update();       // ➜ trả JSON
+        exit;
 
         case 'delete_user_info':           // DELETE hoặc POST (tuỳ client)
             $m = strtoupper($_SERVER['REQUEST_METHOD'] ?? 'GET');
@@ -392,12 +386,9 @@ if (isset($_GET['action'])) {
             $userInfoController->delete();
             exit;
 
-        case 'user_detail':                // GET
-            if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
-                respond_json(['status'=>'error','message'=>'Method Not Allowed'], 405);
-            }
-            $userInfoController->showUserInfo();
-            exit;
+        case 'show_user_info':
+            $userInfoController->showUserInfo(); // ➜ trả JSON
+        exit;
 
         /*************** POST HASHTAG CRUD ***************/
         case 'list_post_hashtags':
