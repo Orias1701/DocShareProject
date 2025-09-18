@@ -7,134 +7,103 @@ class CategoryController {
 
     public function __construct() {
         $this->categoryModel = new Category();
+        // THAY ĐỔI: Set header mặc định cho tất cả các response là JSON
+        header('Content-Type: application/json');
+        header('Access-Control-Allow-Origin: *'); // Cho phép cross-origin request (quan trọng khi FE và BE khác domain)
+        header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
+        header('Access-Control-Allow-Headers: Content-Type, Authorization');
     }
 
-    /* ============ Helpers ============ */
-    private function respondJson($payload, int $code = 200): void {
-        http_response_code($code);
-        header('Content-Type: application/json; charset=utf-8');
-        echo json_encode($payload, JSON_UNESCAPED_UNICODE);
+    /**
+     * Hàm helper để gửi response JSON và thoát
+     */
+    private function sendResponse($data, $statusCode = 200) {
+        http_response_code($statusCode);
+        echo json_encode($data);
         exit;
     }
 
-    private function respondError(string $msg, int $code = 400, array $extra = []): void {
-        $this->respondJson(array_merge([
-            'status'  => 'error',
-            'message' => $msg,
-        ], $extra), $code);
-    }
-
-    private function requireMethod(string $method): void {
-        $m = strtoupper($_SERVER['REQUEST_METHOD'] ?? '');
-        if ($m !== strtoupper($method)) {
-            $this->respondError('Method Not Allowed', 405, ['allowed' => strtoupper($method)]);
-        }
-    }
-
-    private function readJsonBody(): array {
-        $raw  = file_get_contents('php://input');
-        $data = json_decode($raw, true);
-        return is_array($data) ? $data : [];
-    }
-
-    /* ============ JSON Endpoints ============ */
-
-    /** GET /?action=list_categories */
     public function listCategories() {
-        $this->requireMethod('GET');
-        try {
-            $categories = $this->categoryModel->getAllCategories();
-            $this->respondJson(['status' => 'ok', 'data' => $categories]);
-        } catch (Throwable $e) {
-            $this->respondError('Lỗi lấy danh sách category', 500, ['detail' => $e->getMessage()]);
+        $categories = $this->categoryModel->getAllCategories();
+        $this->sendResponse($categories);
+    }
+
+    // THAY ĐỔI: Tạo hàm mới để lấy một category
+    public function getCategory() {
+        if (!isset($_GET['id'])) {
+            $this->sendResponse(['error' => 'Category ID is required'], 400);
+        }
+        $id = $_GET['id'];
+        $category = $this->categoryModel->getCategoryById($id);
+        if ($category) {
+            $this->sendResponse($category);
+        } else {
+            $this->sendResponse(['error' => 'Category not found'], 404);
         }
     }
 
-    /** (Tuỳ chọn) GET /?action=category_detail&id=... */
-    public function detail() {
-        $this->requireMethod('GET');
-        $id = $_GET['id'] ?? null;
-        if (!$id) $this->respondError('Thiếu id', 422);
-
-        try {
-            $cat = $this->categoryModel->getCategoryById($id);
-            if (!$cat) $this->respondError('Category không tồn tại', 404);
-            $this->respondJson(['status' => 'ok', 'data' => $cat]);
-        } catch (Throwable $e) {
-            $this->respondError('Lỗi lấy chi tiết category', 500, ['detail' => $e->getMessage()]);
-        }
-    }
-
-    /** POST /?action=create_category  (JSON hoặc form) */
     public function create() {
-        $this->requireMethod('POST');
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+             $this->sendResponse(['error' => 'Method not allowed'], 405);
+        }
 
-        $isJson = isset($_SERVER['CONTENT_TYPE']) && stripos($_SERVER['CONTENT_TYPE'], 'application/json') !== false;
-        $body   = $isJson ? $this->readJsonBody() : $_POST;
+        // Lấy dữ liệu từ request body (thay vì chỉ $_POST)
+        $data = json_decode(file_get_contents('php://input'), true);
+        $categoryName = $data['category_name'] ?? null;
 
-        $name = trim($body['category_name'] ?? '');
-        if ($name === '') $this->respondError('Thiếu category_name', 422);
+        if (empty($categoryName)) {
+            $this->sendResponse(['error' => 'Category name is required'], 400);
+        }
 
-        try {
-            $id   = $this->categoryModel->createCategory($name);
-            $cat  = $this->categoryModel->getCategoryById($id);
-            $this->respondJson(['status' => 'ok', 'data' => $cat], 201);
-        } catch (Throwable $e) {
-            $this->respondError('Tạo category thất bại', 500, ['detail' => $e->getMessage()]);
+        $newCategory = $this->categoryModel->createCategory($categoryName);
+        if ($newCategory) {
+            $this->sendResponse($newCategory, 201); // 201 Created
+        } else {
+            $this->sendResponse(['error' => 'Failed to create category'], 500);
         }
     }
 
-    /** POST|PUT /?action=update_category  (JSON hoặc form) */
     public function update() {
-        $method = strtoupper($_SERVER['REQUEST_METHOD'] ?? '');
-        if (!in_array($method, ['POST','PUT'], true)) {
-            $this->respondError('Method Not Allowed', 405, ['allowed' => 'POST, PUT']);
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') { // Trong API thực tế thường dùng PUT
+             $this->sendResponse(['error' => 'Method not allowed'], 405);
         }
 
-        $isJson = isset($_SERVER['CONTENT_TYPE']) && stripos($_SERVER['CONTENT_TYPE'], 'application/json') !== false;
-        $body   = $isJson ? $this->readJsonBody() : $_POST;
+        $data = json_decode(file_get_contents('php://input'), true);
+        $id = $data['category_id'] ?? null;
+        $categoryName = $data['category_name'] ?? null;
 
-        $id   = $body['category_id']   ?? null;
-        $name = isset($body['category_name']) ? trim($body['category_name']) : null;
+        if (empty($id) || empty($categoryName)) {
+            $this->sendResponse(['error' => 'Category ID and name are required'], 400);
+        }
 
-        if (!$id) $this->respondError('Thiếu category_id', 422);
-        if ($name === null || $name === '') $this->respondError('Thiếu category_name', 422);
-
-        try {
-            $cat = $this->categoryModel->getCategoryById($id);
-            if (!$cat) $this->respondError('Category không tồn tại', 404);
-
-            $this->categoryModel->updateCategory($id, $name);
-            $updated = $this->categoryModel->getCategoryById($id);
-            $this->respondJson(['status' => 'ok', 'data' => $updated]);
-        } catch (Throwable $e) {
-            $this->respondError('Cập nhật category thất bại', 500, ['detail' => $e->getMessage()]);
+        $updatedCategory = $this->categoryModel->updateCategory($id, $categoryName);
+        if ($updatedCategory) {
+            $this->sendResponse($updatedCategory);
+        } else {
+            $this->sendResponse(['error' => 'Failed to update category or category not found'], 500);
         }
     }
 
-    /** DELETE|POST /?action=delete_category&id=... (id cũng có thể gửi trong body) */
     public function delete() {
-        $method = strtoupper($_SERVER['REQUEST_METHOD'] ?? 'GET');
-        if (!in_array($method, ['DELETE','POST'], true)) {
-            $this->respondError('Method Not Allowed', 405, ['allowed' => 'DELETE, POST']);
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') { // Trong API thực tế thường dùng DELETE
+             $this->sendResponse(['error' => 'Method not allowed'], 405);
         }
 
-        $id = $_GET['id'] ?? null;
-        if (!$id) {
-            $isJson = isset($_SERVER['CONTENT_TYPE']) && stripos($_SERVER['CONTENT_TYPE'], 'application/json') !== false;
-            $body   = $isJson ? $this->readJsonBody() : $_POST;
-            $id     = $body['id'] ?? null;
+        $data = json_decode(file_get_contents('php://input'), true);
+        $id = $data['id'] ?? null;
+
+        if (empty($id)) {
+            $this->sendResponse(['error' => 'Category ID is required'], 400);
         }
-        if (!$id) $this->respondError('Thiếu id', 422);
-
-        try {
-            $cat = $this->categoryModel->getCategoryById($id);
-            if (!$cat) $this->respondError('Category không tồn tại', 404);
-
-            $this->categoryModel->deleteCategory($id);
-            $this->respondJson(['status' => 'ok', 'message' => 'Đã xoá', 'id' => (int)$id]);
-        } catch (Throwable $e) {
-            $this->respondError('Xoá category thất bại', 500, ['detail' => $e->getMessage()]);
+        
+        if ($this->categoryModel->deleteCategory($id)) {
+            $this->sendResponse(['message' => 'Category deleted successfully']);
+        } else {
+            $this->sendResponse(['error' => 'Failed to delete category'], 500);
         }
     }
+
+    // Xóa các hàm show form vì frontend sẽ đảm nhiệm
+    // public function showCreateForm() { ... }
+    // public function showEditForm() { ... }
 }

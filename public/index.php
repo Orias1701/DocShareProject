@@ -6,29 +6,28 @@
  *************************************************/
 $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
 $allowedOrigins = [
-    'http://localhost:5173', // thêm/bớt origin frontend hợp lệ ở đây
+    'http://localhost:5173', // Đảm bảo đây là domain frontend của bạn
 ];
 
-// Chỉ cho phép các origin nằm trong whitelist
+// Chỉ cho phép các origin hợp lệ trong danh sách allowedOrigins
 if (in_array($origin, $allowedOrigins, true)) {
     header("Access-Control-Allow-Origin: $origin");
 } else {
-    // Fallback trong môi trường dev (nếu muốn cứng origin mặc định, thay bằng 'http://localhost:5173')
+    // Fallback cho môi trường localhost (nếu không có trong danh sách)
     header("Access-Control-Allow-Origin: http://localhost:5173");
 }
 
 header("Access-Control-Allow-Credentials: true");
-header("Vary: Origin");
 header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With, Accept");
-// Nếu FE cần đọc các header này từ response
 header("Access-Control-Expose-Headers: Content-Type, Authorization");
 
-// Trả lời preflight request sớm
+// Nếu là preflight request (OPTIONS), trả về mã trạng thái 204
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(204); // No Content
     exit;
 }
+
 
 /*************************************************
  * 2) SESSION COOKIE CHO CROSS-ORIGIN

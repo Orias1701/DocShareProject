@@ -1,19 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import LeaderboardTabs from '../../components/leaderboard/LeaderboardTabs';
 import RankItem from '../../components/leaderboard/RankItem';
 import UserProfileCard from '../../components/leaderboard/UserProfileCard';
+import user_followServices from '../../services/user_followServices';  // import API service
 
-// --- Dữ liệu mẫu ---
-// Trong ứng dụng thực tế, bạn sẽ lấy dữ liệu này từ API
+// --- Dữ liệu mẫu (sẽ thay bằng API) ---
 const tabs = ['Criterion 1', 'Criterion 2', 'Criterion 3', 'Criterion 4'];
-
-const rankings = [
-  { rank: 1, avatar: 'https://i.pravatar.cc/40?img=1', realName: 'Real name', userName: 'User name', score: 'Criterion score' },
-  { rank: 2, avatar: 'https://i.pravatar.cc/40?img=2', realName: 'Real name', userName: 'User name', score: 'Criterion score' },
-  { rank: 3, avatar: 'https://i.pravatar.cc/40?img=3', realName: 'Real name', userName: 'User name', score: 'Criterion score' },
-  { rank: 4, avatar: 'https://i.pravatar.cc/40?img=4', realName: 'Real name', userName: 'User name', score: 'Criterion score' },
-  { rank: 5, avatar: 'https://i.pravatar.cc/40?img=5', realName: 'Real name', userName: 'User name', score: 'Criterion score' },
-];
 
 const selectedUser = {
   avatar: 'https://i.pravatar.cc/150?img=1',
@@ -32,7 +24,29 @@ const selectedUser = {
 
 function LeaderboardPage() {
   const [activeTab, setActiveTab] = useState(tabs[0]);
-  const [selectedRank, setSelectedRank] = useState(rankings[0].rank);
+  const [selectedRank, setSelectedRank] = useState(1);
+  const [rankings, setRankings] = useState([]);  // state lưu trữ dữ liệu top user
+  const [loading, setLoading] = useState(true);  // trạng thái loading khi gọi API
+
+  // Lấy top users từ API
+  useEffect(() => {
+    const fetchTopUsers = async () => {
+      try {
+        const data = await user_followServices.top();  // Gọi API top follow users
+        setRankings(data);  // Cập nhật dữ liệu top vào state
+      } catch (error) {
+        console.error('Error fetching top users:', error);
+      } finally {
+        setLoading(false);  // Kết thúc trạng thái loading
+      }
+    };
+
+    fetchTopUsers();
+  }, []);  // Gọi API 1 lần khi component được mount
+
+  if (loading) {
+    return <div className="text-white p-4">Đang tải...</div>;
+  }
 
   return (
     <div className="text-white p-4">
@@ -51,14 +65,14 @@ function LeaderboardPage() {
           <div className="bg-[#1621] p-4 rounded-lg border border-[#2d2d33] flex flex-col gap-3">
             {rankings.map(user => (
               <RankItem 
-                key={user.rank}
-                rank={user.rank}
-                avatar={user.avatar}
-                realName={user.realName}
-                userName={user.userName}
-                score={user.score}
-                isSelected={selectedRank === user.rank}
-                onClick={() => setSelectedRank(user.rank)}
+                key={user.user_id}
+                rank={user.followers_count}  // Sử dụng followers_count làm rank
+                avatar={user.avatar_url}
+                realName={user.full_name}
+                userName={user.username}
+                score={user.followers_count}
+                isSelected={selectedRank === user.user_id}
+                onClick={() => setSelectedRank(user.user_id)}  // Cập nhật rank khi click
               />
             ))}
           </div>
