@@ -11,45 +11,69 @@ class UserFollowController
         $this->model = new UserFollow();
     }
 
+    private function jsonResponse($status, $data = [])
+    {
+        echo json_encode(array_merge(['status' => $status], $data));
+        exit;
+    }
+
     public function toggleFollow()
     {
         if (!isset($_SESSION['user_id'])) {
-            echo json_encode(['status' => 'error', 'message' => 'Chưa đăng nhập']);
-            exit;
+            $this->jsonResponse('error', ['message' => 'Chưa đăng nhập']);
         }
 
         $myUserId = $_SESSION['user_id'];
         $followingId = $_POST['following_id'] ?? null;
 
-        if (!$followingId || $myUserId === $followingId) {
-            echo json_encode(['status' => 'error', 'message' => 'Không hợp lệ']);
-            exit;
+        if (!$followingId || $myUserId == $followingId) {
+            $this->jsonResponse('error', ['message' => 'Không hợp lệ']);
         }
 
-        $ufModel = new UserFollow();
+        $isFollowing = $this->model->isFollowing($myUserId, $followingId);
 
-        $isFollowing = $ufModel->isFollowing($myUserId, $followingId);
         if ($isFollowing) {
-            $ufModel->unfollow($myUserId, $followingId);
+            $this->model->unfollow($myUserId, $followingId);
             $isFollowing = false;
         } else {
-            $ufModel->follow($myUserId, $followingId);
+            $this->model->follow($myUserId, $followingId);
             $isFollowing = true;
         }
 
-        echo json_encode(['status' => 'success', 'following' => $isFollowing]);
-        exit;
+        $this->jsonResponse('success', ['following' => $isFollowing]);
     }
 
     public function topFollowedUsers()
     {
-        $limit = $_GET['limit'] ?? 10; // cho phép truyền limit qua query string
-        $users = $this->model->getTopFollowedUsers((int)$limit);
+        $limit = isset($_GET['limit']) ? (int)$_GET['limit'] : 10;
+        $users = $this->model->getTopFollowedUsers($limit);
 
-        echo json_encode([
-            'status' => 'success',
-            'data'   => $users
-        ]);
-        exit;
+        $this->jsonResponse('success', ['data' => $users]);
+    }
+
+    // ✅ Danh sách mình đang follow
+    public function userFollowing()
+    {
+        if (!isset($_SESSION['user_id'])) {
+            $this->jsonResponse('error', ['message' => 'Chưa đăng nhập']);
+        }
+
+        $userId = $_SESSION['user_id'];
+        $users = $this->model->getFollowing($userId);
+
+        $this->jsonResponse('success', ['data' => $users]);
+    }
+
+    // ✅ Danh sách người đang follow mình
+    public function userFollowers()
+    {
+        if (!isset($_SESSION['user_id'])) {
+            $this->jsonResponse('error', ['message' => 'Chưa đăng nhập']);
+        }
+
+        $userId = $_SESSION['user_id'];
+        $users = $this->model->getFollowers($userId);
+
+        $this->jsonResponse('success', ['data' => $users]);
     }
 }

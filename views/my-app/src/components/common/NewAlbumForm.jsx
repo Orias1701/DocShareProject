@@ -15,27 +15,34 @@ const NewAlbumForm = ({ onClose, onCreated }) => {
   const [toast, setToast] = useState({ open: false, message: '', type: 'success' });
 
   const handleSubmit = async () => {
-    setFieldError(null);
-    if (!albumName.trim()) {
-      setFieldError('Album title là bắt buộc');
-      return;
-    }
+  setFieldError(null);
+  if (!albumName.trim()) {
+    setFieldError('Album title là bắt buộc');
+    return;
+  }
 
-    try {
-      setSubmitting(true);
-      // BE hiện chỉ nhận JSON: { album_name, description? }
-      const res = await albumService.create({ album_name: albumName.trim() });
-      onCreated?.(res);
+  try {
+    setSubmitting(true);
 
-      // Hiển thị toast 3s, sau đó tự đóng modal (trong handler onClose của Toast)
-      setToast({ open: true, message: 'Tạo album thành công!', type: 'success' });
-    } catch (e) {
-      setToast({ open: true, message: e?.message || 'Tạo album thất bại. Vui lòng thử lại!', type: 'error' });
-      console.error('[create_album] error:', e);
-    } finally {
-      setSubmitting(false);
-    }
-  };
+    // ✅ Gọi service bằng object thay vì FormData
+    const res = await albumService.create({
+      album_name: albumName.trim(),
+      description: '',
+      thumbnail,
+    });
+
+    onCreated?.(res);
+    setToast({ open: true, message: 'Tạo album thành công!', type: 'success' });
+  } catch (e) {
+    setToast({ open: true, message: e?.message || 'Tạo album thất bại. Vui lòng thử lại!', type: 'error' });
+    console.error('[create_album] error:', e);
+  } finally {
+    setSubmitting(false);
+  }
+};
+
+
+
 
   return (
     <div className="flex flex-col gap-6">

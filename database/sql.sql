@@ -18,7 +18,7 @@
 --
 -- Table structure for table `albums`
 --
-create database doc_share;
+create Database doc_share;
 use doc_share;
 DROP TABLE IF EXISTS `albums`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
@@ -27,6 +27,7 @@ CREATE TABLE `albums` (
   `album_id` varchar(30) NOT NULL COMMENT 'ALBUM+(user_id_number)+001->999',
   `album_name` varchar(100) NOT NULL,
   `description` text,
+  `url_thumbnail` varchar(255) DEFAULT NULL,
   `user_id` varchar(15) NOT NULL,
   `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`album_id`),
@@ -41,8 +42,35 @@ CREATE TABLE `albums` (
 
 LOCK TABLES `albums` WRITE;
 /*!40000 ALTER TABLE `albums` DISABLE KEYS */;
-INSERT INTO `albums` VALUES ('ALBUM0000000001001','Album Toán - A','Tập hợp bài tập toán cơ bản','USER0000000001','2025-09-03 14:27:27'),('ALBUM0000000001002','Album Văn - A','Sưu tập tác phẩm văn','USER0000000001','2025-09-03 14:27:27'),('ALBUM0000000002001','Album Tiếng Anh - B','Ngữ pháp và bài tập','USER0000000002','2025-09-03 14:27:27'),('ALBUM0000000002002','Album CNTT - B','Thuật toán và code mẫu','USER0000000002','2025-09-03 14:27:27'),('ALBUM0000000003001','Album Kinh tế - C','Bài giảng kinh tế','USER0000000003','2025-09-03 14:27:27'),('ALBUM0000000003002','Album Lịch sử - C','Tổng hợp sự kiện lịch sử','USER0000000003','2025-09-03 14:27:27'),('ALBUM0000000004001','Album Toán nâng cao - D','Chuyên đề giải tích','USER0000000004','2025-09-03 14:27:27'),('ALBUM0000000004002','Album Văn học - D','Phân tích văn học','USER0000000004','2025-09-03 14:27:27'),('ALBUM0000000005001','Album Tiếng Anh nâng cao - E','Đề thi và đáp án','USER0000000005','2025-09-03 14:27:27'),('ALBUM0000000005002','Album Công nghệ - E','Tài liệu hệ thống và mạng','USER0000000005','2025-09-03 14:27:27'),('ALBUM0000000006001','2222','1111','USER0000000006','2025-09-03 14:45:23'),('ALBUM7001','macdinh','Album mặc định của user','USER0000000007','2025-09-09 07:59:55');
+INSERT INTO `albums` VALUES ('ALBUM0000000001001','Album Toán - A','Tập hợp bài tập toán cơ bản',NULL,'USER0000000001','2025-09-03 14:27:27'),('ALBUM0000000001002','Album Văn - A','Sưu tập tác phẩm văn',NULL,'USER0000000001','2025-09-03 14:27:27'),('ALBUM0000000002001','Album Tiếng Anh - B','Ngữ pháp và bài tập',NULL,'USER0000000002','2025-09-03 14:27:27'),('ALBUM0000000002002','Album CNTT - B','Thuật toán và code mẫu',NULL,'USER0000000002','2025-09-03 14:27:27'),('ALBUM0000000003001','Album Kinh tế - C','Bài giảng kinh tế',NULL,'USER0000000003','2025-09-03 14:27:27'),('ALBUM0000000003002','Album Lịch sử - C','Tổng hợp sự kiện lịch sử',NULL,'USER0000000003','2025-09-03 14:27:27'),('ALBUM0000000004001','Album Toán nâng cao - D','Chuyên đề giải tích',NULL,'USER0000000004','2025-09-03 14:27:27'),('ALBUM0000000004002','Album Văn học - D','Phân tích văn học',NULL,'USER0000000004','2025-09-03 14:27:27'),('ALBUM0000000005001','Album Tiếng Anh nâng cao - E','Đề thi và đáp án',NULL,'USER0000000005','2025-09-03 14:27:27'),('ALBUM0000000005002','Album Công nghệ - E','Tài liệu hệ thống và mạng',NULL,'USER0000000005','2025-09-03 14:27:27'),('ALBUM0000000006001','2222','1111',NULL,'USER0000000006','2025-09-03 14:45:23'),('ALBUM0000000007001','2222','',NULL,'USER0000000007','2025-09-17 23:20:24'),('ALBUM0000000007002','111','',NULL,'USER0000000007','2025-09-17 23:17:16'),('ALBUM0000000007003','3333','',NULL,'USER0000000007','2025-09-17 23:21:29'),('ALBUM0000000007004','44444','',NULL,'USER0000000007','2025-09-17 23:21:33'),('ALBUM0000000007005','55555','',NULL,'USER0000000007','2025-09-17 23:21:37'),('ALBUM0000000007006','3333','',NULL,'USER0000000007','2025-09-18 10:44:54'),('ALBUM0000000007007','yyyyyy','','https://res.cloudinary.com/ducl8m3ky/image/upload/v1758167126/albums/qvwrzb0kuuev7qwzxnt7.png','USER0000000007','2025-09-18 10:45:26'),('ALBUM7001','macdinh','Album mặc định của user',NULL,'USER0000000007','2025-09-09 07:59:55');
 /*!40000 ALTER TABLE `albums` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `bookmarks`
+--
+
+DROP TABLE IF EXISTS `bookmarks`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `bookmarks` (
+  `user_id` varchar(15) NOT NULL,
+  `post_id` varchar(40) NOT NULL,
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`user_id`,`post_id`),
+  KEY `post_id` (`post_id`),
+  CONSTRAINT `bookmarks_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON DELETE CASCADE,
+  CONSTRAINT `bookmarks_ibfk_2` FOREIGN KEY (`post_id`) REFERENCES `posts` (`post_id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `bookmarks`
+--
+
+LOCK TABLES `bookmarks` WRITE;
+/*!40000 ALTER TABLE `bookmarks` DISABLE KEYS */;
+/*!40000 ALTER TABLE `bookmarks` ENABLE KEYS */;
 UNLOCK TABLES;
 
 --
@@ -302,7 +330,7 @@ CREATE TABLE `user_follows` (
 
 LOCK TABLES `user_follows` WRITE;
 /*!40000 ALTER TABLE `user_follows` DISABLE KEYS */;
-INSERT INTO `user_follows` VALUES ('USER0000000001','USER0000000002','2025-09-03 14:27:27'),('USER0000000002','USER0000000001','2025-09-03 14:27:27'),('USER0000000002','USER0000000003','2025-09-03 14:27:27'),('USER0000000003','USER0000000001','2025-09-03 14:27:27'),('USER0000000003','USER0000000004','2025-09-03 14:27:27'),('USER0000000004','USER0000000005','2025-09-03 14:27:27'),('USER0000000005','USER0000000001','2025-09-03 14:27:27');
+INSERT INTO `user_follows` VALUES ('USER0000000001','USER0000000002','2025-09-03 14:27:27'),('USER0000000002','USER0000000001','2025-09-03 14:27:27'),('USER0000000003','USER0000000007','2025-09-03 14:27:27'),('USER0000000004','USER0000000007','2025-09-03 14:27:27'),('USER0000000005','USER0000000007','2025-09-03 14:27:27'),('USER0000000007','USER0000000003','2025-09-03 14:27:27'),('USER0000000007','USER0000000004','2025-09-03 14:27:27');
 /*!40000 ALTER TABLE `user_follows` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -376,4 +404,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2025-09-17 23:12:03
+-- Dump completed on 2025-09-18 11:27:44

@@ -41,7 +41,7 @@ class Album
         return $stmt->fetch(PDO::FETCH_ASSOC);
     }
 
-    public function createAlbum($albumName, $description, $userId)
+    public function createAlbum($albumName, $description, $urlThumbnail, $userId)
     {
         // Trích xuất số từ userId
         $userNumber = preg_replace('/[^0-9]/', '', $userId);
@@ -61,19 +61,21 @@ class Album
         $idGenerator = new IdGenerator();
         $newId = $idGenerator->generateAlbumId($userNumber, $num);
 
-        // Thêm album
-        $sql = "INSERT INTO albums (album_id, album_name, description, user_id) VALUES (?, ?, ?, ?)";
+        // Thêm album (có url_thumbnail)
+        $sql = "INSERT INTO albums (album_id, album_name, description, url_thumbnail, user_id, created_at) 
+            VALUES (?, ?, ?, ?, ?, NOW())";
         $stmt = $this->conn->prepare($sql);
-        return $stmt->execute([$newId, $albumName, $description, $userId]);
+        return $stmt->execute([$newId, $albumName, $description, $urlThumbnail, $userId]);
     }
 
 
 
-    public function updateAlbum($id, $albumName, $description)
+
+    public function updateAlbum($id, $albumName, $urlThumbnail, $description)
     {
         $sql = "UPDATE albums SET album_name = ?, description = ? WHERE album_id = ?";
         $stmt = $this->conn->prepare($sql);
-        return $stmt->execute([$albumName, $description, $id]);
+        return $stmt->execute([$albumName, $description, $urlThumbnail, $id]);
     }
 
     public function deleteAlbum($id)
