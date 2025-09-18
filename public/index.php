@@ -66,6 +66,8 @@ require_once __DIR__ . '/../models/PostComment.php';
 require_once __DIR__ . '/../models/PostReaction.php';
 require_once __DIR__ . '/../models/PostReport.php';
 require_once __DIR__ . '/../models/bookmark.php';
+require_once __DIR__ . '/../models/Search.php';
+
 
 
 
@@ -83,6 +85,8 @@ require_once __DIR__ . '/../controllers/CommentController.php';
 require_once __DIR__ . '/../controllers/ReactionController.php';
 require_once __DIR__ . '/../controllers/ReportController.php';
 require_once __DIR__ . '/../controllers/BookmarkController.php';
+require_once __DIR__ . '/../controllers/SearchController.php';
+
 
 
 /*************************************************
@@ -101,6 +105,7 @@ $reactionController    = new ReactionController();
 $reportController      = new ReportController();
 $userFollowController  = new UserFollowController();
 $bookmarkController = new BookmarkController();
+$searchController = new SearchController();
 
 /*************************************************
  * 5) TIỆN ÍCH NHỎ
@@ -302,6 +307,24 @@ if (isset($_GET['action'])) {
         case 'list_posts_by_hashtag':
             $postController->getPostsByHashtag();
             exit;
+        case 'list_posts_by_user':
+            $userId = $_GET['user_id'] ?? null;
+            $postController->getPostsByUserId($userId);
+            exit;
+        case 'list_posts_by_following':
+            if (!isset($_SESSION['user_id'])) {
+                http_response_code(401);
+                echo json_encode([
+                    "status" => "error",
+                    "message" => "Unauthorized"
+                ]);
+                exit;
+            }
+            $postController->getPostsFromFollowedUsers($_SESSION['user_id']);
+            exit;
+
+
+
 
         /*************** ALBUM CRUD ***************/
         case 'list_user_albums':
@@ -353,6 +376,16 @@ if (isset($_GET['action'])) {
         case 'hashtag_detail':
             $hashtagController->detail();
             exit;
+        case 'my_hashtags':
+            $hashtagController->getUserHashtags();
+            exit;
+
+        /*************** Search ***************/
+
+        case 'search':
+            $searchController->search();
+            exit;
+
 
         /*************** USER INFO (API JSON) ***************/
         case 'list_user_infos':            // GET

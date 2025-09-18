@@ -22,14 +22,16 @@ class PostController
     }
 
     /** ===== Helpers ===== */
-    private function respondJson($payload, int $code = 200): void {
+    private function respondJson($payload, int $code = 200): void
+    {
         http_response_code($code);
         header('Content-Type: application/json; charset=utf-8');
         echo json_encode($payload, JSON_UNESCAPED_UNICODE);
         exit;
     }
 
-    private function respondError(string $msg, int $code = 400, array $extra = []): void {
+    private function respondError(string $msg, int $code = 400, array $extra = []): void
+    {
         $this->respondJson(array_merge([
             'status'  => 'error',
             'message' => $msg,
@@ -210,8 +212,15 @@ class PostController
             }
 
             $postId = $this->postModel->createPost(
-                $title, $content, $description, $summary,
-                $albumId, $categoryId, $bannerUrl, $fileUrl, $fileType
+                $title,
+                $content,
+                $description,
+                $summary,
+                $albumId,
+                $categoryId,
+                $bannerUrl,
+                $fileUrl,
+                $fileType
             );
 
             $this->respondJson(['status' => 'ok', 'post_id' => $postId], 201);
@@ -285,8 +294,17 @@ class PostController
             }
 
             $this->postModel->updatePost(
-                $postId, $title, $content, $description, $summary,
-                $albumId, $categoryId, $bannerUrl, $_SESSION['user_id'], $fileUrl, $fileType
+                $postId,
+                $title,
+                $content,
+                $description,
+                $summary,
+                $albumId,
+                $categoryId,
+                $bannerUrl,
+                $_SESSION['user_id'],
+                $fileUrl,
+                $fileType
             );
 
             $this->respondJson(['status' => 'ok', 'message' => 'Cập nhật thành công']);
@@ -323,5 +341,66 @@ class PostController
             $this->respondError($e->getMessage(), 500);
         }
     }
-    
+
+    // API: Lấy danh sách post theo user_id
+    public function getPostsByUserId($userId)
+    {
+        try {
+            if (empty($userId)) {
+                http_response_code(400);
+                echo json_encode([
+                    "status" => "error",
+                    "message" => "user_id is required"
+                ]);
+                return;
+            }
+
+            $posts = $this->postModel->getPostsByUserId($userId);
+
+            echo json_encode([
+                "status" => "success",
+                "data" => $posts
+            ]);
+        } catch (Exception $e) {
+            http_response_code(500);
+            echo json_encode([
+                "status" => "error",
+                "message" => $e->getMessage()
+            ]);
+        }
+    }
+    public function getPostsFromFollowedUsers($followerId)
+    {
+        try {
+            $posts = $this->postModel->getPostsFromFollowedUsers($followerId);
+
+            echo json_encode([
+                "status" => "success",
+                "data" => $posts
+            ]);
+        } catch (Exception $e) {
+            http_response_code(500);
+            echo json_encode([
+                "status" => "error",
+                "message" => $e->getMessage()
+            ]);
+        }
+    }
+    // public function getHashtagsByUserId($userId)
+    // {
+    //     try {
+    //         $hashtags = $this->postModel->getHashtagsByUserId($userId);
+
+    //         echo json_encode([
+    //             "status" => "success",
+    //             "data" => $hashtags
+    //         ]);
+    //     } catch (Exception $e) {
+    //         http_response_code(500);
+    //         echo json_encode([
+    //             "status" => "error",
+    //             "message" => $e->getMessage()
+    //         ]);
+    //     }
+    // }
 }

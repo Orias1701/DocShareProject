@@ -10,14 +10,6 @@ class Bookmark
         $this->pdo = Database::getConnection();
     }
 
-    // Kiểm tra user đã bookmark post chưa
-    // public function isBookmarked($userId, $postId)
-    // {
-    //     $stmt = $this->pdo->prepare("SELECT 1 FROM bookmarks WHERE user_id=? AND post_id=?");
-    //     $stmt->execute([$userId, $postId]);
-    //     return (bool)$stmt->fetch();
-    // }
-
     // Thêm bookmark
     public function createBookmark($userId, $postId)
     {
