@@ -66,4 +66,36 @@ class UserFollow
         $stmt->execute();
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
+
+    public function getFollowing($userId)
+    {
+        $sql = "SELECT 
+                u.user_id, u.username, u.email, u.followers_count,
+                i.full_name, i.avatar_url, i.bio, i.birth_date
+            FROM user_follows f
+            JOIN users u ON f.following_id = u.user_id
+            LEFT JOIN user_infos i ON u.user_id = i.user_id
+            WHERE f.follower_id = ?
+            ORDER BY u.username ASC";
+
+        $stmt = $this->pdo->prepare($sql);
+        $stmt->execute([$userId]);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    public function getFollowers($userId)
+    {
+        $sql = "SELECT 
+                u.user_id, u.username, u.email, u.followers_count,
+                i.full_name, i.avatar_url, i.bio, i.birth_date
+            FROM user_follows f
+            JOIN users u ON f.follower_id = u.user_id
+            LEFT JOIN user_infos i ON u.user_id = i.user_id
+            WHERE f.following_id = ?
+            ORDER BY u.username ASC";
+
+        $stmt = $this->pdo->prepare($sql);
+        $stmt->execute([$userId]);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
 }

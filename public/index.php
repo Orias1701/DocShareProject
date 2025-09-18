@@ -65,6 +65,9 @@ require_once __DIR__ . '/../models/PostHashtag.php';
 require_once __DIR__ . '/../models/PostComment.php';
 require_once __DIR__ . '/../models/PostReaction.php';
 require_once __DIR__ . '/../models/PostReport.php';
+require_once __DIR__ . '/../models/bookmark.php';
+
+
 
 require_once __DIR__ . '/../controllers/PostController.php';
 require_once __DIR__ . '/../controllers/HomeController.php';
@@ -79,6 +82,8 @@ require_once __DIR__ . '/../controllers/PostHashtagController.php';
 require_once __DIR__ . '/../controllers/CommentController.php';
 require_once __DIR__ . '/../controllers/ReactionController.php';
 require_once __DIR__ . '/../controllers/ReportController.php';
+require_once __DIR__ . '/../controllers/BookmarkController.php';
+
 
 /*************************************************
  * 4) KHỞI TẠO CONTROLLER
@@ -95,6 +100,7 @@ $commentController     = new CommentController();
 $reactionController    = new ReactionController();
 $reportController      = new ReportController();
 $userFollowController  = new UserFollowController();
+$bookmarkController = new BookmarkController();
 
 /*************************************************
  * 5) TIỆN ÍCH NHỎ
@@ -262,11 +268,11 @@ if (isset($_GET['action'])) {
 
 
         /*************** API POSTS ***************/
-        case 'latest_posts':       
-            $postController->getLatestPosts();  
+        case 'latest_posts':
+            $postController->getLatestPosts();
             exit;
-        case 'popular_posts':      
-            $postController->getPopularPosts(); 
+        case 'popular_posts':
+            $postController->getPopularPosts();
             exit;
         case 'post_detail_api':
             $postController->postDetail($_GET['post_id'] ?? null);
@@ -351,44 +357,44 @@ if (isset($_GET['action'])) {
         /*************** USER INFO (API JSON) ***************/
         case 'list_user_infos':            // GET
             if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
-                respond_json(['status'=>'error','message'=>'Method Not Allowed'], 405);
+                respond_json(['status' => 'error', 'message' => 'Method Not Allowed'], 405);
             }
             $userInfoController->listUserInfos(); // controller đã respond_json
             exit;
 
         case 'create_user_info_form':      // GET: trả danh sách user còn trống user_info (nếu FE cần)
             if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
-                respond_json(['status'=>'error','message'=>'Method Not Allowed'], 405);
+                respond_json(['status' => 'error', 'message' => 'Method Not Allowed'], 405);
             }
             $userInfoController->showCreateForm();
             exit;
 
         case 'create_user_info':           // POST
             if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-                respond_json(['status'=>'error','message'=>'Method Not Allowed'], 405);
+                respond_json(['status' => 'error', 'message' => 'Method Not Allowed'], 405);
             }
             $userInfoController->create();
             exit;
 
         case 'show_edit_form':
             $userInfoController->showEditForm(); // ➜ trả JSON
-        exit;
+            exit;
 
         case 'update_user_info':
             $userInfoController->update();       // ➜ trả JSON
-        exit;
+            exit;
 
         case 'delete_user_info':           // DELETE hoặc POST (tuỳ client)
             $m = strtoupper($_SERVER['REQUEST_METHOD'] ?? 'GET');
-            if (!in_array($m, ['DELETE','POST'], true)) {
-                respond_json(['status'=>'error','message'=>'Method Not Allowed','allowed'=>'DELETE, POST'], 405);
+            if (!in_array($m, ['DELETE', 'POST'], true)) {
+                respond_json(['status' => 'error', 'message' => 'Method Not Allowed', 'allowed' => 'DELETE, POST'], 405);
             }
             $userInfoController->delete();
             exit;
 
         case 'show_user_info':
             $userInfoController->showUserInfo(); // ➜ trả JSON
-        exit;
+            exit;
 
         /*************** POST HASHTAG CRUD ***************/
         case 'list_post_hashtags':
@@ -527,6 +533,24 @@ if (isset($_GET['action'])) {
                 'data'   => $users
             ], 200);
             exit;
+        case 'api_user_following':
+            $ctrl = new UserFollowController();
+            $ctrl->userFollowing();
+            exit;
+
+        case 'api_user_followers':
+            $ctrl = new UserFollowController();
+            $ctrl->userFollowers();
+            exit;
+        /*************** BOOKMARK CRUD ***************/
+        case 'create_bookmark':
+            $bookmarkController->create();
+            exit;
+        case 'delete_bookmark':
+            $bookmarkController->remove();
+            exit;
+
+
 
         default:
             header("Location: index.php");

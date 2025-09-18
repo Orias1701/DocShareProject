@@ -2,42 +2,49 @@
 // controllers/AlbumController.php
 require_once __DIR__ . '/../models/Album.php';
 
-class AlbumController {
+class AlbumController
+{
     private $albumModel;
 
-    public function __construct() {
+    public function __construct()
+    {
         $this->albumModel = new Album();
     }
 
     /** ===== Helpers ===== */
-    private function respondJson($payload, int $code = 200): void {
+    private function respondJson($payload, int $code = 200): void
+    {
         http_response_code($code);
         header('Content-Type: application/json; charset=utf-8');
         echo json_encode($payload, JSON_UNESCAPED_UNICODE);
         exit;
     }
 
-    private function respondError(string $msg, int $code = 400, array $extra = []): void {
+    private function respondError(string $msg, int $code = 400, array $extra = []): void
+    {
         $this->respondJson(array_merge([
             'status'  => 'error',
             'message' => $msg,
         ], $extra), $code);
     }
 
-    private function requireAuth(): void {
+    private function requireAuth(): void
+    {
         if (!isset($_SESSION['user_id'])) {
             $this->respondError('Unauthorized', 401);
         }
     }
 
-    private function requireMethod(string $method): void {
+    private function requireMethod(string $method): void
+    {
         $m = strtoupper($_SERVER['REQUEST_METHOD'] ?? '');
         if ($m !== strtoupper($method)) {
             $this->respondError('Method Not Allowed', 405, ['allowed' => strtoupper($method)]);
         }
     }
 
-    private function readJsonBody(): array {
+    private function readJsonBody(): array
+    {
         $raw = file_get_contents('php://input');
         $data = json_decode($raw, true);
         return is_array($data) ? $data : [];
@@ -51,24 +58,37 @@ class AlbumController {
      * - album_name (bắt buộc)
      * - description (tuỳ chọn)
      */
-    public function create() {
+    public function create()
+    {
         $this->requireMethod('POST');
         $this->requireAuth();
 
-        // Ưu tiên JSON nếu Content-Type: application/json
-        $isJson = isset($_SERVER['CONTENT_TYPE']) && stripos($_SERVER['CONTENT_TYPE'], 'application/json') !== false;
-        $body   = $isJson ? $this->readJsonBody() : $_POST;
-
-        $albumName   = trim($body['album_name'] ?? '');
-        $description = $body['description'] ?? null;
+        $albumName   = trim($_POST['album_name'] ?? '');
+        $description = $_POST['description'] ?? null;
         $userId      = $_SESSION['user_id'];
 
         if ($albumName === '') {
             $this->respondError('Thiếu album_name', 422);
         }
 
+        $urlThumbnail = null;
+
+        // Upload thumbnail nếu có file
+        if (!empty($_FILES['thumbnail']['tmp_name'])) {
+            try {
+                $cloudinary = require __DIR__ . '/../config/cloudinary.php';
+                $upload     = $cloudinary->uploadApi()->upload(
+                    $_FILES['thumbnail']['tmp_name'],
+                    ['folder' => 'albums']
+                );
+                $urlThumbnail = $upload['secure_url'] ?? null;
+            } catch (\Throwable $e) {
+                $this->respondError('Upload thumbnail thất bại', 500, ['detail' => $e->getMessage()]);
+            }
+        }
+
         try {
-            $albumId = $this->albumModel->createAlbum($albumName, $description, $userId);
+            $albumId = $this->albumModel->createAlbum($albumName, $description, $urlThumbnail, $userId);
             $created = $this->albumModel->getAlbumById($albumId);
             $this->respondJson([
                 'status' => 'ok',
@@ -80,26 +100,18 @@ class AlbumController {
     }
 
     /**
-     * Cập nhật album (POST hoặc PUT)
-     * Body có thể là form-encoded hoặc JSON:
-     * - album_id (bắt buộc)
-     * - album_name (bắt buộc)
-     * - description (tuỳ chọn)
+     * Cập nhật album (POST multipart/form-data)
      */
-    public function update() {
-        // Cho phép POST (client form) hoặc PUT (REST)
-        $method = strtoupper($_SERVER['REQUEST_METHOD'] ?? '');
-        if (!in_array($method, ['POST','PUT'], true)) {
-            $this->respondError('Method Not Allowed', 405, ['allowed' => 'POST, PUT']);
-        }
+    public function update()
+    {
         $this->requireAuth();
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            $this->respondError('Method Not Allowed', 405, ['allowed' => 'POST']);
+        }
 
-        $isJson = isset($_SERVER['CONTENT_TYPE']) && stripos($_SERVER['CONTENT_TYPE'], 'application/json') !== false;
-        $body   = $isJson ? $this->readJsonBody() : $_POST;
-
-        $albumId     = $body['album_id'] ?? null;
-        $albumName   = isset($body['album_name']) ? trim($body['album_name']) : null;
-        $description = $body['description'] ?? null;
+        $albumId     = $_POST['album_id'] ?? null;
+        $albumName   = isset($_POST['album_name']) ? trim($_POST['album_name']) : null;
+        $description = $_POST['description'] ?? null;
 
         if (!$albumId) {
             $this->respondError('Thiếu album_id', 422);
@@ -117,7 +129,23 @@ class AlbumController {
                 $this->respondError('Forbidden', 403);
             }
 
-            $this->albumModel->updateAlbum($albumId, $albumName, $description);
+            $urlThumbnail = $album['url_thumbnail'] ?? null;
+
+            // Nếu có file mới thì upload lại
+            if (!empty($_FILES['thumbnail']['tmp_name'])) {
+                try {
+                    $cloudinary = require __DIR__ . '/../config/cloudinary.php';
+                    $upload     = $cloudinary->uploadApi()->upload(
+                        $_FILES['thumbnail']['tmp_name'],
+                        ['folder' => 'albums']
+                    );
+                    $urlThumbnail = $upload['secure_url'] ?? $urlThumbnail;
+                } catch (\Throwable $e) {
+                    $this->respondError('Upload thumbnail thất bại', 500, ['detail' => $e->getMessage()]);
+                }
+            }
+
+            $this->albumModel->updateAlbum($albumId, $albumName, $description, $urlThumbnail);
             $updated = $this->albumModel->getAlbumById($albumId);
 
             $this->respondJson([
@@ -129,14 +157,16 @@ class AlbumController {
         }
     }
 
+
     /**
      * Xoá album (DELETE hoặc POST)
      * Param:
      * - id (query string hoặc body JSON/form)
      */
-    public function delete() {
+    public function delete()
+    {
         $method = strtoupper($_SERVER['REQUEST_METHOD'] ?? 'GET');
-        if (!in_array($method, ['DELETE','POST'], true)) {
+        if (!in_array($method, ['DELETE', 'POST'], true)) {
             $this->respondError('Method Not Allowed', 405, ['allowed' => 'DELETE, POST']);
         }
         $this->requireAuth();
@@ -177,7 +207,8 @@ class AlbumController {
     /**
      * Danh sách album của chính user đang đăng nhập (GET)
      */
-    public function listUserAlbums() {
+    public function listUserAlbums()
+    {
         $this->requireMethod('GET');
         $this->requireAuth();
 
@@ -206,7 +237,8 @@ class AlbumController {
     /**
      * Danh sách tất cả album (GET) — nếu cần phân trang thì bổ sung limit/offset
      */
-    public function listAllAlbums() {
+    public function listAllAlbums()
+    {
         $this->requireMethod('GET');
 
         try {
@@ -223,7 +255,8 @@ class AlbumController {
     /**
      * Danh sách album theo user_id truyền vào (GET ?user_id=)
      */
-    public function listAlbumsByUserId() {
+    public function listAlbumsByUserId()
+    {
         $this->requireMethod('GET');
 
         $userId = $_GET['user_id'] ?? null;
@@ -252,7 +285,8 @@ class AlbumController {
     /**
      * (Tuỳ chọn) Lấy chi tiết 1 album (GET ?id=)
      */
-    public function detail() {
+    public function detail()
+    {
         $this->requireMethod('GET');
 
         $id = $_GET['id'] ?? null;
