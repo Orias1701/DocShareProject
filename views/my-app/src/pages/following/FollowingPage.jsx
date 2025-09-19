@@ -1,61 +1,62 @@
-import React from "react";
-import CategorySection from "../../components/category/CategorySection";
+import React, { useEffect, useState } from "react";
+import FollowingSection from "../../components/following/FollowingSection";
+import postService from "../../services/postService";
 
-/**
- * DỮ LIỆU DEMO
- * Tránh dùng Array(n).fill({...}) vì sẽ trỏ chung 1 reference.
- */
-const makePosts = (avatarIdx) =>
-  Array.from({ length: 4 }, (_, i) => ({
-    id: `demo-${avatarIdx}-${i}`,
-    authorName: "Name",
-    authorAvatar: `https://i.pravatar.cc/32?img=${avatarIdx}`,
-    title: "Post title\nMaximum of Post title is 3 lines.",
-    hashtags: ["#hashtag-1", "#hashtag-2", "#hashtag-3"],
-    uploadTime: "Post upload time",
-    sourceName: "google/mangle",
-    sourceIcon: "https://www.google.com/favicon.ico",
-    stats: { likes: 1, comments: 1, shares: 0, saves: 0 },
-  }));
+export default function FollowingPostsPage() {
+  const [posts, setPosts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-const categoriesData = [
-  { title: "Following 1", posts: makePosts(3) },
-  { title: "Following 2", posts: makePosts(4) },
-];
+  // Link mặc định cho file khi file_url null
+  const DEFAULT_FILE_URL = "https://via.placeholder.com/150?text=No+File";
 
-/**
- * LAYOUT TỔNG:
- * - Cột trái: sidebar/layout (cố định chiều rộng)
- * - Cột phải: content (phần dưới là CategorySection)
- *
- * Giả định phần LAYOUT TRÁI đã được bọc ở component cha (vd: AppLayout).
- * File này chỉ render CONTENT PHẢI, nhưng mình thêm container chuẩn để khớp layout.
- */
-export default function FollowingPage() {
+  useEffect(() => {
+    const fetchFollowingPosts = async () => {
+      setLoading(true);
+      setError(null);
+
+      try {
+        // Giả lập API list_posts_by_following
+        const res = await postService.listPostsByFollowing?.() || 
+                    await fetchJson("list_posts_by_following", { method: "GET" });
+
+        if (!res || res.status !== "success" || !Array.isArray(res.data)) {
+          throw new Error("API trả về dữ liệu không hợp lệ");
+        }
+
+        const mappedPosts = res.data.map(p => ({
+          id: p.post_id,
+          title: p.title,
+          excerpt: p.excerpt,
+          uploadTime: p.created_at,
+          albumName: p.album_name || "Chưa có album",
+          authorName: p.author_name || "Unknown",
+          fileUrl: p.file_url || DEFAULT_FILE_URL, // ✅ Gán default nếu null
+          fileType: p.file_type || "unknown",
+        }));
+
+        setPosts(mappedPosts);
+
+      } catch (err) {
+        console.error("Lỗi tải danh sách bài viết:", err);
+        setError(err.message || "Lỗi kết nối API");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchFollowingPosts();
+  }, []);
+
+  if (loading) return <div className="text-white p-4">Đang tải danh sách...</div>;
+  if (error) return <div className="text-white p-4 bg-red-900/40 border border-red-700 rounded-lg"><strong>Lỗi:</strong> {error}</div>;
+
   return (
     <div className="w-full">
-      {/* Header tabs của content */}
-      <div className="flex justify-end items-center mb-8 gap-6">
-        <button
-          className="text-white font-semibold border-b-2 border-white pb-1"
-          type="button"
-        >
-          Posts
-        </button>
-        <button
-          className="text-gray-400 font-semibold pb-1 hover:text-white"
-          type="button"
-        >
-          Follower
-        </button>
-      </div>
-
-      {/* Nội dung các category */}
-      <div className="space-y-12">
-        {categoriesData.map((c, idx) => (
-          <CategorySection key={c.title + idx} title={c.title} posts={c.posts} />
-        ))}
-      </div>
+      <FollowingSection
+        title="Bài viết từ những người bạn đang theo dõi"
+        posts={posts}
+      />
     </div>
   );
 }

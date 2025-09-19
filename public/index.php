@@ -10,7 +10,7 @@ $allowedOrigins = [
 ];
 
 // Chỉ cho phép các origin hợp lệ trong danh sách allowedOrigins
-if (in_array($origin, $allowedOrigins, true)) {
+if (in_array($origin, $allowedOrigins, strict: true)) {
     header("Access-Control-Allow-Origin: $origin");
 } else {
     // Fallback cho môi trường localhost (nếu không có trong danh sách)
@@ -149,9 +149,9 @@ if (isset($_GET['action'])) {
 
     switch ($action) {
         /*************** AUTH (VIEW) ****************/
-        case 'login':
-            include __DIR__ . '/../views/login.php';
-            exit;
+        // case 'login':
+        //     include __DIR__ . '/../views/login.php';
+        //     exit;
 
         case 'login_post':
             if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -160,9 +160,9 @@ if (isset($_GET['action'])) {
             }
             exit;
 
-        case 'register':
-            include __DIR__ . '/../views/register.php';
-            exit;
+        // case 'register':
+        //     include __DIR__ . '/../views/register.php';
+        //     exit;
 
         case 'register_post':
             if ($_SERVER['REQUEST_METHOD'] === 'POST') {

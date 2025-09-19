@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 
 import './Regis.css';
 
-// Dùng endpoint JSON mới:
+// Nếu bạn dùng Vite proxy, đổi thành '/api?action=api_register'
 const API_REGISTER_URL = 'http://localhost:3000/public/index.php?action=api_register';
 
 const RegisterPage = () => {
@@ -14,28 +14,30 @@ const RegisterPage = () => {
     password: '',
     birthday: '',
     biography: '',
-    avatar: null,       // hiện chưa upload file lên BE (BE chưa nhận multipart); có thể giữ để dùng sau
+    avatar: null,
   });
 
   const [loading, setLoading] = useState(false);
   const [error, setError]     = useState(null);
   const [success, setSuccess] = useState(null);
-  const navigate = useNavigate();  // để chuyển hướng
+  const navigate = useNavigate();
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value,
-    }));
+    setFormData(prev => ({ ...prev, [name]: value }));
   };
 
   const handleFileChange = (e) => {
-    setFormData(prev => ({
-      ...prev,
-      avatar: e.target.files[0] || null,
-    }));
+    setFormData(prev => ({ ...prev, avatar: e.target.files[0] || null }));
   };
+
+  // Basic client-side password policy check
+  function validatePassword(pw) {
+    if (!pw || pw.length < 8) return 'Mật khẩu phải >= 8 ký tự.';
+    if (!/[0-9]/.test(pw)) return 'Mật khẩu phải chứa ít nhất 1 số.';
+    if (!/[a-z]/.test(pw)) return 'Mật khẩu phải chứa ít nhất 1 chữ thường.';
+    return null;
+  }
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -43,52 +45,73 @@ const RegisterPage = () => {
     setError(null);
     setSuccess(null);
 
-    // API backend mong đợi field: username, email, password, full_name, birth_date, avatar_url, bio
+    // client-side validation
+    const pwdErr = validatePassword(formData.password);
+    if (pwdErr) {
+      setError(pwdErr);
+      setLoading(false);
+      return;
+    }
+    if (!formData.email) {
+      setError('Vui lòng nhập email.');
+      setLoading(false);
+      return;
+    }
+
     const payload = {
       username:   formData.username.trim(),
       email:      formData.email.trim(),
       password:   formData.password,
       full_name:  formData.fullName.trim(),
-      birth_date: formData.birthday,     // input type=date đã là YYYY-MM-DD
+      birth_date: formData.birthday,
       bio:        formData.biography.trim() || null,
-      // Nếu có sẵn link ảnh thì truyền avatar_url; còn upload file cần API riêng
-      avatar_url: null,
+      avatar_url: null, // nếu muốn upload file, cần endpoint multipart riêng
     };
 
     try {
       const res = await fetch(API_REGISTER_URL, {
         method: 'POST',
-        credentials: 'include', // cần nếu dùng session/cookie cross-origin
+        credentials: 'include', // giữ nếu bạn dùng PHP session cookie
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
         },
         body: JSON.stringify(payload),
       });
+      // xử lý an toàn: có thể server trả body rỗng hoặc non-JSON
+      const text = await res.text();
+      let data = null;
+      try {
+        data = text ? JSON.parse(text) : {};
+      } catch (parseErr) {
+        // non-JSON response
+        console.error('Non-JSON response:', text);
+        throw new Error('Server trả về dữ liệu không hợp lệ (không phải JSON).');
+      }
 
-      // server luôn trả JSON theo chuẩn đã setup
-      const data = await res.json();
-
-      if (res.ok && data.status === 'ok') {
+      if (res.ok && data?.status === 'ok') {
         setSuccess(data.message || 'Đăng ký thành công!');
-        navigate("/login");
-        // tuỳ chọn: reset form
-        setFormData({
-          username: '',
-          fullName: '',
-          email: '',
-          password: '',
-          birthday: '',
-          biography: '',
-          avatar: null,
-        });
+        // reset form, navigate sau 700ms để user đọc message
+        setTimeout(() => {
+          setFormData({
+            username: '',
+            fullName: '',
+            email: '',
+            password: '',
+            birthday: '',
+            biography: '',
+            avatar: null,
+          });
+          navigate('/login');
+        }, 700);
       } else {
-        // gom message hợp lệ từ server, fallback nếu thiếu
-        setError(data?.message || 'Đăng ký thất bại. Vui lòng thử lại!');
+        // ưu tiên message từ body, fallback sang status text
+        const msg = data?.message || data?.error || `Đăng ký thất bại (${res.status})`;
+        setError(msg);
       }
     } catch (err) {
       console.error('Register error:', err);
-      setError('Không thể kết nối đến server. Vui lòng thử lại sau.');
+      setError(err.message || 'Không thể kết nối đến server. Vui lòng thử lại sau.');
     } finally {
       setLoading(false);
     }
@@ -108,10 +131,10 @@ const RegisterPage = () => {
         <div className="form-wrapper">
           <h2>Sign up for ...</h2>
 
-          {error &&   <div className="alert alert-error">{error}</div>}
-          {success && <div className="alert alert-success">{success}</div>}
+          {error &&   <div className="alert alert-error" role="alert">{error}</div>}
+          {success && <div className="alert alert-success" role="status">{success}</div>}
 
-          <form onSubmit={handleSubmit}>
+          <form onSubmit={handleSubmit} noValidate>
             <div className="form-group">
               <label htmlFor="fullName">Full name</label>
               <input
