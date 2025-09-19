@@ -40,7 +40,15 @@ class Hashtag
         // Thêm dữ liệu
         $sql = "INSERT INTO hashtags (hashtag_id, hashtag_name) VALUES (?, ?)";
         $stmt = $this->conn->prepare($sql);
-        return $stmt->execute([$newId, $hashtagName]);
+
+        // ▼ THAY ĐỔI TẠI ĐÂY ▼
+        $success = $stmt->execute([$newId, $hashtagName]);
+
+        if ($success) {
+            return $newId; // Trả về ID nếu tạo thành công
+        } else {
+            return false; // Trả về false nếu thất bại
+        }
     }
 
     public function updateHashtag($id, $hashtagName)

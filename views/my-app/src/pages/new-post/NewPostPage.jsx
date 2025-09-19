@@ -128,62 +128,60 @@ const NewPostPage = () => {
   };
 
   const handleSubmit = async () => {
-    if (!validate()) return;
-  
-    try {
-      setSubmitting(true);
-  
-      // 1️⃣ Parse hashtag từ input
-      const uniqueHashtags = parseHashtagForSubmit(hashtagInput); // ["#ai", "#ml", ...]
-  
-      // 2️⃣ Tạo post
-      const res = await postService.create({
-        title: newPost.title,
-        content: newPost.description || "",
-        description: newPost.summary || "",
-        summary: newPost.summary || "",
-        category_id: newPost.category || "",
-        album_id: newPost.album || "",
-        banner: thumbnailFile || undefined,
-        content_file: mainFile || undefined,
-      });
-  
-      const postId = res?.post_id ?? res?.data?.post_id;
-      if (!postId) throw new Error("Không tạo được post, postId rỗng");
-  
-      // 3️⃣ Tạo/gán hashtag cho post
-      for (const name of uniqueHashtags) {
-        try {
-          // Gọi post_hashtagService để tạo hashtag nếu cần
-          const createdTag = await post_hashtagService.create(postId, [name]);
-          // createdTag.data có thể là mảng các hashtag vừa tạo
-        } catch (e) {
-          console.warn("Tạo/gán hashtag lỗi:", name, e);
-        }
-      }
-  
-      showToast('Tạo bài viết và hashtag thành công!', 'success');
-  
-      // 4️⃣ Reset form
-      setNewPost({
-        title: '',
-        category: '',
-        album: '',
-        hashtagIds: [],
-        summary: '',
-        description: '',
-      });
-      setHashtagInput('');
-      setMainFile(null);
-      setThumbnailFile(null);
-      setErrors({});
-    } catch (err) {
-      console.error("Create post failed:", err);
-      showToast(err?.message || 'Tạo bài viết thất bại. Vui lòng thử lại!', 'error');
-    } finally {
-      setSubmitting(false);
-    }
-  };
+if (!validate()) return;
+try {
+  setSubmitting(true);
+
+// 1️⃣ Parse hashtag từ input, nhưng lần này sẽ bỏ dấu '#' và nối thành chuỗi
+const hashtagsForSubmit = parseHashtagForSubmit(hashtagInput) // Mảng: ["#ai", "#ml"]
+.map(tag => tag.substring(1)) // Bỏ dấu '#' ở đầu: ["ai", "ml"]
+.join(','); // Nối thành chuỗi: "ai,ml"
+
+// 2️⃣ Tạo post VÀ gửi kèm chuỗi hashtags
+const res = await postService.create({
+title: newPost.title,
+content: newPost.description || "",
+ description: newPost.summary || "",
+ summary: newPost.summary || "",
+ category_id: newPost.category || "",
+ album_id: newPost.album || "",
+        // 👇 GỬI HASHTAGS TẠI ĐÂY
+        hashtags: hashtagsForSubmit,
+ banner: thumbnailFile || undefined,
+ content_file: mainFile || undefined,
+});
+ 
+const postId = res?.post_id ?? res?.data?.post_id;
+if (!postId) throw new Error(res?.message || "Không tạo được post, postId rỗng");
+ 
+// ❌ BỎ HOÀN TOÀN VÒNG LẶP NÀY
+/*
+for (const name of uniqueHashtags) {
+ try {
+  const createdTag = await post_hashtagService.create(postId, [name]);
+ } catch (e) {
+  console.warn("Tạo/gán hashtag lỗi:", name, e);
+ }
+}
+      */
+ 
+showToast('Tạo bài viết thành công!', 'success');
+ 
+// 4️⃣ Reset form (giữ nguyên)
+setNewPost({
+ title: '', category: '', album: '', hashtagIds: [], summary: '', description: '',
+});
+setHashtagInput('');
+setMainFile(null);
+setThumbnailFile(null);
+setErrors({});
+  } catch (err) {
+console.error("Create post failed:", err);
+showToast(err?.message || 'Tạo bài viết thất bại. Vui lòng thử lại!', 'error');
+  } finally {
+setSubmitting(false);
+  }
+};
   
 
   // helper render options (đã normalized: [{id,name}])

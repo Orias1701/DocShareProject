@@ -169,9 +169,8 @@ class Post
         try {
             // Khởi tạo content
             $processedContent = $content;
-            if ($fileUrl && $fileType) {
-                // Nếu có file, không ghi đè content để hỗ trợ cả văn bản và file
-            } else {
+            if (!($fileUrl && $fileType)) {
+                // Nếu không có file, xử lý ảnh base64
                 $processedContent = $this->processBase64ImagesInContent($content);
             }
 
@@ -187,6 +186,7 @@ class Post
             $idGenerator = new IdGenerator();
             $newId = $idGenerator->generatePostId($albumNumber, $categoryNumber, $postNumber);
 
+            // Thêm vào DB
             $sql = "INSERT INTO posts (post_id, title, content, description, summary, album_id, category_id, banner_url, file_url, file_type) 
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
             $stmt = $this->pdo->prepare($sql);
@@ -196,7 +196,8 @@ class Post
                 error_log("Failed to create post: " . print_r($stmt->errorInfo(), true));
                 throw new Exception("Lỗi khi lưu bài viết vào cơ sở dữ liệu.");
             }
-            return true;
+
+            return $newId; // => trả về post_id vừa tạo để dùng tạo hashtag đồng thời
         } catch (Exception $e) {
             error_log("Error in createPost: " . $e->getMessage());
             throw $e;

@@ -95,6 +95,7 @@ export const postService = {
       summary: params.summary,
       album_id: params.album_id,
       category_id: params.category_id,
+      hashtags: params.hashtags, // Gửi chuỗi hashtags lên
       ...(params.banner ? { banner: params.banner } : {}),
       ...(params.content_file ? { content_file: params.content_file } : {}),
     });
