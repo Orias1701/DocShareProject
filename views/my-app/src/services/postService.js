@@ -24,6 +24,8 @@ const ACTIONS = {
   listCategories: "list_categories",
   listAlbums: "list_albums",
   listHashtags: "list_hashtags",
+  // 🔥 BỔ SUNG: API lấy bài viết từ những người dùng đang theo dõi 
+  getPostsFromFollowedUsers: "list_posts_by_following",
 };
 
 // --- helpers ---
@@ -142,7 +144,12 @@ export const postService = {
     const body = toFormData({ post_id, hashtag_id });
     return fetchJson(ACTIONS.deletePostHashtag, { method: "POST", body });
   },
-
+  // ---------- 🔥 BỔ SUNG: Lấy bài viết từ những người dùng đang theo dõi ----------
+  async listPostsByFollowing() {
+    const res = await fetchJson(ACTIONS.getPostsFromFollowedUsers);
+    return res.data || [];
+  },    
+  
   // ---------- 🔥 BỔ SUNG: categories / albums / hashtags cho form ----------
   async listCategories() {
     const res = await fetchJson(ACTIONS.listCategories);

@@ -17,6 +17,7 @@ class Post
     /**
      * View A: user_infos, user_follows, albums, posts, post_comments, post_reactions, post_reports
      */
+    
     public function getLatestPosts()
     {
         try {
@@ -479,7 +480,7 @@ class Post
                     LEFT(p.content, 400) AS excerpt,
                     p.created_at,
                     a.album_id, a.album_name,
-                    ui.user_id AS author_id, ui.full_name AS author_name
+                    ui.user_id , ui.full_name 
                 FROM posts p
                 LEFT JOIN albums a ON p.album_id = a.album_id
                 LEFT JOIN user_infos ui ON a.user_id = ui.user_id
@@ -498,7 +499,7 @@ class Post
             return [];
         }
     }
-
+    
     // public function getHashtagsByUserId($userId)
     // {
     //     try {
