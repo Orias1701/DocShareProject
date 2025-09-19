@@ -47,21 +47,18 @@ class PostHashtag
     }
 
     // Thêm hashtag cho 1 bài post
-    public function createHashtagToPost($postId, $hashtagName)
+    public function createHashtagToPost($postId, $hashtagId)
     {
         try {
             // Start transaction
             $this->pdo->beginTransaction();
 
             // Validate inputs
-            if (empty($hashtagName) || strlen($hashtagName) > 50) {
-                throw new Exception("Tên hashtag không hợp lệ!");
-            }
-            if (!preg_match('/^#[a-zA-Z0-9_]+$/', $hashtagName)) {
-                throw new Exception("Hashtag phải bắt đầu bằng # và chỉ chứa chữ cái, số, hoặc dấu gạch dưới!");
-            }
             if (empty($postId) || strlen($postId) > 40) {
                 throw new Exception("Post ID không hợp lệ!");
+            }
+            if (empty($hashtagId) || strlen($hashtagId) > 20) {
+                throw new Exception("Hashtag ID không hợp lệ!");
             }
 
             // Check if post_id exists
@@ -71,30 +68,18 @@ class PostHashtag
                 throw new Exception("Post ID không tồn tại!");
             }
 
-            // Check if hashtag_name exists
-            $stmt = $this->pdo->prepare("SELECT hashtag_id FROM hashtags WHERE hashtag_name = :hashtag_name");
-            $stmt->execute(['hashtag_name' => $hashtagName]);
-            $hashtag_id = $stmt->fetchColumn();
-
-            if ($hashtag_id === false) {
-                // Generate new hashtag_id
-                $stmt = $this->pdo->query("SELECT COALESCE(MAX(CAST(SUBSTRING(hashtag_id, 8) AS UNSIGNED)), 0) + 1 AS next_id FROM hashtags");
-                $next_id = $stmt->fetchColumn();
-                $hashtag_id = 'HASHTAG' . str_pad($next_id, 11, '0', STR_PAD_LEFT);
-
-                // Insert new hashtag
-                $stmt = $this->pdo->prepare("INSERT INTO hashtags (hashtag_id, hashtag_name) VALUES (:hashtag_id, :hashtag_name)");
-                $stmt->execute([
-                    'hashtag_id' => $hashtag_id,
-                    'hashtag_name' => $hashtagName
-                ]);
+            // Check if hashtag_id exists
+            $stmt = $this->pdo->prepare("SELECT COUNT(*) FROM hashtags WHERE hashtag_id = :hashtag_id");
+            $stmt->execute(['hashtag_id' => $hashtagId]);
+            if ($stmt->fetchColumn() == 0) {
+                throw new Exception("Hashtag ID không tồn tại!");
             }
 
             // Insert into post_hashtags
             $stmt = $this->pdo->prepare("INSERT INTO post_hashtags (post_id, hashtag_id) VALUES (:post_id, :hashtag_id) ON DUPLICATE KEY UPDATE post_id = post_id");
             $stmt->execute([
                 'post_id' => $postId,
-                'hashtag_id' => $hashtag_id
+                'hashtag_id' => $hashtagId
             ]);
 
             // Commit transaction
@@ -103,7 +88,7 @@ class PostHashtag
         } catch (PDOException $e) {
             $this->pdo->rollBack();
             error_log("Lỗi PDO: " . $e->getMessage());
-            throw new Exception("Lỗi khi thêm hashtag '$hashtagName': " . $e->getMessage());
+            throw new Exception("Lỗi khi thêm hashtag: " . $e->getMessage());
         } catch (Exception $e) {
             $this->pdo->rollBack();
             throw $e;

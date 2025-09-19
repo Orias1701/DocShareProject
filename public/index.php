@@ -160,9 +160,9 @@ if (isset($_GET['action'])) {
             }
             exit;
 
-        // case 'register':
-        //     include __DIR__ . '/../views/register.php';
-        //     exit;
+            // case 'register':
+            //     include __DIR__ . '/../views/register.php';
+            //     exit;
 
         case 'register_post':
             if ($_SERVER['REQUEST_METHOD'] === 'POST') {

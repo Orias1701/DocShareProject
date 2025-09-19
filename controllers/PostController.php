@@ -3,12 +3,18 @@
 require_once __DIR__ . '/../models/Post.php';
 require_once __DIR__ . '/../models/Album.php';
 require_once __DIR__ . '/../models/Category.php';
+require_once __DIR__ . '/../models/Hashtag.php';
+require_once __DIR__ . '/../models/PostHashtag.php';
+
 require_once __DIR__ . '/../models/PostReaction.php';
 require_once __DIR__ . '/../vendor/autoload.php';
 
 class PostController
 {
     private $postModel;
+    private $hashtagModel;
+    private $postHashtagModel;
+
     private $albumModel;
     private $categoryModel;
     private $reactionModel;
@@ -19,6 +25,8 @@ class PostController
         $this->albumModel    = new Album();
         $this->categoryModel = new Category();
         $this->reactionModel = new PostReaction();
+        $this->hashtagModel = new Hashtag();
+        $this->postHashtagModel = new PostHashtag();
     }
 
     /** ===== Helpers ===== */
@@ -159,6 +167,7 @@ class PostController
     }
 
     /** Tạo bài viết */
+    /** Tạo bài viết */
     public function create()
     {
         if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !isset($_SESSION['user_id'])) {
@@ -192,7 +201,7 @@ class PostController
                 $uploadedFile     = $_FILES['content_file'];
                 $uploadedFileType = $uploadedFile['type'];
                 $uploadedFileExt  = strtolower(pathinfo($uploadedFile['name'], PATHINFO_EXTENSION));
-                $maxFileSize      = 10 * 1024 * 1024; // 10MB
+                $maxFileSize      = 10 * 1024 * 1024;
 
                 if ($uploadedFileExt !== 'pdf') throw new Exception("Chỉ hỗ trợ PDF.");
                 if ($uploadedFile['size'] > $maxFileSize) throw new Exception("File quá lớn (>10MB).");
@@ -211,6 +220,7 @@ class PostController
                 }
             }
 
+            // --- Tạo post ---
             $postId = $this->postModel->createPost(
                 $title,
                 $content,
@@ -223,11 +233,31 @@ class PostController
                 $fileType
             );
 
-            $this->respondJson(['status' => 'ok', 'post_id' => $postId], 201);
+            // --- Xử lý hashtags ---
+            $createdHashtags = [];
+            if (!empty($_POST['hashtags'])) {
+                $hashtags = array_filter(array_map('trim', explode(',', $_POST['hashtags'])));
+                foreach ($hashtags as $hashtag) {
+                    // Loại bỏ ký tự '#' nếu có
+                    $cleanHashtag = ltrim($hashtag, '#');
+                    if (preg_match('/^[a-zA-Z0-9_]+$/', $cleanHashtag)) {
+                        $hashtagId = $this->hashtagModel->findOrCreateHashtag($cleanHashtag);
+                        $this->postHashtagModel->createHashtagToPost($postId, $hashtagId);
+                        $createdHashtags[] = $cleanHashtag;
+                    }
+                }
+            }
+
+            $this->respondJson([
+                'status' => 'ok',
+                'post_id' => $postId,
+                'hashtags' => $createdHashtags
+            ], 201);
         } catch (Exception $e) {
             $this->respondError($e->getMessage(), 500);
         }
     }
+
 
     /** Cập nhật bài viết */
     public function update()
