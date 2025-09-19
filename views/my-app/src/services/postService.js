@@ -24,6 +24,9 @@ const ACTIONS = {
   listCategories: "list_categories",
   listAlbums: "list_albums",
   listHashtags: "list_hashtags",
+
+  listPostsByFollowing: "list_posts_by_following", // 🔥 mới thêm
+
 };
 
 // --- helpers ---
@@ -86,6 +89,10 @@ export const postService = {
   },
   listAll() {
     return fetchJson(ACTIONS.listAll);
+  },
+
+  listPostsByFollowing() {
+    return fetchJson(ACTIONS.listPostsByFollowing, { method: "GET" });
   },
   create(params) {
     const body = toFormData({

@@ -474,49 +474,48 @@ class Post
     {
         try {
             $sql = "
-                SELECT 
-                    p.post_id, p.title, p.file_url, p.file_type,
-                    LEFT(p.content, 400) AS excerpt,
-                    p.created_at,
-                    a.album_id, a.album_name,
-                    ui.user_id AS author_id, ui.full_name AS author_name
-                FROM posts p
-                LEFT JOIN albums a ON p.album_id = a.album_id
-                LEFT JOIN user_infos ui ON a.user_id = ui.user_id
-                WHERE ui.user_id IN (
-                    SELECT uf.following_id 
-                    FROM user_follows uf 
-                    WHERE uf.follower_id = ?
-                )
-                ORDER BY p.created_at DESC
-            ";
+            SELECT 
+                p.post_id, 
+                p.title, 
+                p.file_url, 
+                p.file_type,
+                LEFT(p.content, 400) AS excerpt,
+                p.created_at,
+                a.album_id, 
+                a.album_name,
+                u.user_id AS author_id, 
+                u.username AS author_username,
+                ui.full_name AS author_fullname,
+                GROUP_CONCAT(h.hashtag_name) AS hashtags
+            FROM posts p
+            LEFT JOIN albums a ON p.album_id = a.album_id
+            LEFT JOIN users u ON a.user_id = u.user_id
+            LEFT JOIN user_infos ui ON u.user_id = ui.user_id
+            LEFT JOIN post_hashtags ph ON p.post_id = ph.post_id
+            LEFT JOIN hashtags h ON ph.hashtag_id = h.hashtag_id
+            WHERE u.user_id IN (
+                SELECT uf.following_id 
+                FROM user_follows uf 
+                WHERE uf.follower_id = ?
+            )
+            GROUP BY p.post_id
+            ORDER BY p.created_at DESC
+        ";
             $stmt = $this->pdo->prepare($sql);
             $stmt->execute([$followerId]);
-            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+            $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            // Chuyển hashtags từ chuỗi thành mảng
+            foreach ($rows as &$row) {
+                $row['hashtags'] = $row['hashtags']
+                    ? explode(',', $row['hashtags'])
+                    : [];
+            }
+
+            return $rows;
         } catch (Exception $e) {
             error_log("Error in getPostsFromFollowedUsers: " . $e->getMessage());
             return [];
         }
     }
-
-    // public function getHashtagsByUserId($userId)
-    // {
-    //     try {
-    //         $sql = "
-    //         SELECT DISTINCT h.hashtag_id, h.hashtag_name
-    //         FROM posts p
-    //         JOIN post_hashtags ph ON p.post_id = ph.post_id
-    //         JOIN hashtags h ON ph.hashtag_id = h.hashtag_id
-    //         JOIN albums a ON p.album_id = a.album_id
-    //         WHERE a.user_id = ?
-    //         ORDER BY h.hashtag_name ASC
-    //     ";
-    //         $stmt = $this->pdo->prepare($sql);
-    //         $stmt->execute([$userId]);
-    //         return $stmt->fetchAll(PDO::FETCH_ASSOC);
-    //     } catch (Exception $e) {
-    //         error_log("Error in getHashtagsByUserId: " . $e->getMessage());
-    //         return [];
-    //     }
-    // }
 }
