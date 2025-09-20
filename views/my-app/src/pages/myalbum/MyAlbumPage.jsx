@@ -1,36 +1,55 @@
-import React from "react";
-import CategorySection from "../../components/category/CategorySection";
+// src/pages/albums/MyAlbumPage.jsx
+import React, { useEffect, useState } from "react";
+import PostSection from "../../components/post/PostSection";
+import albumService from "../../services/albumService";
 
-/**
- * DỮ LIỆU DEMO
- * Tránh dùng Array(n).fill({...}) vì sẽ trỏ chung 1 reference.
- */
-const makePosts = (avatarIdx) =>
-  Array.from({ length: 8 }, (_, i) => ({
-    id: `demo-${avatarIdx}-${i}`,
-    authorName: "Name",
-    authorAvatar: `https://i.pravatar.cc/32?img=${avatarIdx}`,
-    title: "Post title\nMaximum of Post title is 3 lines.",
-    hashtags: ["#hashtag-1", "#hashtag-2", "#hashtag-3"],
-    uploadTime: "Post upload time",
-    sourceName: "google/mangle",
-    sourceIcon: "https://www.google.com/favicon.ico",
-    stats: { likes: 1, comments: 1, shares: 0, saves: 0 },
-  }));
-
-const categoriesData = [
-  { title: "Album 1", posts: makePosts(3) },
-];
-
-/**
- * LAYOUT TỔNG:
- * - Cột trái: sidebar/layout (cố định chiều rộng)
- * - Cột phải: content (phần dưới là CategorySection)
- *
- * Giả định phần LAYOUT TRÁI đã được bọc ở component cha (vd: AppLayout).
- * File này chỉ render CONTENT PHẢI, nhưng mình thêm container chuẩn để khớp layout.
- */
 export default function MyAlbumPage() {
+  const [albums, setAlbums] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // Map 1 album -> shape card dùng bởi PostCard/PostSection
+  const mapAlbumToCard = (a = {}) => ({
+    id: a.album_id || a.id,
+    title: a.album_name || a.name || "Album",
+    authorName: "Tôi",
+    authorAvatar: "/images/default-avatar.png",
+    uploadTime: a.created_at || "",
+    banner: a.url_thumbnail || null, // hiện ảnh bìa album
+    // để PostCard chạy mượt (không cần file/hashtags cho album)
+    file: null,
+    hashtags: [],
+    stats: { likes: 0, comments: 0, views: 0 },
+    // nếu sau này cần điều hướng chi tiết album:
+    album_id: a.album_id || a.id,
+  });
+
+  useEffect(() => {
+    (async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const rows = await albumService.listMyAlbums(); // trả mảng albums
+        const cards = (rows || []).map(mapAlbumToCard);
+        setAlbums(cards);
+      } catch (e) {
+        console.error(e);
+        setError(e?.message || "Không thể tải danh sách album.");
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
+
+  if (loading) return <div className="text-white p-4">Đang tải dữ liệu...</div>;
+  if (error) {
+    return (
+      <div className="text-white p-4 bg-red-900/40 border border-red-700 rounded-lg">
+        <strong>Lỗi:</strong> {error}
+      </div>
+    );
+  }
+
   return (
     <div className="w-full">
       {/* Header tabs của content */}
@@ -49,11 +68,15 @@ export default function MyAlbumPage() {
         </button>
       </div>
 
-      {/* Nội dung các category */}
+      {/* Một section duy nhất: “Your albums” -> grid các album card */}
       <div className="space-y-12">
-        {categoriesData.map((c, idx) => (
-          <CategorySection key={c.title + idx} title={c.title} posts={c.posts} />
-        ))}
+        <PostSection
+          title="Your albums"
+          posts={albums}
+          showAlbum={false}
+          maxTags={0}
+          emptyText="Bạn chưa có album nào."
+        />
       </div>
     </div>
   );

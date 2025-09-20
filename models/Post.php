@@ -450,16 +450,19 @@ class Post
     {
         try {
             $sql = "
-            SELECT 
-                p.post_id, p.title, p.file_url, p.file_type,
-                LEFT(p.content, 400) AS excerpt,
-                p.created_at,
+             SELECT 
+                p.post_id, p.title, p.file_url, p.file_type, p.banner_url,
+                LEFT(p.content, 400) AS excerpt, p.created_at,
                 a.album_id, a.album_name,
-                ui.user_id AS author_id, ui.full_name AS author_name
+                ui.user_id AS author_id, ui.full_name AS author_name, ui.avatar_url,
+                GROUP_CONCAT(DISTINCT h.hashtag_name ORDER BY h.hashtag_name SEPARATOR ',') AS hashtags
             FROM posts p
             LEFT JOIN albums a ON p.album_id = a.album_id
             LEFT JOIN user_infos ui ON a.user_id = ui.user_id
+            LEFT JOIN post_hashtags ph ON p.post_id = ph.post_id
+            LEFT JOIN hashtags h ON ph.hashtag_id = h.hashtag_id
             WHERE ui.user_id = ?
+            GROUP BY p.post_id
             ORDER BY p.created_at DESC
         ";
             $stmt = $this->pdo->prepare($sql);
@@ -476,30 +479,48 @@ class Post
         try {
             $sql = "
                 SELECT 
-                    p.post_id, p.title, p.file_url, p.file_type,
+                    p.post_id,
+                    p.title,
+                    p.file_url,
+                    p.file_type,
+                    p.banner_url,
                     LEFT(p.content, 400) AS excerpt,
                     p.created_at,
-                    a.album_id, a.album_name,
-                    ui.user_id , ui.full_name 
+                    a.album_id,
+                    a.album_name,
+                    ui.user_id,
+                    ui.full_name,
+                    ui.avatar_url,
+                    -- gom hashtag (có thể null nếu bài không có hashtag)
+                    GROUP_CONCAT(DISTINCT h.hashtag_name ORDER BY h.hashtag_name SEPARATOR ',') AS hashtags_concat
                 FROM posts p
-                LEFT JOIN albums a ON p.album_id = a.album_id
-                LEFT JOIN user_infos ui ON a.user_id = ui.user_id
+                LEFT JOIN albums a        ON p.album_id = a.album_id
+                LEFT JOIN user_infos ui   ON a.user_id  = ui.user_id
+                LEFT JOIN post_hashtags ph ON p.post_id = ph.post_id
+                LEFT JOIN hashtags h      ON ph.hashtag_id = h.hashtag_id
                 WHERE ui.user_id IN (
                     SELECT uf.following_id 
                     FROM user_follows uf 
                     WHERE uf.follower_id = ?
                 )
+                GROUP BY p.post_id
                 ORDER BY p.created_at DESC
             ";
+
             $stmt = $this->pdo->prepare($sql);
             $stmt->execute([$followerId]);
             $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-            // Chuyển hashtags từ chuỗi thành mảng
             foreach ($rows as &$row) {
-                $row['hashtags'] = $row['hashtags']
-                    ? explode(',', $row['hashtags'])
-                    : [];
+                // luôn có khoá 'hashtags' là mảng
+                if (isset($row['hashtags_concat']) && $row['hashtags_concat'] !== null && $row['hashtags_concat'] !== '') {
+                    $arr = array_map('trim', explode(',', $row['hashtags_concat']));
+                    // lọc phần tử rỗng, reset index
+                    $row['hashtags'] = array_values(array_filter($arr, fn($x) => $x !== ''));
+                } else {
+                    $row['hashtags'] = [];
+                }
+                unset($row['hashtags_concat']);
             }
 
             return $rows;
@@ -508,6 +529,7 @@ class Post
             return [];
         }
     }
+
     
     // public function getHashtagsByUserId($userId)
     // {

@@ -12,19 +12,21 @@ const ACTIONS = {
   create: "create_post",
   update: "update_post",
   delete: "delete_post",
+  listPostByUser: "list_posts_by_user",
 
-  // Post ↔ Hashtag (đã có)
+  // Post ↔ Hashtag
   listPostHashtags: "list_post_hashtags",
   postsByHashtag: "posts_by_hashtag",
   createPostHashtag: "create_post_hashtag",
   updatePostHashtag: "update_post_hashtag",
   deletePostHashtag: "delete_post_hashtag",
 
-  // 🔥 BỔ SUNG: master data cho form NewPost
+  // Master data cho form NewPost
   listCategories: "list_categories",
   listAlbums: "list_albums",
   listHashtags: "list_hashtags",
-  // 🔥 BỔ SUNG: API lấy bài viết từ những người dùng đang theo dõi 
+
+  // Feed từ người đang theo dõi
   getPostsFromFollowedUsers: "list_posts_by_following",
 };
 
@@ -36,14 +38,16 @@ function toFormData(obj = {}) {
   });
   return fd;
 }
+
 function pickArray(payload) {
   if (Array.isArray(payload)) return payload;
   if (!payload || typeof payload !== "object") return [];
   // hỗ trợ nhiều kiểu BE hay trả
-  const keys = ["data", "items", "list", "categories", "albums", "hashtags"];
+  const keys = ["data", "items", "list", "categories", "albums", "hashtags", "posts"];
   for (const k of keys) if (Array.isArray(payload[k])) return payload[k];
   return [];
 }
+
 function normalizeItem(obj, kind) {
   // Trả về { id, name } dù BE đặt tên khác
   const id =
@@ -65,12 +69,13 @@ function normalizeItem(obj, kind) {
 
   return id && name ? { id, name } : null;
 }
+
 function normalizeList(arr, kind) {
   return arr.map((x) => normalizeItem(x, kind)).filter(Boolean);
 }
 
 export const postService = {
-  // ---------- Posts (giữ nguyên những gì bạn đã có) ----------
+  // ---------- Posts ----------
   getLatest() {
     return fetchJson(ACTIONS.getLatest);
   },
@@ -90,18 +95,22 @@ export const postService = {
     return fetchJson(ACTIONS.listAll);
   },
 
-  listPostsByFollowing() {
-    return fetchJson(ACTIONS.listPostsByFollowing, { method: "GET" });
+  // Feed từ người đang theo dõi
+  async listPostsByFollowing() {
+    const res = await fetchJson(ACTIONS.getPostsFromFollowedUsers);
+    return Array.isArray(res?.data) ? res.data : [];
   },
+
+  // CRUD post
   create(params) {
     const body = toFormData({
       title: params.title,
       content: params.content,
-      description: params.description, // tuỳ BE, bạn đang map summary/description ở page
+      description: params.description, // bạn đang map summary/description ở page
       summary: params.summary,
       album_id: params.album_id,
       category_id: params.category_id,
-      hashtags: params.hashtags, // Gửi chuỗi hashtags lên
+      hashtags: params.hashtags, // chuỗi hashtags nếu BE hỗ trợ
       ...(params.banner ? { banner: params.banner } : {}),
       ...(params.content_file ? { content_file: params.content_file } : {}),
     });
@@ -129,7 +138,7 @@ export const postService = {
     return fetchJson(ACTIONS.delete, { method: "POST", body });
   },
 
-  // ---------- Hashtags cho post (đã có) ----------
+  // ---------- Post ↔ Hashtag ----------
   listHashtagsByPost(post_id) {
     return fetchJson(`${ACTIONS.listPostHashtags}&post_id=${encodeURIComponent(post_id)}`);
   },
@@ -148,13 +157,15 @@ export const postService = {
     const body = toFormData({ post_id, hashtag_id });
     return fetchJson(ACTIONS.deletePostHashtag, { method: "POST", body });
   },
-  // ---------- 🔥 BỔ SUNG: Lấy bài viết từ những người dùng đang theo dõi ----------
-  async listPostsByFollowing() {
-    const res = await fetchJson(ACTIONS.getPostsFromFollowedUsers);
-    return res.data || [];
-  },    
-  
-  // ---------- 🔥 BỔ SUNG: categories / albums / hashtags cho form ----------
+
+  // Gán nhiều hashtag bằng tên (CSV hoặc mảng)
+  addHashtagsToPostByNames({ post_id, names }) {
+    const csv = Array.isArray(names) ? names.filter(Boolean).join(",") : String(names || "");
+    const body = toFormData({ post_id, hashtag_name: csv }); // BE đọc 'hashtag_name'
+    return fetchJson(ACTIONS.createPostHashtag, { method: "POST", body });
+  },
+
+  // ---------- Master data cho form ----------
   async listCategories() {
     const res = await fetchJson(ACTIONS.listCategories);
     return normalizeList(pickArray(res), "category");
@@ -166,6 +177,12 @@ export const postService = {
   async listHashtags() {
     const res = await fetchJson(ACTIONS.listHashtags);
     return normalizeList(pickArray(res), "hashtag");
+  },
+
+  // ---------- My posts ----------
+  async listMyPosts() {
+    const res = await fetchJson(ACTIONS.listPostByUser); // GET
+    return Array.isArray(res?.data) ? res.data : [];
   },
 };
 

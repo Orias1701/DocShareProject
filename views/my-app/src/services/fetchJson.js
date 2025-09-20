@@ -4,43 +4,55 @@ const API_BASE = "http://localhost:3000/public/index.php";
 export default async function fetchJson(action, options = {}) {
   const url = `${API_BASE}?action=${action}`;
   const res = await fetch(url, {
-    credentials: "include", // Đảm bảo rằng credentials được gửi đi
+    credentials: "include",
     headers: {
-      Accept: "application/json", // Chỉ chấp nhận JSON từ server
+      Accept: "application/json",
       ...(options.headers || {}),
     },
-    ...options, // Thêm các options khác từ bên ngoài nếu có
+    ...options,
   });
 
   const contentType = res.headers.get("content-type") || "";
-  const text = await res.text(); // Đọc toàn bộ nội dung response
+  const text = await res.text();
 
-  let data = null;
+  // Nếu header đúng JSON, thử parse luôn
   if (contentType.includes("application/json")) {
     try {
-      data = text ? JSON.parse(text) : {}; // Parse nếu là JSON
+      return text ? JSON.parse(text) : {};
     } catch (e) {
-      console.error(`[fetchJson] JSON parse error for action="${action}" →`, text);
+      // rơi xuống salvage
     }
-  } else if (contentType.includes("text/html")) {
-    // Nếu là HTML, thường là lỗi 403 hoặc 404, có thể từ PHP errors hoặc trang lỗi
-    console.error(`[fetchJson] HTML response for action="${action}" →`, text);
-  } else {
-    // Nếu không phải JSON hoặc HTML
-    console.error(`[fetchJson] Unexpected response for action="${action}" →`, text);
   }
 
-  // Nếu không parse được JSON hoặc dữ liệu trả về không hợp lệ
-  if (!data) {
-    console.error(`[fetchJson] Cannot parse JSON. status=${res.status}, action=${action}, body(start)=`, text.slice(0, 500));
-    throw new Error("Không parse được JSON từ API");
+  // Salvage mode: cố gắng trích đoạn JSON từ text lẫn warning
+  // 1) kiếm khối JSON bắt đầu bằng { ... } hoặc mảng [ ... ]
+  const firstCurly = text.indexOf("{");
+  const firstBracket = text.indexOf("[");
+  let start = -1;
+  let end = -1;
+
+  if (firstCurly !== -1 && (firstBracket === -1 || firstCurly < firstBracket)) {
+    // tìm cặp { ... }
+    start = firstCurly;
+    end = text.lastIndexOf("}");
+  } else if (firstBracket !== -1) {
+    // tìm cặp [ ... ]
+    start = firstBracket;
+    end = text.lastIndexOf("]");
   }
 
-  // Kiểm tra lỗi từ API (status === "error")
-  if (!res.ok || data.status === "error") {
-    const msg = data?.message || `HTTP ${res.status}`;
-    throw new Error(msg);
+  if (start !== -1 && end !== -1 && end > start) {
+    const jsonSlice = text.slice(start, end + 1);
+    try {
+      const data = JSON.parse(jsonSlice);
+      // vẫn log cảnh báo để còn xử lý BE
+      console.warn("[fetchJson] Salvaged JSON from noisy response:", text.slice(0, 160));
+      return data;
+    } catch (e) {
+      // ignore, throw below
+    }
   }
 
-  return data.data ?? data; // Trả về data nếu có, nếu không trả về toàn bộ
+  console.error(`[fetchJson] Cannot parse JSON. status=${res.status}, action=${action}, body(start)=`, text.slice(0, 200));
+  throw new Error("Không parse được JSON từ API");
 }

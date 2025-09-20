@@ -128,81 +128,61 @@ const NewPostPage = () => {
   };
 
   const handleSubmit = async () => {
-    if (!validate()) return;
+if (!validate()) return;
+try {
+  setSubmitting(true);
 
-    try {
-      setSubmitting(true);
+// 1️⃣ Parse hashtag từ input, nhưng lần này sẽ bỏ dấu '#' và nối thành chuỗi
+const hashtagsForSubmit = parseHashtagForSubmit(hashtagInput) // Mảng: ["#ai", "#ml"]
+.map(tag => tag.substring(1)) // Bỏ dấu '#' ở đầu: ["ai", "ml"]
+.join(','); // Nối thành chuỗi: "ai,ml"
 
-      // 👇 Lấy mảng hashtag từ raw input để gán ID
-      const uniqueNames = parseHashtagForSubmit(hashtagInput); // 👈 UPDATED
-
-      // Resolve name -> id (tạo nếu chưa có)
-      const resolvedTagIds = [];
-      for (const name of uniqueNames) {
-        const found = hashtags.find(h => (h.name || '').toLowerCase() === name.toLowerCase());
-        if (found) {
-          resolvedTagIds.push(found.id);
-          continue;
-        }
-        try {
-          const created = await hashtagService.create({ hashtag_name: name });
-          const newId = created?.id ?? created?.hashtag_id;
-          const newName = created?.name ?? created?.hashtag_name ?? name;
-          if (newId) {
-            resolvedTagIds.push(newId);
-            setHashtags(prev => [...prev, { id: newId, name: newName }]);
-          }
-        } catch (e) {
-          console.warn('Tạo hashtag lỗi:', name, e);
-        }
-      }
-
-      // Tạo post
-      const res = await postService.create({
-        title: newPost.title,
-        content: newPost.description || "",
-        description: newPost.summary || "",
-        summary: newPost.summary || "",
-        category_id: newPost.category || "",
-        album_id: newPost.album || "",
-        banner: thumbnailFile || undefined,
-        content_file: mainFile || undefined,
-      });
-
-      // Gán hashtag vào post
-      const postId = res?.post_id ?? res?.data?.post_id;
-      if (postId && resolvedTagIds.length) {
-        for (const hid of Array.from(new Set(resolvedTagIds))) {
-          try {
-            await postService.addHashtagToPost({ post_id: postId, hashtag_id: hid });
-          } catch (e) {
-            console.warn("Gán hashtag lỗi:", hid, e);
-          }
-        }
-      }
-
-      showToast('Tạo bài viết thành công!', 'success');
-
-      // reset
-      setNewPost({
-        title: '',
-        category: '',
-        album: '',
-        hashtagIds: [],
-        summary: '',
-        description: '',
-      });
-      setHashtagInput(''); // 👈 UPDATED
-      setMainFile(null);
-      setThumbnailFile(null);
-      setErrors({});
-    } catch (err) {
-      console.error("Create post failed:", err);
-      showToast(err?.message || 'Tạo bài viết thất bại. Vui lòng thử lại!', 'error');
-    } finally {
-      setSubmitting(false);
-    }
-  };
+// 2️⃣ Tạo post VÀ gửi kèm chuỗi hashtags
+const res = await postService.create({
+title: newPost.title,
+content: newPost.description || "",
+ description: newPost.summary || "",
+ summary: newPost.summary || "",
+ category_id: newPost.category || "",
+ album_id: newPost.album || "",
+        // 👇 GỬI HASHTAGS TẠI ĐÂY
+        hashtags: hashtagsForSubmit,
+ banner: thumbnailFile || undefined,
+ content_file: mainFile || undefined,
+});
+ 
+const postId = res?.post_id ?? res?.data?.post_id;
+if (!postId) throw new Error(res?.message || "Không tạo được post, postId rỗng");
+ 
+// ❌ BỎ HOÀN TOÀN VÒNG LẶP NÀY
+/*
+for (const name of uniqueHashtags) {
+ try {
+  const createdTag = await post_hashtagService.create(postId, [name]);
+ } catch (e) {
+  console.warn("Tạo/gán hashtag lỗi:", name, e);
+ }
+}
+      */
+ 
+showToast('Tạo bài viết thành công!', 'success');
+ 
+// 4️⃣ Reset form (giữ nguyên)
+setNewPost({
+ title: '', category: '', album: '', hashtagIds: [], summary: '', description: '',
+});
+setHashtagInput('');
+setMainFile(null);
+setThumbnailFile(null);
+setErrors({});
+  } catch (err) {
+console.error("Create post failed:", err);
+showToast(err?.message || 'Tạo bài viết thất bại. Vui lòng thử lại!', 'error');
+  } finally {
+setSubmitting(false);
+  }
+};
+  
 
   // helper render options (đã normalized: [{id,name}])
   const renderOptions = (items) =>

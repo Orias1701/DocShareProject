@@ -26,7 +26,7 @@ function NavBar({ isCollapsed, setIsCollapsed, onNewAlbumClick }) {
         { avatar: displayAvatar, text: displayName, path: "/profile" },
         { icon: "fa-regular fa-compass", text: "Explore", path: "/" },
         { icon: "fa-regular fa-user", text: "Following", path: "/following" },
-        { icon: "fa-regular fa-clock", text: "History", path: "/history" },
+        // { icon: "fa-regular fa-clock", text: "History", path: "/history" },
       ],
     },
     {

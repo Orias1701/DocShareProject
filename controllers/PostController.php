@@ -373,47 +373,45 @@ class PostController
     }
 
     // API: Lấy danh sách post theo user_id
-    public function getPostsByUserId($userId)
+    // API: Lấy danh sách post theo user_id
+    public function getPostsByUserId($userId = null)
     {
         try {
+            // Ưu tiên ?user_id=..., fallback session
+            $userId = $userId ?? ($_GET['user_id'] ?? ($_SESSION['user_id'] ?? null));
             if (empty($userId)) {
-                http_response_code(400);
-                echo json_encode([
-                    "status" => "error",
-                    "message" => "user_id is required"
-                ]);
-                return;
+                return $this->respondError('user_id is required', 422);
             }
 
             $posts = $this->postModel->getPostsByUserId($userId);
 
-            echo json_encode([
-                "status" => "success",
-                "data" => $posts
+            return $this->respondJson([
+                'status' => 'success',
+                'data'   => $posts
             ]);
         } catch (Exception $e) {
-            http_response_code(500);
-            echo json_encode([
-                "status" => "error",
-                "message" => $e->getMessage()
-            ]);
+            return $this->respondError($e->getMessage(), 500);
         }
     }
-    public function getPostsFromFollowedUsers($followerId)
+
+    // API: Lấy bài viết từ những người mình đang theo dõi
+    public function getPostsFromFollowedUsers($followerId = null)
     {
         try {
+            // Ưu tiên ?follower_id=..., fallback session
+            $followerId = $followerId ?? ($_GET['follower_id'] ?? ($_SESSION['user_id'] ?? null));
+            if (empty($followerId)) {
+                return $this->respondError('Unauthorized', 401);
+            }
+
             $posts = $this->postModel->getPostsFromFollowedUsers($followerId);
 
-            echo json_encode([
-                "status" => "success",
-                "data" => $posts
+            return $this->respondJson([
+                'status' => 'success',
+                'data'   => $posts
             ]);
         } catch (Exception $e) {
-            http_response_code(500);
-            echo json_encode([
-                "status" => "error",
-                "message" => $e->getMessage()
-            ]);
+            return $this->respondError($e->getMessage(), 500);
         }
     }
 }
