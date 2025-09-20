@@ -1,8 +1,9 @@
 // src/pages/following/FollowingPostsPage.jsx
-import React, { useEffect, useMemo, useState } from "react"; // ⬅️ thêm useMemo
+import React, { useEffect, useMemo, useState } from "react";
 import PostSection from "../../components/post/PostSection";
 import postService from "../../services/postService";
 import { user_followServices } from "../../services/user_followServices";
+import bookmarkService from "../../services/bookmarkService";
 
 export default function FollowingPostsPage() {
   const [users, setUsers] = useState([]);
@@ -10,9 +11,10 @@ export default function FollowingPostsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // ... giữ nguyên import
-  const mapPost = (p) => ({
+  // Map 1 post từ BE -> shape PostCard
+  const mapPost = (p, bookmarkedSet) => ({
     id: p.post_id,
+    post_id: p.post_id,
     title: p.title,
     excerpt: p.excerpt ?? "",
     createdAt: p.created_at,
@@ -22,26 +24,38 @@ export default function FollowingPostsPage() {
       name: p.full_name,
       avatar: p.avatar_url || "/images/default-avatar.png",
     },
-    banner: p.banner_url || null, // ⬅️ THÊM DÒNG NÀY
+    banner: p.banner_url || null,
     file: p.file_url ? { url: p.file_url, type: p.file_type } : null,
     hashtags: Array.isArray(p.hashtags) ? p.hashtags : [],
+    // ✅ Gắn cờ is_bookmarked: ưu tiên trường từ BE, nếu không có thì dùng set
+    is_bookmarked: typeof p.is_bookmarked === "boolean"
+      ? p.is_bookmarked
+      : bookmarkedSet.has(p.post_id),
   });
-
 
   useEffect(() => {
     (async () => {
       setLoading(true);
       setError(null);
       try {
-        const resUsers = await user_followServices.userFollowing();
+        // chạy song song
+        const [resUsers, rawPosts, myBms] = await Promise.all([
+          user_followServices.userFollowing(),
+          postService.listPostsByFollowing(),
+          bookmarkService.list(), // [{post_id,...}]
+        ]);
+
+        const bookmarkedSet = new Set(
+          (myBms || []).map((x) => x.post_id ?? x.id).filter(Boolean)
+        );
+
         if (resUsers?.status === "success") {
           setUsers(resUsers.data || []);
         } else {
           setUsers([]);
         }
 
-        const rawPosts = await postService.listPostsByFollowing();
-        const mapped = (rawPosts || []).map(mapPost);
+        const mapped = (rawPosts || []).map((p) => mapPost(p, bookmarkedSet));
         mapped.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
         setPosts(mapped);
       } catch (err) {
@@ -53,7 +67,7 @@ export default function FollowingPostsPage() {
     })();
   }, []);
 
-  // 👇 Nhóm post theo author để render mỗi Section = 1 user
+  // Nhóm theo author
   const authorGroups = useMemo(() => {
     const m = new Map();
     for (const p of posts) {
@@ -61,19 +75,25 @@ export default function FollowingPostsPage() {
       if (!m.has(key)) m.set(key, { author: p.author, items: [] });
       m.get(key).items.push(p);
     }
-    // sắp xếp post trong từng nhóm (mới nhất trước)
     for (const g of m.values()) {
       g.items.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
     }
-    // sắp xếp nhóm theo bài mới nhất của nhóm
     const arr = Array.from(m.values());
     arr.sort(
       (A, B) =>
-        new Date(B.items[0]?.createdAt || 0) -
-        new Date(A.items[0]?.createdAt || 0)
+        new Date(B.items[0]?.createdAt || 0) - new Date(A.items[0]?.createdAt || 0)
     );
     return arr;
   }, [posts]);
+
+  // ✅ Khi bấm bookmark/unbookmark, cập nhật ngay vào state posts để không bị “mất”
+  const handleBookmarkChange = (next, postId) => {
+    setPosts((prev) =>
+      prev.map((p) =>
+        (p.post_id || p.id) === postId ? { ...p, is_bookmarked: next } : p
+      )
+    );
+  };
 
   if (loading) return <div className="text-white p-4">Đang tải dữ liệu...</div>;
   if (error) {
@@ -90,11 +110,7 @@ export default function FollowingPostsPage() {
       <ul className="mb-6">
         {users.map((u) => (
           <li key={u.user_id} className="text-white mb-2 flex items-center gap-2">
-            {/* <img
-              // src={u.avatar_url || "/images/default-avatar.png"}
-              alt={u.username || u.full_name}
-              className="w-8 h-8 rounded-full"
-            /> */}
+            {/* tên user… */}
           </li>
         ))}
         {users.length === 0 && (
@@ -102,7 +118,6 @@ export default function FollowingPostsPage() {
         )}
       </ul>
 
-      {/* ⬇️ Render 1 section cho mỗi user, title = tên user */}
       {authorGroups.length === 0 ? (
         <PostSection title="Chưa có bài viết" posts={[]} showAlbum={false} />
       ) : (
@@ -112,10 +127,11 @@ export default function FollowingPostsPage() {
             title={g.author?.name || "Người dùng"}
             posts={g.items}
             showAlbum={false}
+            // ✅ truyền xuống để PostCard -> BookmarkButton gọi ngược lên
+            onBookmarkChange={handleBookmarkChange}
           />
         ))
       )}
-
     </div>
   );
 }

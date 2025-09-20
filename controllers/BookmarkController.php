@@ -17,7 +17,7 @@ class BookmarkController
         exit;
     }
 
-    // Thêm bookmark (nếu đã tồn tại sẽ bỏ qua)
+    // Thêm bookmark
     public function create()
     {
         if (!isset($_SESSION['user_id'])) {
@@ -36,7 +36,7 @@ class BookmarkController
         if ($added) {
             $this->jsonResponse('success', ['message' => 'Đã lưu bookmark']);
         } else {
-            $this->jsonResponse('error', ['message' => 'Bạn đã lưu bài này trước đó']);
+            $this->jsonResponse('error', ['message' => 'Không thể lưu bookmark']);
         }
     }
 
@@ -63,7 +63,7 @@ class BookmarkController
         }
     }
 
-    // Lấy danh sách bài đã bookmark của user
+    // Lấy danh sách bài đã bookmark
     public function listByUser()
     {
         if (!isset($_SESSION['user_id'])) {

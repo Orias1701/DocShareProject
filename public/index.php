@@ -581,6 +581,9 @@ if (isset($_GET['action'])) {
         case 'delete_bookmark':
             $bookmarkController->remove();
             exit;
+        case 'list_bookmarks':
+            $bookmarkController->listByUser();
+            exit;
 
 
 

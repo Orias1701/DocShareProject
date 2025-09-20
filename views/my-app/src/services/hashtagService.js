@@ -7,6 +7,7 @@ const ACTIONS = {
   create: "create_hashtag",
   update: "update_hashtag",
   delete: "delete_hashtag",
+  myHashtag:"my_hashtags"
 };
 
 function postJson(action, payload) {
@@ -43,6 +44,10 @@ export const hashtagService = {
     return postJson(ACTIONS.delete, { id });
     // hoặc: return fetchJson(`${ACTIONS.delete}&id=${encodeURIComponent(id)}`, { method:'POST' })
   },
+  /** Lấy hashtag của tôi */
+  myHashtag() {
+    return fetchJson(ACTIONS.myHashtag);
+  }
 };
 
 export default hashtagService;

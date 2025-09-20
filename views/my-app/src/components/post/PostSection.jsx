@@ -1,17 +1,19 @@
+// src/components/post/PostSection.jsx
 import React from "react";
 import PropTypes from "prop-types";
 import PostCard from "./PostCard"; // đổi path nếu bạn đặt PostCard ở nơi khác
 
 /**
- * PostSection — Section lưới card dùng chung (MyPosts & Following).
- * Props hay dùng:
+ * PostSection — Section lưới card dùng chung (MyPosts, Following, Bookmarks).
+ * Props:
  *  - title: tiêu đề section
  *  - posts: mảng post đã map
- *  - showAlbum: có hiển thị chip album hay không (MyPosts: true, Following: false)
- *  - maxTags: số hashtag tối đa hiển thị (mặc định 3)
+ *  - showAlbum: có hiển thị chip album hay không
+ *  - maxTags: số hashtag tối đa hiển thị
  *  - emptyText: text khi rỗng
  *  - headerRight: node (button/filter...) hiển thị bên phải tiêu đề
  *  - wrapClassName, gridClassName: tuỳ biến className nếu cần
+ *  - onBookmarkChange: (next:boolean, postId:string|number) => void
  */
 export default function PostSection({
   title,
@@ -22,6 +24,7 @@ export default function PostSection({
   headerRight = null,
   wrapClassName = "w-full mb-12",
   gridClassName = "grid grid-cols-1 gap-5 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4",
+  onBookmarkChange, // ✅ thêm prop
 }) {
   const items = Array.isArray(posts) ? posts : [];
 
@@ -44,6 +47,7 @@ export default function PostSection({
               post={post}
               showAlbum={showAlbum}
               maxTags={maxTags}
+              onBookmarkChange={onBookmarkChange} // ✅ forward xuống PostCard → BookmarkButton
             />
           ))}
         </div>
@@ -61,4 +65,5 @@ PostSection.propTypes = {
   headerRight: PropTypes.node,
   wrapClassName: PropTypes.string,
   gridClassName: PropTypes.string,
+  onBookmarkChange: PropTypes.func, // ✅ khai báo prop types
 };

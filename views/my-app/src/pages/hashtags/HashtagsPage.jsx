@@ -1,55 +1,56 @@
-import React from 'react';
-import HashtagLink from '../../components/hashtag/HashtagLink';
+// src/pages/hashtags/MyHashtagsPage.jsx
+import React, { useEffect, useState } from "react";
+import HashtagLink from "../../components/hashtag/HashtagLink";
+import { hashtagService } from "../../services/hashtagService";
 
-// --- Dữ liệu mẫu ---
-// Trong ứng dụng thực tế, dữ liệu này sẽ được lấy từ API.
-const viewedHashtags = [
-    "hashtagishere", "hashtagishere", "hashtagishere", "hashtagishere",
-    "hashtagishere", "hashtagishere", "hashtagishere", "hashtagishere",
-    "hashtagishere", "hashtagishere", "hashtagishere", "hashtagishere",
-];
+function MyHashtagsPage() {
+  const [myHashtags, setMyHashtags] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-const allHashtags = [
-    "hashtagishere", "hashtagishere", "hashtagishere", "hashtagishere",
-    "hashtagishere", "hashtagishere", "hashtagishere", "hashtagishere",
-    "hashtagishere", "hashtagishere", "hashtagishere", "hashtagishere",
-];
+  useEffect(() => {
+    (async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const res = await hashtagService.myHashtag();
+        // ⚡ API trả về mảng [ {hashtag_id, hashtag_name}, ... ]
+        setMyHashtags(Array.isArray(res) ? res : res?.data ?? []);
+      } catch (e) {
+        console.error(e);
+        setError("Không thể tải hashtags của bạn.");
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
 
-/**
- * Component Trang Hashtags
- * @description Hiển thị các khu vực hashtag, ví dụ như "đã xem" và "tất cả".
- */
-function HashtagsPage() {
+  if (loading) return <div className="text-white p-4">Đang tải hashtags...</div>;
+  if (error) {
+    return (
+      <div className="text-white p-4 bg-red-900/40 border border-red-700 rounded-lg">
+        {error}
+      </div>
+    );
+  }
+
   return (
     <div className="text-white p-4">
-      {/* Container cho tất cả các khu vực */}
-      <div className="space-y-12">
-        
-        {/* Khu vực: Các hashtag bạn đã xem */}
-        <section>
-          <h2 className="text-2xl font-bold mb-6">Hashtags you have viewed</h2>
-          {/* Lưới hiển thị các hashtag, 4 cột trên màn hình lớn */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {/* Lặp qua dữ liệu và render mỗi mục thành một nút HashtagLink */}
-            {viewedHashtags.map((tag, index) => (
-              <HashtagLink key={`viewed-${index}`} tag={tag} />
-            ))}
-          </div>
-        </section>
-        
-        {/* Khu vực: Tất cả hashtag */}
-        <section>
-          <h2 className="text-2xl font-bold mb-6">All hashtags</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {allHashtags.map((tag, index) => (
-              <HashtagLink key={`all-${index}`} tag={tag} />
-            ))}
-          </div>
-        </section>
-
-      </div>
+      <h2 className="text-2xl font-bold mb-6">My hashtags</h2>
+      {myHashtags.length === 0 ? (
+        <p className="text-gray-400">Bạn chưa có hashtag nào.</p>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          {myHashtags.map((tag) => (
+            <HashtagLink
+              key={tag.hashtag_id}
+              tag={tag.hashtag_name}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
 
-export default HashtagsPage;
+export default MyHashtagsPage;

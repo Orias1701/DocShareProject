@@ -1,61 +1,78 @@
-import React from "react";
-import CategorySection from "../../components/category/CategorySection";
+// src/pages/bookmarks/BookmarksPage.jsx
+import React, { useEffect, useState } from "react";
+import PostSection from "../../components/post/PostSection";
+import bookmarkService from "../../services/bookmarkService";
 
-/**
- * DỮ LIỆU DEMO
- * Tránh dùng Array(n).fill({...}) vì sẽ trỏ chung 1 reference.
- */
-const makePosts = (avatarIdx) =>
-  Array.from({ length: 4 }, (_, i) => ({
-    id: `demo-${avatarIdx}-${i}`,
-    authorName: "Name",
-    authorAvatar: `https://i.pravatar.cc/32?img=${avatarIdx}`,
-    title: "Post title\nMaximum of Post title is 3 lines.",
-    hashtags: ["#hashtag-1", "#hashtag-2", "#hashtag-3"],
-    uploadTime: "Post upload time",
-    sourceName: "google/mangle",
-    sourceIcon: "https://www.google.com/favicon.ico",
-    stats: { likes: 1, comments: 1, shares: 0, saves: 0 },
-  }));
-
-const categoriesData = [
-  { title: "Category 1", posts: makePosts(3) },
-  { title: "Category 2", posts: makePosts(4) },
-];
-
-/**
- * LAYOUT TỔNG:
- * - Cột trái: sidebar/layout (cố định chiều rộng)
- * - Cột phải: content (phần dưới là CategorySection)
- *
- * Giả định phần LAYOUT TRÁI đã được bọc ở component cha (vd: AppLayout).
- * File này chỉ render CONTENT PHẢI, nhưng mình thêm container chuẩn để khớp layout.
- */
 export default function BookmarksPage() {
+  const [bookmarks, setBookmarks] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // Map dữ liệu từ API về shape PostCard
+  const mapToCard = (p = {}) => ({
+    id: p.post_id,
+    post_id: p.post_id,                 // ✅ đảm bảo có post_id
+    title: p.title || "Untitled",
+    authorName: p.author_name || "Ẩn danh",
+    authorAvatar:
+      p.avatar_url || p.author_avatar || "https://via.placeholder.com/80?text=User",
+    uploadTime: p.created_at,
+    banner: p.banner_url || null,
+    file: p.file_url ? { url: p.file_url, type: p.file_type || "" } : null,
+    hashtags: p.hashtags,
+    stats: {
+      likes: p.reaction_count || 0,
+      comments: p.comment_count || 0,
+      views: p.view_count || 0,
+    },
+    album_name: p.album_name,
+    is_bookmarked: true,                // ✅ QUAN TRỌNG: vì đây là trang bookmarks
+  });
+
+  useEffect(() => {
+    (async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const rows = await bookmarkService.list(); // gọi API
+        setBookmarks((rows || []).map(mapToCard));
+      } catch (err) {
+        console.error(err);
+        setError(err?.message || "Không thể tải bookmarks.");
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
+
+  if (loading) return <div className="text-white p-4">Đang tải bookmarks...</div>;
+  if (error) {
+    return (
+      <div className="text-white p-4 bg-red-900/40 border border-red-700 rounded-lg">
+        <strong>Lỗi:</strong> {error}
+      </div>
+    );
+  }
+
   return (
     <div className="w-full">
-      {/* Header tabs của content */}
-      <div className="flex justify-end items-center mb-8 gap-6">
-        <button
-          className="text-white font-semibold border-b-2 border-white pb-1"
-          type="button"
-        >
-          Posts
-        </button>
-        <button
-          className="text-gray-400 font-semibold pb-1 hover:text-white"
-          type="button"
-        >
-          Follower
-        </button>
-      </div>
+      <h2 className="text-xl font-bold text-white mb-6">Your bookmarks</h2>
 
-      {/* Nội dung các category */}
-      <div className="space-y-12">
-        {categoriesData.map((c, idx) => (
-          <CategorySection key={c.title + idx} title={c.title} posts={c.posts} />
-        ))}
-      </div>
+      {bookmarks.length === 0 ? (
+        <div className="text-gray-400">Bạn chưa lưu bài viết nào.</div>
+      ) : (
+        <PostSection
+          title="Bookmarks"
+          posts={bookmarks}
+          showAlbum={false}
+          onBookmarkChange={(next, postId) => {
+            if (!next) {
+              // xoá ngay trong state
+              setBookmarks((prev) => prev.filter((x) => (x.post_id || x.id) !== postId));
+            }
+          }}
+        />
+      )}
     </div>
   );
 }

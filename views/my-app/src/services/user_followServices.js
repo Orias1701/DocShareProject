@@ -3,10 +3,10 @@ import fetchJson from "./fetchJson";
 
 // Action names phải khớp router/index.php của bạn
 const ACTIONS = {
-  toggle: "toggle_follow",            // UserFollowController::toggleFollow()
-  top: "api_top_followed",            // lấy top user được follow nhiều nhất
-  following: "api_user_following",    // lấy danh sách user mà mình đang follow
-  followers: "api_user_followers",    // lấy danh sách user follow mình
+  toggle: "toggle_follow",
+  top: "api_top_followed",         // ✅ API bạn cung cấp
+  following: "api_user_following",
+  followers: "api_user_followers",
 };
 
 // Gửi POST dạng FormData vì BE đọc từ $_POST (không parse JSON body)
@@ -18,43 +18,37 @@ function postForm(action, payload = {}) {
   return fetchJson(action, { method: "POST", body: fd });
 }
 
-// Normalize: luôn trả về { status, data } dù BE trả mảng thẳng hay object
+// Luôn trả {status, data}
 async function normalizeApiResponse(promise) {
   const res = await promise;
 
-  // Nếu res là mảng thẳng, wrap vào object
-  if (Array.isArray(res)) {
-    return { status: "success", data: res };
-  }
-
-  // Nếu res có status + data, trả nguyên
+  // BE của bạn trả {"status":"ok","data":[...]}
   if (res && typeof res === "object" && "status" in res && "data" in res) {
-    return res;
+    // Chuẩn hoá status về 'success' cho FE dễ dùng
+    const status =
+      String(res.status).toLowerCase() === "ok" ? "success" : String(res.status);
+    return { status, data: Array.isArray(res.data) ? res.data : [] };
   }
 
-  // Fallback: nếu res object nhưng không có status
-  return { status: "success", data: Array.isArray(res) ? res : [res] };
+  // Nếu trả mảng thẳng
+  if (Array.isArray(res)) return { status: "success", data: res };
+
+  // Fallback
+  return { status: "success", data: [] };
 }
 
 export const user_followServices = {
-  // Bật/tắt follow 1 user
   toggle(following_id) {
     return normalizeApiResponse(postForm(ACTIONS.toggle, { following_id }));
   },
-
-  // Lấy top user được follow nhiều nhất
   top(limit = 10) {
     return normalizeApiResponse(
       fetchJson(`${ACTIONS.top}&limit=${encodeURIComponent(limit)}`)
     );
   },
-
-  // Lấy danh sách user mà mình đang follow
   userFollowing() {
     return normalizeApiResponse(fetchJson(ACTIONS.following));
   },
-
-  // Lấy danh sách user follow mình
   userFollowers() {
     return normalizeApiResponse(fetchJson(ACTIONS.followers));
   },

@@ -1,8 +1,12 @@
 // src/components/post/PostCard.jsx
-import React from "react";
+import React, { useMemo } from "react";
 import PropTypes from "prop-types";
+import BookmarkButton from "./BookmarkButton";
 
-/** Utils nhỏ gọn trong file (để copy-paste dễ) */
+const FALLBACK_URL = "https://www.google.com/favicon.ico";
+const FALLBACK_AVATAR = "https://via.placeholder.com/80?text=User";
+
+/** Chuẩn hoá hashtag */
 function normalizeHashtags(hx) {
   const toDisplay = (s) => {
     const t = String(s || "").trim();
@@ -35,48 +39,34 @@ function normalizeHashtags(hx) {
   return [];
 }
 
+/** Check ảnh */
 function isImageUrl(url, type) {
   const u = String(url || "");
   if (!u) return false;
   if (type && String(type).startsWith("image/")) return true;
   return /\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(u);
 }
-function isPdfUrl(url, type) {
-  const u = String(url || "");
-  const t = String(type || "");
-  return t === "application/pdf" || /\.pdf(\?|$)/i.test(u);
-}
 
-/**
- * PostCard — dùng chung cho cả MyPosts & Following
- * Props:
- *  - post: object đã map
- *  - showAlbum: boolean (mặc định true)
- *  - maxTags: số hashtag hiển thị (mặc định 3)
- *  - placeholderImage: ảnh thay thế khi không có banner/file/linkPreview (URL tuyệt đối)
- */
 export default function PostCard({
   post = {},
   showAlbum = true,
   maxTags = 3,
-  placeholderImage = "https://www.google.com/favicon.ico", // ✅ dự phòng tuyệt đối
+  placeholderImage = FALLBACK_URL,
+  initiallyBookmarked, // optional
+  onBookmarkChange,    // optional
 }) {
-  if (post === null || typeof post !== "object") return null;
+  if (!post || typeof post !== "object") return null;
 
-  // ----- Normalize an toàn -----
+  const postId = useMemo(() => post?.post_id ?? post?.id ?? null, [post]);
+
+  // ----- Normalize dữ liệu -----
   const title = post?.title ?? post?.name ?? post?.post_title ?? "Untitled";
-
   const authorName =
     post?.authorName ?? post?.author?.name ?? post?.full_name ?? "Ẩn danh";
-
   const authorAvatar =
-    post?.authorAvatar ??
-    post?.author?.avatar ??
-    post?.avatar_url ??
-    "https://via.placeholder.com/80?text=User"; // ✅ avatar dự phòng tuyệt đối
+    post?.authorAvatar ?? post?.author?.avatar ?? post?.avatar_url ?? FALLBACK_AVATAR;
 
   const uploadTime = post?.uploadTime ?? post?.createdAt ?? post?.created_at ?? "";
-
   const albumName = post?.albumName ?? post?.album?.name ?? post?.album_name ?? "";
 
   const hashtags = normalizeHashtags(post?.hashtags);
@@ -92,93 +82,25 @@ export default function PostCard({
         : post?.view_count ?? 0,
   };
 
-  const bannerUrl = post?.banner || post?.banner_url || post?.bannerUrl || "";
-  const fileUrl = post?.file?.url || post?.file_url || "";
-  const fileType = post?.file?.type || post?.file_type || "";
+  // ---- Banner / Placeholder ----
+  const rawBanner = post?.banner || post?.banner_url || post?.bannerUrl || "";
+  const bannerUrl = rawBanner && isImageUrl(rawBanner) ? rawBanner : "";
+  const displayImage = bannerUrl || placeholderImage;
 
-  // Preview: ưu tiên file; nếu không có file thì show banner (nếu là ảnh)
-  const previewClickUrl = fileUrl || (bannerUrl && isImageUrl(bannerUrl) ? bannerUrl : "");
+  // ---- Link preview ----
+  const fileUrl = (post?.file?.url || post?.file_url || "").trim();
+  const previewClickUrl = fileUrl || bannerUrl || "";
 
-  let contentEl = null;
-  if (post?.linkPreview) {
-    contentEl = (
-      <a
-        href={post.linkPreview.url}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="block bg-white rounded-lg p-3 hover:bg-gray-200 transition-colors"
-      >
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            {post.linkPreview.siteIcon && (
-              <img
-                src={post.linkPreview.siteIcon}
-                alt="Site Icon"
-                className="w-6 h-6 object-contain"
-              />
-            )}
-            <span className="text-black font-semibold text-sm">
-              {post.linkPreview.siteName}
-            </span>
-          </div>
-          {post.linkPreview.favicon && (
-            <img src={post.linkPreview.favicon} alt="Favicon" className="w-4 h-4" />
-          )}
-        </div>
-      </a>
-    );
-  } else if (bannerUrl && isImageUrl(bannerUrl)) {
-    contentEl = (
-      <div className="w-full rounded-lg overflow-hidden">
-        <img
-          src={bannerUrl}
-          alt="Banner"
-          className="w-full h-auto aspect-video object-cover"
-          loading="lazy"
-        />
-      </div>
-    );
-  } else if (fileUrl && isImageUrl(fileUrl, fileType)) {
-    contentEl = (
-      <div className="w-full rounded-lg overflow-hidden">
-        <img
-          src={fileUrl}
-          alt={title}
-          className="w-full h-auto aspect-video object-cover"
-          loading="lazy"
-        />
-      </div>
-    );
-  } else if (fileUrl && isPdfUrl(fileUrl, fileType)) {
-    contentEl = (
-      <a
-        href={fileUrl}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="block bg-gray-800/60 border border-gray-700 rounded-lg p-3 hover:bg-gray-700/60 transition-colors"
-      >
-        <div className="flex items-center gap-3">
-          <i className="fa-regular fa-file-pdf text-red-400 text-xl"></i>
-          <div className="text-sm">
-            <div className="font-semibold text-white line-clamp-1">Tệp PDF</div>
-            <div className="text-gray-400 text-xs break-all line-clamp-1">{fileUrl}</div>
-          </div>
-        </div>
-      </a>
-    );
-  } else {
-    // 👉 Fallback: Ảnh thay thế
-    contentEl = (
-      <div className="w-full rounded-lg overflow-hidden">
-        <img
-          src={placeholderImage}
-          alt="Placeholder"
-          className="w-full h-auto aspect-video object-cover"
-          loading="lazy"
-        />
-      </div>
-    );
-  }
+  const contentEl = (
+    <div className="w-full rounded-lg overflow-hidden">
+      <img
+        src={displayImage}
+        alt={bannerUrl ? "Banner" : "Placeholder"}
+        className="w-full h-auto aspect-video object-cover"
+        loading="lazy"
+      />
+    </div>
+  );
 
   const preview = previewClickUrl ? (
     <a
@@ -194,12 +116,19 @@ export default function PostCard({
     <div>{contentEl}</div>
   );
 
+  // Icon nhỏ
   const Icon = (cls, v) => (
     <div className="flex items-center gap-1.5 text-gray-400 hover:text-white transition-colors cursor-pointer">
       <i className={cls}></i>
       <span className="text-xs font-medium">{v ?? 0}</span>
     </div>
   );
+
+  // ✅ Lấy trạng thái bookmark ban đầu
+  const initialBM =
+    typeof initiallyBookmarked === "boolean"
+      ? initiallyBookmarked
+      : !!post?.is_bookmarked;
 
   return (
     <div className="bg-[#1C2028] border border-gray-700/80 rounded-xl p-4 flex flex-col h-full text-white">
@@ -265,9 +194,13 @@ export default function PostCard({
           {Icon("fa-solid fa-comment", stats.comments)}
           {Icon("fa-solid fa-eye", stats.views)}
         </div>
-        <button className="text-gray-400 hover:text-white" aria-label="bookmark">
-          <i className="fa-solid fa-bookmark"></i>
-        </button>
+
+        {/* Bookmark */}
+        <BookmarkButton
+          postId={postId}
+          initiallyBookmarked={initialBM}
+          onChange={onBookmarkChange}
+        />
       </div>
     </div>
   );
@@ -277,24 +210,25 @@ PostCard.propTypes = {
   post: PropTypes.oneOfType([
     PropTypes.shape({
       id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+      post_id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
       title: PropTypes.string,
-      // author
       authorName: PropTypes.string,
       authorAvatar: PropTypes.string,
       author: PropTypes.shape({ name: PropTypes.string, avatar: PropTypes.string }),
       full_name: PropTypes.string,
       avatar_url: PropTypes.string,
-      // album
       albumName: PropTypes.string,
       album: PropTypes.shape({ name: PropTypes.string }),
       album_name: PropTypes.string,
-      // hashtags
       hashtags: PropTypes.oneOfType([
         PropTypes.string,
         PropTypes.arrayOf(
           PropTypes.oneOfType([
             PropTypes.string,
-            PropTypes.shape({ name: PropTypes.string, hashtag_name: PropTypes.string }),
+            PropTypes.shape({
+              name: PropTypes.string,
+              hashtag_name: PropTypes.string,
+            }),
           ])
         ),
       ]),
@@ -307,12 +241,7 @@ PostCard.propTypes = {
       file: PropTypes.shape({ url: PropTypes.string, type: PropTypes.string }),
       file_url: PropTypes.string,
       file_type: PropTypes.string,
-      linkPreview: PropTypes.shape({
-        siteName: PropTypes.string,
-        siteIcon: PropTypes.string,
-        favicon: PropTypes.string,
-        url: PropTypes.string,
-      }),
+      is_bookmarked: PropTypes.bool,
       stats: PropTypes.shape({
         likes: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
         comments: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
@@ -327,4 +256,6 @@ PostCard.propTypes = {
   showAlbum: PropTypes.bool,
   maxTags: PropTypes.number,
   placeholderImage: PropTypes.string,
+  initiallyBookmarked: PropTypes.bool,
+  onBookmarkChange: PropTypes.func,
 };

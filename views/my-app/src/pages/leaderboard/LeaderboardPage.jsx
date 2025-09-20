@@ -1,90 +1,118 @@
-import React, { useState, useEffect } from 'react';
-import LeaderboardTabs from '../../components/leaderboard/LeaderboardTabs';
-import RankItem from '../../components/leaderboard/RankItem';
-import UserProfileCard from '../../components/leaderboard/UserProfileCard';
-import user_followServices from '../../services/user_followServices';  // import API service
+// src/pages/leaderboard/LeaderboardPage.jsx
+import React, { useEffect, useMemo, useState } from "react";
+import LeaderboardTabs from "../../components/leaderboard/LeaderboardTabs";
+import RankItem from "../../components/leaderboard/RankItem";
+import UserProfileCard from "../../components/leaderboard/UserProfileCard";
+import user_followServices from "../../services/user_followServices";
 
-// --- Dữ liệu mẫu (sẽ thay bằng API) ---
-const tabs = ['Criterion 1', 'Criterion 2', 'Criterion 3', 'Criterion 4'];
+const tabs = ["Criterion 1", "Criterion 2", "Criterion 3", "Criterion 4"];
+const FALLBACK_AVATAR = "https://via.placeholder.com/96?text=User";
 
-const selectedUser = {
-  avatar: 'https://i.pravatar.cc/150?img=1',
-  realName: 'Real name',
-  userName: 'User name',
-  followerCount: 'Follower number',
-  biography: 'User biography\nHeight based on the length of biography that user want it be',
-  birthday: 'Birthday',
-  followingCount: 'Following number',
-  totalPosts: 'Total post number',
-  recentPosts: [
-    { title: 'Post name', description: 'Post description', image: 'https://i.pravatar.cc/48?img=11' },
-    { title: 'Post name', description: 'Post description', image: 'https://i.pravatar.cc/48?img=12' },
-  ]
-};
-
-function LeaderboardPage() {
+export default function LeaderboardPage() {
   const [activeTab, setActiveTab] = useState(tabs[0]);
-  const [selectedRank, setSelectedRank] = useState(1);
-  const [rankings, setRankings] = useState([]);  // state lưu trữ dữ liệu top user
-  const [loading, setLoading] = useState(true);  // trạng thái loading khi gọi API
+  const [allRankings, setAllRankings] = useState([]); // toàn bộ dữ liệu từ API
+  const [selectedUserId, setSelectedUserId] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  // Lấy top users từ API
   useEffect(() => {
-    const fetchTopUsers = async () => {
+    (async () => {
+      setLoading(true);
       try {
-        const data = await user_followServices.top();  // Gọi API top follow users
-        setRankings(data);  // Cập nhật dữ liệu top vào state
-      } catch (error) {
-        console.error('Error fetching top users:', error);
+        // Gọi API lấy top users (giả sử trả về danh sách sorted)
+        const { status, data } = await user_followServices.top(20);
+        const arr = status === "success" && Array.isArray(data) ? data : [];
+
+        // sort theo followers_count giảm dần
+        arr.sort((a, b) => (b.followers_count ?? 0) - (a.followers_count ?? 0));
+        setAllRankings(arr);
+
+        if (arr.length > 0) setSelectedUserId(arr[0].user_id);
+      } catch (e) {
+        console.error("Error fetching top users:", e);
+        setAllRankings([]);
+        setSelectedUserId(null);
       } finally {
-        setLoading(false);  // Kết thúc trạng thái loading
+        setLoading(false);
       }
-    };
+    })();
+  }, []);
 
-    fetchTopUsers();
-  }, []);  // Gọi API 1 lần khi component được mount
+  // Chia dữ liệu theo tab (mỗi tab 5 user)
+  const rankings = useMemo(() => {
+    if (allRankings.length === 0) return [];
+    const tabIndex = tabs.indexOf(activeTab);
+    const start = tabIndex * 5;
+    return allRankings.slice(start, start + 5);
+  }, [allRankings, activeTab]);
 
-  if (loading) {
-    return <div className="text-white p-4">Đang tải...</div>;
-  }
+  // user được chọn ở panel phải
+  const selectedUser = useMemo(
+    () => allRankings.find((u) => u.user_id === selectedUserId) || null,
+    [allRankings, selectedUserId]
+  );
+
+  if (loading) return <div className="text-white p-4">Đang tải...</div>;
 
   return (
     <div className="text-white p-4">
       <h1 className="text-2xl font-bold mb-6">Leaderboard</h1>
 
-      {/* Grid layout chính chia làm 2 cột */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        
-        {/* === CỘT TRÁI (Bảng xếp hạng) === */}
+        {/* Cột trái: bảng xếp hạng */}
         <div className="lg:col-span-2 flex flex-col gap-4">
-          <LeaderboardTabs 
-            tabs={tabs} 
-            activeTab={activeTab} 
-            setActiveTab={setActiveTab} 
-          />
-          <div className="bg-[#1621] p-4 rounded-lg border border-[#2d2d33] flex flex-col gap-3">
-            {rankings.map(user => (
-              <RankItem 
-                key={user.user_id}
-                rank={user.followers_count}  // Sử dụng followers_count làm rank
-                avatar={user.avatar_url}
-                realName={user.full_name}
-                userName={user.username}
-                score={user.followers_count}
-                isSelected={selectedRank === user.user_id}
-                onClick={() => setSelectedRank(user.user_id)}  // Cập nhật rank khi click
-              />
-            ))}
+          <LeaderboardTabs tabs={tabs} activeTab={activeTab} setActiveTab={setActiveTab} />
+
+          <div className="bg-[#1C2028] p-4 rounded-lg border border-[#2d2d33] flex flex-col gap-3">
+            {rankings.length === 0 ? (
+              <div className="text-gray-400">Chưa có dữ liệu.</div>
+            ) : (
+              rankings.map((user, idx) => (
+                <RankItem
+                  key={user.user_id}
+                  rank={idx + 1 + tabs.indexOf(activeTab) * 5} // xếp hạng toàn cục
+                  avatar={user.avatar_url || FALLBACK_AVATAR}
+                  realName={user.full_name || "Unknown"}
+                  userName={user.username || ""}
+                  score={user.followers_count ?? 0}
+                  isSelected={selectedUserId === user.user_id}
+                  onClick={() => setSelectedUserId(user.user_id)}
+                />
+              ))
+            )}
           </div>
         </div>
 
-        {/* === CỘT PHẢI (Thông tin chi tiết) === */}
+        {/* Cột phải: hồ sơ chi tiết */}
         <div className="lg:col-span-1">
-          <UserProfileCard user={selectedUser} />
+          <UserProfileCard
+            user={
+              selectedUser
+                ? {
+                    avatar: selectedUser.avatar_url || FALLBACK_AVATAR,
+                    realName: selectedUser.full_name || "Unknown",
+                    userName: selectedUser.username || "",
+                    followerCount: selectedUser.followers_count ?? 0,
+                    biography: selectedUser.bio || "",
+                    birthday: selectedUser.birth_date || "",
+                    followingCount: selectedUser.following_count ?? "-",
+                    totalPosts: selectedUser.total_posts ?? "-",
+                    recentPosts: [],
+                  }
+                : {
+                    avatar: FALLBACK_AVATAR,
+                    realName: "—",
+                    userName: "",
+                    followerCount: 0,
+                    biography: "",
+                    birthday: "",
+                    followingCount: "-",
+                    totalPosts: "-",
+                    recentPosts: [],
+                  }
+            }
+          />
         </div>
       </div>
     </div>
   );
 }
-
-export default LeaderboardPage;
