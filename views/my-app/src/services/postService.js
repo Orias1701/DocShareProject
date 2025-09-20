@@ -89,6 +89,10 @@ export const postService = {
   listAll() {
     return fetchJson(ACTIONS.listAll);
   },
+
+  listPostsByFollowing() {
+    return fetchJson(ACTIONS.listPostsByFollowing, { method: "GET" });
+  },
   create(params) {
     const body = toFormData({
       title: params.title,

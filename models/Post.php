@@ -493,7 +493,16 @@ class Post
             ";
             $stmt = $this->pdo->prepare($sql);
             $stmt->execute([$followerId]);
-            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+            $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            // Chuyển hashtags từ chuỗi thành mảng
+            foreach ($rows as &$row) {
+                $row['hashtags'] = $row['hashtags']
+                    ? explode(',', $row['hashtags'])
+                    : [];
+            }
+
+            return $rows;
         } catch (Exception $e) {
             error_log("Error in getPostsFromFollowedUsers: " . $e->getMessage());
             return [];
