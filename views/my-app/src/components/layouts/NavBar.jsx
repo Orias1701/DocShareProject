@@ -172,12 +172,19 @@ function NavBar({ isCollapsed, setIsCollapsed, onNewAlbumClick }) {
 
 /* --- Sub-components giữ nguyên --- */
 
-function UserNavItem({ avatar, text, path, collapsed }) {
-  const base =
-    "flex items-center gap-4 py-2 px-2 rounded-md overflow-hidden text-gray-300 hover:text-white hover:bg-white/5";
+function UserNavItem({ avatar, text, collapsed }) {
   return (
-    <NavLink to={path} className={({ isActive }) => (isActive ? `${base} bg-white/5` : base)}>
-      <img src={avatar} alt="User Avatar" className="w-8 h-8 rounded-full flex-shrink-0" />
+    <div
+      className="
+        flex items-center gap-4 py-2 px-2 rounded-md overflow-hidden
+        text-gray-300 bg-white/5
+      "
+    >
+      <img
+        src={avatar}
+        alt="User Avatar"
+        className="w-8 h-8 rounded-full flex-shrink-0"
+      />
       <AnimatePresence>
         {!collapsed && (
           <motion.span
@@ -190,9 +197,10 @@ function UserNavItem({ avatar, text, path, collapsed }) {
           </motion.span>
         )}
       </AnimatePresence>
-    </NavLink>
+    </div>
   );
 }
+
 
 function NavItem({ icon, text, path, collapsed }) {
   const base =

@@ -1,17 +1,15 @@
 import React, { useEffect, useState } from "react";
+import { useParams } from "react-router-dom";
 import ProfileHeader from "../../components/profile/ProfileHeader";
 import BioCard from "../../components/profile/BioCard";
 import PostFeed from "../../components/profile/PostFeed";
-import { authApi } from "../../services/usersServices";
 import { userInfoApi } from "../../services/user_infoServices";
-import EditProfileModal from "../../components/profile/EditProfileModal";
 import postService from "../../services/postService";
 
 /** Map JSON BE -> cấu trúc PostCardProfile */
 function normalizePostForProfile(p) {
   const isPdf = String(p?.file_type || "").toLowerCase().includes("pdf");
 
-  // Nếu BE không trả banner_url thì dùng fallback
   const banner =
     p?.banner_url && p.banner_url.trim() !== ""
       ? p.banner_url
@@ -45,51 +43,41 @@ function normalizePostForProfile(p) {
   };
 }
 
+function ProfilePageOther() {
+  const { userId } = useParams(); // 👈 lấy userId từ URL (/profile/:userId)
 
-function ProfilePage() {
   const [userData, setUserData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [me, setMe] = useState(null);
-  const [openEdit, setOpenEdit] = useState(false);
 
   const [postsLoading, setPostsLoading] = useState(false);
   const [postsError, setPostsError] = useState(null);
   const [userPosts, setUserPosts] = useState([]);
 
-  // Lấy me + info
+  // Lấy thông tin user khác
   useEffect(() => {
+    if (!userId) return;
     (async () => {
       try {
-        const meRes = await authApi.me(); // {status,user}
-        const currentUser = meRes?.user;
-        const id = currentUser?.user_id;
-        if (!id) throw new Error("Không tìm thấy user_id từ api_me");
-        setMe(currentUser);
-
-        try {
-          const infoRes = await userInfoApi.showUserInfo(id);
-          const fromInfo = infoRes?.user ?? null;
-          setUserData(fromInfo || currentUser);
-        } catch {
-          setUserData(currentUser);
-        }
+        setLoading(true);
+        const infoRes = await userInfoApi.showUserInfo(userId);
+        const u = infoRes?.user ?? infoRes?.data?.user ?? infoRes?.data ?? infoRes;
+        setUserData(u);
       } catch (e) {
-        setError(e.message || "Lỗi không xác định");
+        setError(e.message || "Không tải được thông tin người dùng");
       } finally {
         setLoading(false);
       }
     })();
-  }, []);
+  }, [userId]);
 
-  // Lấy bài viết của tôi
+  // Lấy bài viết của user khác
   useEffect(() => {
-    if (!me?.user_id) return;
+    if (!userId) return;
     (async () => {
-      setPostsLoading(true);
-      setPostsError(null);
       try {
-        const raw = await postService.listMyPosts(); // service đã unwrap -> []
+        setPostsLoading(true);
+        const raw = await postService.listUserPosts(userId); // ⚡ cần API list bài viết của user khác
         const mapped = (Array.isArray(raw) ? raw : []).map(normalizePostForProfile);
         setUserPosts(mapped);
       } catch (e) {
@@ -98,18 +86,7 @@ function ProfilePage() {
         setPostsLoading(false);
       }
     })();
-  }, [me?.user_id]);
-
-  // Cập nhật hồ sơ
-  const handleUpdate = async ({ full_name, bio, birth_date, avatar }) => {
-    if (!me?.user_id) throw new Error("Thiếu user_id");
-    await userInfoApi.updateUserInfo({ user_id: me.user_id, full_name, bio, birth_date, avatar });
-    const fresh = await userInfoApi.showUserInfo(me.user_id);
-    const u = fresh?.user ?? fresh?.data?.user ?? fresh?.data ?? fresh;
-    setUserData(u);
-    setOpenEdit(false);
-    return true;
-  };
+  }, [userId]);
 
   if (loading) return <div className="text-white p-4">Đang tải hồ sơ...</div>;
   if (error) {
@@ -123,7 +100,7 @@ function ProfilePage() {
     );
   }
 
-  const avatarUrl = userData?.avatar_url || "https://i.pravatar.cc/150?img=1";
+  const avatarUrl = userData?.avatar_url || "https://i.pravatar.cc/150?img=2";
   const fullName = userData?.full_name || "Anonymous";
   const userName = userData?.username || "no-username";
   const birthday = userData?.birth_date || "N/A";
@@ -134,9 +111,9 @@ function ProfilePage() {
         avatar={avatarUrl}
         realName={fullName}
         userName={userName}
-        followerCount={123} // demo
+        followerCount={userData?.followers_count ?? 0}
         birthday={birthday}
-        onEdit={() => setOpenEdit(true)}
+        onEdit={null} // ❌ không cho sửa vì là user khác
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-6">
@@ -156,15 +133,8 @@ function ProfilePage() {
           )}
         </div>
       </div>
-
-      <EditProfileModal
-        isOpen={openEdit}
-        onClose={() => setOpenEdit(false)}
-        user={userData}
-        onSubmit={handleUpdate}
-      />
     </div>
   );
 }
 
-export default ProfilePage;
+export default ProfilePageOther;

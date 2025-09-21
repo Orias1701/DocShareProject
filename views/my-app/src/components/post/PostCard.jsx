@@ -1,12 +1,14 @@
-// src/components/post/PostCard.jsx
 import React, { useMemo } from "react";
 import PropTypes from "prop-types";
 import { Link } from "react-router-dom";
 import BookmarkButton from "./BookmarkButton";
-import ReactionThumbs from "./ReactionThumbs"; // ✅ dùng Like/Dislike
+import ReactionThumbs from "./ReactionThumbs";
+import PostOptionsMenu from "./PostOptionsMenu";
 
-const FALLBACK_URL = "https://www.google.com/favicon.ico";
-const FALLBACK_AVATAR = "https://via.placeholder.com/80?text=User";
+const FALLBACK_URL =
+  "https://i.pinimg.com/736x/18/bd/a5/18bda5a4616cd195fe49a9a32dbab836.jpg";
+const FALLBACK_AVATAR =
+  "https://i.pinimg.com/736x/c7/cd/4d/c7cd4dde24c8fcfeeddc73899a45c4b0.jpg";
 
 /** Chuẩn hoá hashtag */
 function normalizeHashtags(hx) {
@@ -54,22 +56,29 @@ export default function PostCard({
   showAlbum = true,
   maxTags = 3,
   placeholderImage = FALLBACK_URL,
-  initiallyBookmarked, // optional
-  onBookmarkChange,    // optional
+  initiallyBookmarked,
+  onBookmarkChange,
+  hideReactions = false,
 }) {
   if (!post || typeof post !== "object") return null;
 
   const postId = useMemo(() => post?.post_id ?? post?.id ?? null, [post]);
 
-  // ----- Normalize dữ liệu -----
   const title = post?.title ?? post?.name ?? post?.post_title ?? "Untitled";
   const authorName =
     post?.authorName ?? post?.author?.name ?? post?.full_name ?? "Ẩn danh";
   const authorAvatar =
-    post?.authorAvatar ?? post?.author?.avatar ?? post?.avatar_url ?? FALLBACK_AVATAR;
+    post?.authorAvatar ??
+    post?.author?.avatar ??
+    post?.avatar_url ??
+    FALLBACK_AVATAR;
+  const authorId =
+    post?.authorId ?? post?.author?.id ?? post?.author_id ?? post?.user_id ?? null;
 
-  const uploadTime = post?.uploadTime ?? post?.createdAt ?? post?.created_at ?? "";
-  const albumName = post?.albumName ?? post?.album?.name ?? post?.album_name ?? "";
+  const uploadTime =
+    post?.uploadTime ?? post?.createdAt ?? post?.created_at ?? "";
+  const albumName =
+    post?.albumName ?? post?.album?.name ?? post?.album_name ?? "";
 
   const hashtags = normalizeHashtags(post?.hashtags);
   const displayTags = hashtags.slice(0, maxTags);
@@ -85,15 +94,12 @@ export default function PostCard({
         : post?.view_count ?? 0,
   };
 
-  // ---- Banner / Placeholder ----
   const rawBanner = post?.banner || post?.banner_url || post?.bannerUrl || "";
   const bannerUrl = rawBanner && isImageUrl(rawBanner) ? rawBanner : "";
   const displayImage = bannerUrl || placeholderImage;
 
-  // ---- Link xem nội dung ----
   const fileUrl = (post?.file?.url || post?.file_url || "").trim();
 
-  // Ảnh hiển thị trong card (luôn là banner/placeholder)
   const contentEl = (
     <div className="w-full rounded-lg overflow-hidden">
       <img
@@ -101,14 +107,18 @@ export default function PostCard({
         alt={bannerUrl ? "Banner" : "Placeholder"}
         className="w-full h-auto aspect-video object-cover"
         loading="lazy"
+        onError={(e) => {
+          e.currentTarget.src = FALLBACK_URL;
+        }}
       />
     </div>
   );
 
-  // 👉 Nếu có file_url: điều hướng đến viewer nội bộ
   const preview = fileUrl ? (
     <Link
-      to={`/viewer/file?url=${encodeURIComponent(fileUrl)}&title=${encodeURIComponent(title)}`}
+      to={`/viewer/file?url=${encodeURIComponent(
+        fileUrl
+      )}&title=${encodeURIComponent(title)}`}
       className="block"
       aria-label="Xem nội dung"
     >
@@ -128,13 +138,11 @@ export default function PostCard({
     <div>{contentEl}</div>
   );
 
-  // ✅ Trạng thái bookmark ban đầu
   const initialBM =
     typeof initiallyBookmarked === "boolean"
       ? initiallyBookmarked
       : !!post?.is_bookmarked;
 
-  // ✅ Chỉ nhận 'like' | 'dislike' cho ReactionThumbs
   const initialThumbReaction =
     post?.my_reaction === "like" || post?.my_reaction === "dislike"
       ? post.my_reaction
@@ -145,16 +153,37 @@ export default function PostCard({
       {/* Header */}
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2 min-w-0">
-          <img
-            src={authorAvatar}
-            alt={authorName}
-            className="w-8 h-8 rounded-full object-cover flex-shrink-0"
-          />
-          <span className="font-semibold text-sm truncate">{authorName}</span>
+          {authorId ? (
+            <Link
+              to={`/profile/${encodeURIComponent(authorId)}`}
+              className="flex items-center gap-2 min-w-0"
+            >
+              <img
+                src={authorAvatar}
+                alt={authorName}
+                className="w-8 h-8 rounded-full object-cover flex-shrink-0"
+                onError={(e) => {
+                  e.currentTarget.src = FALLBACK_AVATAR;
+                }}
+              />
+              <span className="font-semibold text-sm truncate">{authorName}</span>
+            </Link>
+          ) : (
+            <>
+              <img
+                src={authorAvatar}
+                alt={authorName}
+                className="w-8 h-8 rounded-full object-cover flex-shrink-0"
+              />
+              <span className="font-semibold text-sm truncate">{authorName}</span>
+            </>
+          )}
         </div>
-        <button className="text-gray-400 hover:text-white" aria-label="more options">
-          <i className="fa-solid fa-ellipsis-vertical"></i>
-        </button>
+        
+        <PostOptionsMenu
+          onReport={() => alert("Báo cáo bài viết")}
+          onDownload={() => alert("Tải tài liệu (sẽ code sau)")}
+        />
       </div>
 
       {/* Body */}
@@ -163,7 +192,6 @@ export default function PostCard({
           {title}
         </h3>
 
-        {/* Album + Hashtags */}
         <div className="min-h-[28px] mb-2">
           <div className="flex flex-wrap gap-2">
             {showAlbum && albumName && (
@@ -193,102 +221,44 @@ export default function PostCard({
 
         {uploadTime && <p className="text-xs text-gray-500 mb-3">{uploadTime}</p>}
 
-        {/* Preview */}
         <div className="mb-3">{preview}</div>
       </div>
 
-      {/* Footer */}
-      <div className="border-t border-gray-700/80 pt-3 flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          {/* ✅ Like/Dislike (đã nối API trong component) */}
-          <ReactionThumbs
+      {!hideReactions && (
+        <div className="border-t border-gray-700/80 pt-3 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <ReactionThumbs
+              postId={postId}
+              initialCounts={{ like: stats.likes, dislike: stats.dislikes }}
+              initialMyReaction={initialThumbReaction}
+              autoRefresh={false}
+            />
+            {/* <div className="flex items-center gap-1.5 text-gray-400">
+              <i className="fa-solid fa-comment"></i>
+              <span className="text-xs font-medium">{stats.comments}</span>
+            </div>
+            <div className="flex items-center gap-1.5 text-gray-400">
+              <i className="fa-solid fa-eye"></i>
+              <span className="text-xs font-medium">{stats.views}</span>
+            </div> */}
+          </div>
+          <BookmarkButton
             postId={postId}
-            initialCounts={{ like: stats.likes, dislike: stats.dislikes }}
-            initialMyReaction={initialThumbReaction}
-            autoRefresh={false} // bật true nếu muốn fetch state mới nhất khi mount
-            onChange={(my) => {
-              // Optional: xử lý phụ nếu cần
-              // console.log('myReaction:', my);
-            }}
-            onCountsChange={(c) => {
-              // Optional: sync state bên ngoài nếu bạn có store tổng
-              // console.log('counts:', c);
-            }}
+            initiallyBookmarked={initialBM}
+            onChange={onBookmarkChange}
           />
-
-          {/* Comment + View */}
-          <div className="flex items-center gap-1.5 text-gray-400">
-            <i className="fa-solid fa-comment"></i>
-            <span className="text-xs font-medium">{stats.comments}</span>
-          </div>
-          <div className="flex items-center gap-1.5 text-gray-400">
-            <i className="fa-solid fa-eye"></i>
-            <span className="text-xs font-medium">{stats.views}</span>
-          </div>
         </div>
-
-        {/* Bookmark */}
-        <BookmarkButton
-          postId={postId}
-          initiallyBookmarked={initialBM}
-          onChange={onBookmarkChange}
-        />
-      </div>
+      )}
     </div>
   );
 }
 
 PostCard.propTypes = {
-  post: PropTypes.oneOfType([
-    PropTypes.shape({
-      id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
-      post_id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
-      title: PropTypes.string,
-      authorName: PropTypes.string,
-      authorAvatar: PropTypes.string,
-      author: PropTypes.shape({ name: PropTypes.string, avatar: PropTypes.string }),
-      full_name: PropTypes.string,
-      avatar_url: PropTypes.string,
-      albumName: PropTypes.string,
-      album: PropTypes.shape({ name: PropTypes.string }),
-      album_name: PropTypes.string,
-      hashtags: PropTypes.oneOfType([
-        PropTypes.string,
-        PropTypes.arrayOf(
-          PropTypes.oneOfType([
-            PropTypes.string,
-            PropTypes.shape({ name: PropTypes.string, hashtag_name: PropTypes.string }),
-          ])
-        ),
-      ]),
-      uploadTime: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
-      createdAt: PropTypes.string,
-      created_at: PropTypes.string,
-      banner: PropTypes.string,
-      banner_url: PropTypes.string,
-      bannerUrl: PropTypes.string,
-      file: PropTypes.shape({ url: PropTypes.string, type: PropTypes.string }),
-      file_url: PropTypes.string,
-      file_type: PropTypes.string,
-      is_bookmarked: PropTypes.bool,
-      stats: PropTypes.shape({
-        likes: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
-        dislikes: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
-        comments: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
-        views: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
-      }),
-      reaction_like_count: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
-      reaction_dislike_count: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
-      comment_count: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
-      view_count: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
-      // chỉ còn like/dislike
-      my_reaction: PropTypes.oneOf([null, "like", "dislike"]),
-    }),
-    PropTypes.oneOf([null, undefined]),
-  ]),
+  post: PropTypes.object,
   showAlbum: PropTypes.bool,
   maxTags: PropTypes.number,
   placeholderImage: PropTypes.string,
   initiallyBookmarked: PropTypes.bool,
   onBookmarkChange: PropTypes.func,
+  hideReactions: PropTypes.bool,
 };

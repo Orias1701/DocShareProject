@@ -13,7 +13,7 @@ export default function MyAlbumPage() {
     id: a.album_id || a.id,
     title: a.album_name || a.name || "Album",
     authorName: "Tôi",
-    authorAvatar: "/images/default-avatar.png",
+    authorAvatar: "https://i.pinimg.com/736x/18/bd/a5/18bda5a4616cd195fe49a9a32dbab836.jpg",
     uploadTime: a.created_at || "",
     banner: a.url_thumbnail || null, // hiện ảnh bìa album
     // để PostCard chạy mượt (không cần file/hashtags cho album)
@@ -52,32 +52,15 @@ export default function MyAlbumPage() {
 
   return (
     <div className="w-full">
-      {/* Header tabs của content */}
-      <div className="flex justify-end items-center mb-8 gap-6">
-        <button
-          className="text-white font-semibold border-b-2 border-white pb-1"
-          type="button"
-        >
-          Posts
-        </button>
-        <button
-          className="text-gray-400 font-semibold pb-1 hover:text-white"
-          type="button"
-        >
-          Follower
-        </button>
-      </div>
-
       {/* Một section duy nhất: “Your albums” -> grid các album card */}
-      <div className="space-y-12">
-        <PostSection
-          title="Your albums"
-          posts={albums}
-          showAlbum={false}
-          maxTags={0}
-          emptyText="Bạn chưa có album nào."
-        />
-      </div>
+      <PostSection
+        title="Your albums"
+        posts={albums}
+        showAlbum={false}
+        maxTags={0}
+        hideReactions={true}  // 👈 thêm dòng này
+        emptyText="Bạn chưa có album nào."
+      />
     </div>
   );
 }

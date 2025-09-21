@@ -28,6 +28,7 @@ import ProfilePage from "../pages/profile/ProfilePage";
 import RegisterPage from "../pages/auth/RegisterPage";
 import LoginPage from "../pages/auth/LoginPage";
 import FileViewerPage from "../pages/viewer/FileViewerPage";
+import ProfilePageOther from "../pages/profile/ProfilePageOther";
 
 // Global css
 import "../assets/font-awesome-6.6.0-pro-full-main/css/all.css";
@@ -66,6 +67,7 @@ function ProtectedLayout({ isCollapsed, setIsCollapsed, isNewAlbumModalOpen, set
             <Route path="categories" element={<CategoriesPage />} />
             <Route path="hashtags" element={<HashtagsPage />} />
             <Route path="viewer/file" element={<FileViewerPage />} />
+            <Route path="/profile/:userId" element={<ProfilePageOther />} />
           </Routes>
         </main>
       </div>

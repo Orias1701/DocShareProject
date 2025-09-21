@@ -24,7 +24,8 @@ export default function PostSection({
   headerRight = null,
   wrapClassName = "w-full mb-12",
   gridClassName = "grid grid-cols-1 gap-5 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4",
-  onBookmarkChange, // ✅ thêm prop
+  onBookmarkChange,
+  hideReactions = false,   // 👈 thêm dòng này
 }) {
   const items = Array.isArray(posts) ? posts : [];
 
@@ -47,7 +48,8 @@ export default function PostSection({
               post={post}
               showAlbum={showAlbum}
               maxTags={maxTags}
-              onBookmarkChange={onBookmarkChange} // ✅ forward xuống PostCard → BookmarkButton
+              onBookmarkChange={onBookmarkChange}
+              hideReactions={hideReactions}  // ✅ bây giờ sẽ có giá trị
             />
           ))}
         </div>
@@ -55,6 +57,7 @@ export default function PostSection({
     </section>
   );
 }
+
 
 PostSection.propTypes = {
   title: PropTypes.string.isRequired,
@@ -66,4 +69,5 @@ PostSection.propTypes = {
   wrapClassName: PropTypes.string,
   gridClassName: PropTypes.string,
   onBookmarkChange: PropTypes.func, // ✅ khai báo prop types
+  hideReactions: PropTypes.bool, 
 };

@@ -1,29 +1,43 @@
 // src/hooks/useAuth.jsx
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 
 const API_ME_URL = "http://localhost:3000/public/index.php?action=api_me";
 
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-  const [user, setUser]     = useState(null);
+  const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // gọi /me một lần để khôi phục session
+  // ✅ Gọi /api_me để khôi phục session
   const refresh = useCallback(async () => {
     try {
       const res = await fetch(API_ME_URL, {
         method: "GET",
-        credentials: "include",
+        credentials: "include", // giữ cookie PHP session
         headers: { Accept: "application/json" },
       });
+
       if (!res.ok) {
         setUser(null);
         return;
       }
+
       const data = await res.json().catch(() => ({}));
-      setUser(data?.status === "ok" ? data.user : null);
+      if (data?.status === "ok" && data.user) {
+        setUser(data.user);
+      } else {
+        setUser(null);
+      }
     } catch (e) {
+      console.error("Auth refresh failed:", e);
       setUser(null);
     }
   }, []);
@@ -36,15 +50,27 @@ export function AuthProvider({ children }) {
   }, [refresh]);
 
   const value = useMemo(
-    () => ({ user, setUser, loading, refresh }),
+    () => ({
+      user,
+      setUser,
+      loading,
+      refresh,
+      isAuthenticated: !!user,
+    }),
     [user, loading, refresh]
   );
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={value}>
+      {children}
+    </AuthContext.Provider>
+  );
 }
 
 export default function useAuth() {
   const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error("useAuth must be used within <AuthProvider>");
+  if (!ctx) {
+    throw new Error("useAuth must be used within <AuthProvider>");
+  }
   return ctx;
 }
