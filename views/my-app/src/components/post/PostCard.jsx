@@ -1,7 +1,9 @@
 // src/components/post/PostCard.jsx
 import React, { useMemo } from "react";
 import PropTypes from "prop-types";
+import { Link } from "react-router-dom";
 import BookmarkButton from "./BookmarkButton";
+import ReactionThumbs from "./ReactionThumbs"; // ✅ dùng Like/Dislike
 
 const FALLBACK_URL = "https://www.google.com/favicon.ico";
 const FALLBACK_AVATAR = "https://via.placeholder.com/80?text=User";
@@ -74,7 +76,8 @@ export default function PostCard({
   const extraTags = Math.max(0, hashtags.length - maxTags);
 
   const stats = {
-    likes: Number(post?.stats?.likes ?? post?.reaction_count ?? 0),
+    likes: Number(post?.stats?.likes ?? post?.reaction_like_count ?? 0),
+    dislikes: Number(post?.stats?.dislikes ?? post?.reaction_dislike_count ?? 0),
     comments: Number(post?.stats?.comments ?? post?.comment_count ?? 0),
     views:
       typeof post?.stats?.views !== "undefined"
@@ -87,10 +90,10 @@ export default function PostCard({
   const bannerUrl = rawBanner && isImageUrl(rawBanner) ? rawBanner : "";
   const displayImage = bannerUrl || placeholderImage;
 
-  // ---- Link preview ----
+  // ---- Link xem nội dung ----
   const fileUrl = (post?.file?.url || post?.file_url || "").trim();
-  const previewClickUrl = fileUrl || bannerUrl || "";
 
+  // Ảnh hiển thị trong card (luôn là banner/placeholder)
   const contentEl = (
     <div className="w-full rounded-lg overflow-hidden">
       <img
@@ -102,13 +105,22 @@ export default function PostCard({
     </div>
   );
 
-  const preview = previewClickUrl ? (
+  // 👉 Nếu có file_url: điều hướng đến viewer nội bộ
+  const preview = fileUrl ? (
+    <Link
+      to={`/viewer/file?url=${encodeURIComponent(fileUrl)}&title=${encodeURIComponent(title)}`}
+      className="block"
+      aria-label="Xem nội dung"
+    >
+      {contentEl}
+    </Link>
+  ) : bannerUrl ? (
     <a
-      href={previewClickUrl}
+      href={bannerUrl}
       target="_blank"
       rel="noopener noreferrer"
       className="block"
-      aria-label="Mở nội dung"
+      aria-label="Mở banner"
     >
       {contentEl}
     </a>
@@ -116,19 +128,17 @@ export default function PostCard({
     <div>{contentEl}</div>
   );
 
-  // Icon nhỏ
-  const Icon = (cls, v) => (
-    <div className="flex items-center gap-1.5 text-gray-400 hover:text-white transition-colors cursor-pointer">
-      <i className={cls}></i>
-      <span className="text-xs font-medium">{v ?? 0}</span>
-    </div>
-  );
-
-  // ✅ Lấy trạng thái bookmark ban đầu
+  // ✅ Trạng thái bookmark ban đầu
   const initialBM =
     typeof initiallyBookmarked === "boolean"
       ? initiallyBookmarked
       : !!post?.is_bookmarked;
+
+  // ✅ Chỉ nhận 'like' | 'dislike' cho ReactionThumbs
+  const initialThumbReaction =
+    post?.my_reaction === "like" || post?.my_reaction === "dislike"
+      ? post.my_reaction
+      : null;
 
   return (
     <div className="bg-[#1C2028] border border-gray-700/80 rounded-xl p-4 flex flex-col h-full text-white">
@@ -190,9 +200,31 @@ export default function PostCard({
       {/* Footer */}
       <div className="border-t border-gray-700/80 pt-3 flex items-center justify-between">
         <div className="flex items-center gap-4">
-          {Icon("fa-solid fa-heart", stats.likes)}
-          {Icon("fa-solid fa-comment", stats.comments)}
-          {Icon("fa-solid fa-eye", stats.views)}
+          {/* ✅ Like/Dislike (đã nối API trong component) */}
+          <ReactionThumbs
+            postId={postId}
+            initialCounts={{ like: stats.likes, dislike: stats.dislikes }}
+            initialMyReaction={initialThumbReaction}
+            autoRefresh={false} // bật true nếu muốn fetch state mới nhất khi mount
+            onChange={(my) => {
+              // Optional: xử lý phụ nếu cần
+              // console.log('myReaction:', my);
+            }}
+            onCountsChange={(c) => {
+              // Optional: sync state bên ngoài nếu bạn có store tổng
+              // console.log('counts:', c);
+            }}
+          />
+
+          {/* Comment + View */}
+          <div className="flex items-center gap-1.5 text-gray-400">
+            <i className="fa-solid fa-comment"></i>
+            <span className="text-xs font-medium">{stats.comments}</span>
+          </div>
+          <div className="flex items-center gap-1.5 text-gray-400">
+            <i className="fa-solid fa-eye"></i>
+            <span className="text-xs font-medium">{stats.views}</span>
+          </div>
         </div>
 
         {/* Bookmark */}
@@ -225,10 +257,7 @@ PostCard.propTypes = {
         PropTypes.arrayOf(
           PropTypes.oneOfType([
             PropTypes.string,
-            PropTypes.shape({
-              name: PropTypes.string,
-              hashtag_name: PropTypes.string,
-            }),
+            PropTypes.shape({ name: PropTypes.string, hashtag_name: PropTypes.string }),
           ])
         ),
       ]),
@@ -244,12 +273,16 @@ PostCard.propTypes = {
       is_bookmarked: PropTypes.bool,
       stats: PropTypes.shape({
         likes: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+        dislikes: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
         comments: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
         views: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
       }),
-      reaction_count: PropTypes.number,
-      comment_count: PropTypes.number,
+      reaction_like_count: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+      reaction_dislike_count: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+      comment_count: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
       view_count: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+      // chỉ còn like/dislike
+      my_reaction: PropTypes.oneOf([null, "like", "dislike"]),
     }),
     PropTypes.oneOf([null, undefined]),
   ]),

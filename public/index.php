@@ -85,6 +85,7 @@ require_once __DIR__ . '/../controllers/ReactionController.php';
 require_once __DIR__ . '/../controllers/ReportController.php';
 require_once __DIR__ . '/../controllers/BookmarkController.php';
 require_once __DIR__ . '/../controllers/SearchController.php';
+require_once __DIR__ . '/../controllers/PdfProxyController.php';
 
 
 
@@ -105,6 +106,9 @@ $reportController      = new ReportController();
 $userFollowController  = new UserFollowController();
 $bookmarkController = new BookmarkController();
 $searchController = new SearchController();
+$pdfProxyController = new PdfProxyController();
+
+
 
 /*************************************************
  * 5) TIỆN ÍCH NHỎ
@@ -459,7 +463,7 @@ if (isset($_GET['action'])) {
         case 'delete_post_hashtag':
             $postHashtagController->delete();
             exit;
-
+        
         /*************** ROLE CRUD ***************/
         case 'list_roles':
             $roleController->listRoles();
@@ -522,6 +526,20 @@ if (isset($_GET['action'])) {
 
 
         /*************** REACTION ***************/
+        case 'toggle_reaction_api': {
+            $postId = $_POST['post_id'] ?? $_GET['post_id'] ?? null;
+            $type   = $_POST['reaction_type'] ?? $_GET['reaction_type'] ?? null;
+            $reactionController->toggleReactionApi($postId, $type);
+            exit; // bắt buộc để không render HTML
+        }
+        
+        case 'get_reaction_state_api': {
+            $postId = $_GET['post_id'] ?? null;
+            $reactionController->getReactionStateApi($postId);
+            exit; // bắt buộc
+        }
+        
+        
         case 'toggle_reaction':
             $postId = $_GET['post_id'] ?? null;
             $reactionType = $_GET['reaction_type'] ?? null;
@@ -531,6 +549,7 @@ if (isset($_GET['action'])) {
             }
             $reactionController->toggleReaction($postId, $reactionType);
             exit;
+        
 
         /*************** REPORT ***************/
         case 'toggle_report':
@@ -586,11 +605,15 @@ if (isset($_GET['action'])) {
             exit;
 
 
-
+        /*************** PDF PROXY ***************/
+        case 'pdf_proxy':
+            $pdfProxyController->handle();
+            exit;
         default:
             header("Location: index.php");
             exit;
     }
+    
 }
 
 /*************************************************

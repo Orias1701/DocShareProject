@@ -11,6 +11,7 @@ import Footer from "../components/layouts/Footer";
 import Modal from "../components/common/Modal";
 import NewAlbumForm from "../components/common/NewAlbumForm";
 import AuthLayout from "../layouts/AuthLayout";
+import ViewPost from "../components/post/ViewPost";
 
 // Pages
 import ExplorePage from "../pages/explore/ExplorePage";
@@ -26,6 +27,7 @@ import HashtagsPage from "../pages/hashtags/HashtagsPage";
 import ProfilePage from "../pages/profile/ProfilePage";
 import RegisterPage from "../pages/auth/RegisterPage";
 import LoginPage from "../pages/auth/LoginPage";
+import FileViewerPage from "../pages/viewer/FileViewerPage";
 
 // Global css
 import "../assets/font-awesome-6.6.0-pro-full-main/css/all.css";
@@ -63,6 +65,7 @@ function ProtectedLayout({ isCollapsed, setIsCollapsed, isNewAlbumModalOpen, set
             <Route path="leaderboard" element={<LeaderboardPage />} />
             <Route path="categories" element={<CategoriesPage />} />
             <Route path="hashtags" element={<HashtagsPage />} />
+            <Route path="viewer/file" element={<FileViewerPage />} />
           </Routes>
         </main>
       </div>
