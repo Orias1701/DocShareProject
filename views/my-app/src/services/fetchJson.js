@@ -1,8 +1,11 @@
 // src/services/fetchJson.js
 const API_BASE = "http://localhost:3000/public/index.php";
 
-export default async function fetchJson(action, options = {}) {
-  const url = `${API_BASE}?action=${action}`;
+export default async function fetchJson(actionOrUrl, options = {}) {
+  // Cho phép truyền vào full URL (http...) hoặc chỉ action
+  const isFullUrl = /^https?:\/\//i.test(actionOrUrl);
+  const url = isFullUrl ? actionOrUrl : `${API_BASE}?action=${actionOrUrl}`;
+
   const res = await fetch(url, {
     credentials: "include",
     headers: {
@@ -12,47 +15,39 @@ export default async function fetchJson(action, options = {}) {
     ...options,
   });
 
-  const contentType = res.headers.get("content-type") || "";
-  const text = await res.text();
+  const ct = res.headers.get("Content-Type") || "";
+  const raw = await res.text(); // đọc body duy nhất 1 lần
 
-  // Nếu header đúng JSON, thử parse luôn
-  if (contentType.includes("application/json")) {
+  if (!res.ok) {
+    throw new Error(raw || `HTTP ${res.status}`);
+  }
+
+  if (ct.includes("application/json")) {
     try {
-      return text ? JSON.parse(text) : {};
+      return raw ? JSON.parse(raw) : {};
     } catch (e) {
-      // rơi xuống salvage
+      console.error("[fetchJson] JSON parse error:", e, "body(start)=", raw.slice(0, 200));
+      throw new Error("Lỗi parse JSON");
     }
   }
 
-  // Salvage mode: cố gắng trích đoạn JSON từ text lẫn warning
-  // 1) kiếm khối JSON bắt đầu bằng { ... } hoặc mảng [ ... ]
-  const firstCurly = text.indexOf("{");
-  const firstBracket = text.indexOf("[");
-  let start = -1;
-  let end = -1;
-
+  // Thử “salvage” nếu server có in kèm HTML/warning
+  const firstCurly = raw.indexOf("{");
+  const firstBracket = raw.indexOf("[");
+  let start = -1, end = -1;
   if (firstCurly !== -1 && (firstBracket === -1 || firstCurly < firstBracket)) {
-    // tìm cặp { ... }
-    start = firstCurly;
-    end = text.lastIndexOf("}");
+    start = firstCurly; end = raw.lastIndexOf("}");
   } else if (firstBracket !== -1) {
-    // tìm cặp [ ... ]
-    start = firstBracket;
-    end = text.lastIndexOf("]");
+    start = firstBracket; end = raw.lastIndexOf("]");
   }
-
   if (start !== -1 && end !== -1 && end > start) {
-    const jsonSlice = text.slice(start, end + 1);
     try {
-      const data = JSON.parse(jsonSlice);
-      // vẫn log cảnh báo để còn xử lý BE
-      console.warn("[fetchJson] Salvaged JSON from noisy response:", text.slice(0, 160));
-      return data;
-    } catch (e) {
-      // ignore, throw below
-    }
+      const jsonSlice = raw.slice(start, end + 1);
+      console.warn("[fetchJson] Salvaged JSON from noisy response:", raw.slice(0, 160));
+      return JSON.parse(jsonSlice);
+    } catch {}
   }
 
-  console.error(`[fetchJson] Cannot parse JSON. status=${res.status}, action=${action}, body(start)=`, text.slice(0, 200));
-  throw new Error("Không parse được JSON từ API");
+  console.error("[fetchJson] Expected JSON, got:", ct, " body(start)=", raw.slice(0, 200));
+  throw new Error("API không trả JSON");
 }

@@ -1,25 +1,12 @@
 // src/pages/viewer/FileViewerPage.jsx
-import React, { useMemo, useEffect, useState, useRef } from "react";
+import React, { useMemo } from "react";
 import { useLocation, Link } from "react-router-dom";
+import CommentsPanel from "../../components/comments/CommentsPanel";
 
-// ====== PDF.js (bundle worker cùng origin, tránh lỗi fake worker) ======
-import * as pdfjsLib from "pdfjs-dist/build/pdf";
-import PdfWorker from "pdfjs-dist/build/pdf.worker.min.mjs?worker";
-pdfjsLib.GlobalWorkerOptions.workerPort = new PdfWorker();
-
-// ====== UI constants ======
 const WRAP = "min-h-screen bg-[#0D1117] text-white";
 const CARD = "bg-[#0F172A] rounded-lg border border-white/10";
-const viewerClass = "block w-full h-auto";
+const SOFT = "rounded-lg border border-white/10";
 
-// ====== API base (BE) ======
-// Nếu BE khác origin, đặt VITE_API_ORIGIN = "https://api.yourdomain.com" trong .env
-// Nếu cùng origin, để chuỗi rỗng "" là được.
-const API_ORIGIN = import.meta.env.VITE_API_ORIGIN || "";
-const buildProxyUrl = (u) =>
-  `${API_ORIGIN}/index.php?action=pdf_proxy&u=${encodeURIComponent(u)}`;
-
-// ====== Avatar fallback nội bộ (data URI, không gọi ra ngoài) ======
 const FALLBACK_AVATAR =
   "data:image/svg+xml;utf8," +
   encodeURIComponent(
@@ -30,278 +17,54 @@ const FALLBACK_AVATAR =
     </svg>`
   );
 
-// ====== Query helpers ======
 function useQuery() {
   const { search } = useLocation();
   const p = new URLSearchParams(search);
 
-  const raw = (p.get("url") || "").trim();
   const title = p.get("title") || "Post title";
   const album = p.get("album") || "Album name";
   const category = p.get("category") || "Album name";
-  const hashtags = (p.get("hashtags") || "").split(/[,\s]+/).filter(Boolean);
+  const hashtags = (p.get("hashtags") || "").split(/[\,\s]+/).filter(Boolean);
   const authorName = p.get("author") || "Full name";
   const username = p.get("username") || "Username";
   const followers = p.get("followers") || "Following number";
   const avatarParam = p.get("avatar") || "";
   const summary = p.get("summary") || "Summary will be shown here";
+  const postId = p.get("post_id") || p.get("postId") || "";
 
-  let url = raw;
-  try {
-    url = decodeURIComponent(raw);
-  } catch {}
-
-  // Nếu không có avatar param → dùng fallback nội bộ
   const avatar = avatarParam || FALLBACK_AVATAR;
 
-  return {
-    url,
-    title,
-    album,
-    category,
-    hashtags,
-    authorName,
-    username,
-    followers,
-    avatar,
-    summary,
-  };
+  // vẫn chấp nhận có hoặc không có url, nhưng nội dung chính là placeholder
+  const url = p.get("url") || ""; // dùng cho nút "Mở bản gốc" nếu muốn
+
+  return { title, album, category, hashtags, authorName, username, followers, avatar, summary, postId, url };
 }
 
-// ====== Type helpers ======
-const isPdf = (u, t = "") =>
-  /application\/pdf/i.test(t) || /\.pdf(\?|#|$)/i.test(String(u || ""));
-const isImage = (u, t = "") =>
-  /^image\//i.test(t) || /\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(String(u || ""));
-
-// ====== Helper: check bytes có “giống PDF” không (%PDF- trong ~1KB đầu) ======
-function looksLikePdf(ab) {
-  if (!ab || !ab.byteLength) return false;
-  const maxScan = Math.min(ab.byteLength, 1024);
-  const head = new Uint8Array(ab, 0, maxScan);
-  const ascii = new TextDecoder("ascii").decode(head);
-  return ascii.includes("%PDF-");
-}
-
-// ====== PDF.js Viewer (render từng trang vào <canvas>) ======
-function PdfJsViewer({ url, title, previewPages = 5, scale = 1.4 }) {
-  const [pdf, setPdf] = useState(null);
-  const [numPages, setNumPages] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [errMsg, setErrMsg] = useState("");
-  const cancelRef = useRef({ canceled: false });
-
-  useEffect(() => {
-    cancelRef.current.canceled = false;
-    setPdf(null);
-    setNumPages(null);
-    setErrMsg("");
-    setLoading(true);
-  
-    (async () => {
-      try {
-        // LUÔN dùng proxy
-        const proxied = buildProxyUrl(url);
-        const res = await fetch(proxied, {
-          credentials: "include",
-          cache: "no-store",
-          referrerPolicy: "no-referrer",
-        });
-        if (!res.ok) throw new Error(`Proxy fetch failed: ${res.status}`);
-        const ab = await res.arrayBuffer();
-  
-        // Kiểm tra bytes có phải PDF không
-        const maxScan = Math.min(ab.byteLength, 1024);
-        const ascii = new TextDecoder("ascii").decode(new Uint8Array(ab, 0, maxScan));
-        if (!ascii.includes("%PDF-")) {
-          throw new Error("Proxy did not return a PDF");
-        }
-  
-        const task = pdfjsLib.getDocument({ data: ab });
-        const doc = await task.promise;
-  
-        if (cancelRef.current.canceled) return;
-        setPdf(doc);
-        setNumPages(doc.numPages);
-        setLoading(false);
-      } catch (e) {
-        if (cancelRef.current.canceled) return;
-        setErrMsg(
-          (e && e.message) ||
-          "Không thể mở PDF qua proxy. Kiểm tra whitelist/CORS ở BE."
-        );
-        setLoading(false);
-      }
-    })();
-  
-    return () => { cancelRef.current.canceled = true; };
-  }, [url]);
-  
-
-  // Component render từng trang
-  function PdfPage({ doc, pageNumber }) {
-    const canvasRef = useRef(null);
-
-    useEffect(() => {
-      let running = true;
-      (async () => {
-        const page = await doc.getPage(pageNumber);
-        if (!running) return;
-
-        const viewport = page.getViewport({ scale });
-
-        // Vẽ sắc nét theo devicePixelRatio
-        const dpr = window.devicePixelRatio || 1;
-        const canvas = canvasRef.current;
-        if (!canvas) return;
-        const ctx = canvas.getContext("2d");
-
-        canvas.style.width = `${viewport.width}px`;
-        canvas.style.height = `${viewport.height}px`;
-        canvas.width = Math.floor(viewport.width * dpr);
-        canvas.height = Math.floor(viewport.height * dpr);
-
-        const transform =
-          dpr !== 1 ? [dpr, 0, 0, dpr, 0, 0] : undefined;
-
-        await page.render({
-          canvasContext: ctx,
-          viewport,
-          transform,
-        }).promise;
-      })();
-      return () => {
-        running = false;
-      };
-    }, [doc, pageNumber]);
-
-    return (
-      <canvas
-        ref={canvasRef}
-        className="w-full max-w-4xl h-auto rounded-md border border-white/10 shadow"
-      />
-    );
-  }
-
-  const showPages = numPages
-    ? previewPages > 0
-      ? Math.min(previewPages, numPages)
-      : numPages
-    : 0;
-
+function PageFooter() {
   return (
-    <div className="w-full">
-      <div className="flex items-center justify-between p-3 border-b border-white/10">
-        <div className="text-sm text-gray-300">
-          {numPages ? `Preview ${showPages}/${numPages} trang` : "Đang tải PDF…"}
-        </div>
-        <div className="flex gap-2">
-          <a
-            href={url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="px-3 py-1.5 text-xs rounded bg-white/10 hover:bg-white/20"
-          >
-            Mở bản gốc
-          </a>
+    <footer className="mt-8">
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr,2fr] items-end gap-4">
+        <div className={`${SOFT} p-4 text-sm text-gray-300`}>Logo</div>
+        <div className="text-[10px] text-gray-400 text-right leading-relaxed">
+          Copyright © 2025 StudioSensi B.V., Keizersgracht 424-5 1016 GC Amsterdam, KVK 19598739, BTW: NL859321358B01<br/>
+          StudioS is not affiliated to nor endorsed by any school, college or university
         </div>
       </div>
-
-      {loading && (
-        <div className="p-6 text-center text-gray-400">Đang render trang…</div>
-      )}
-      {!!errMsg && (
-        <div className="p-6 text-center text-red-400 text-sm">
-          {errMsg}
-          <div className="mt-3">
-            <a href={url} target="_blank" rel="noopener" className="underline">
-              Mở trực tiếp PDF
-            </a>
-          </div>
-        </div>
-      )}
-
-      {pdf && (
-        <div className="flex flex-col items-center gap-4 p-4">
-          {Array.from({ length: showPages }, (_, i) => i + 1).map((n) => (
-            <PdfPage key={n} doc={pdf} pageNumber={n} />
-          ))}
-        </div>
-      )}
-
-      {!!numPages && previewPages > 0 && numPages > previewPages && (
-        <div className="border-t border-white/10 p-6 text-center">
-          <p className="text-sm text-gray-300 mb-3">
-            Bạn đang xem trước {previewPages}/{numPages} trang.
-          </p>
-          <a
-            href={url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="px-4 py-2 text-sm rounded bg-white/10 hover:bg-white/20"
-          >
-            Mở toàn bộ PDF
-          </a>
-        </div>
-      )}
-    </div>
+    </footer>
   );
 }
 
-// ====== Trang chính ======
 export default function FileViewerPage() {
   const {
-    url,
-    title,
-    album,
-    category,
-    hashtags,
-    authorName,
-    username,
-    followers,
-    avatar,
-    summary,
+    title, album, category, hashtags,
+    authorName, username, followers, avatar,
+    summary, postId, url
   } = useQuery();
 
-  const valid = useMemo(() => !!url && /^https?:\/\//i.test(url), [url]);
-  if (!valid) {
-    return (
-      <div className={`${WRAP} flex items-center justify-center p-6`}>
-        <div className={`${CARD} p-6 max-w-xl w-full text-center`}>
-          <h1 className="text-xl font-semibold mb-2">Không có URL hợp lệ</h1>
-          <p className="text-gray-300 mb-4">Ví dụ:</p>
-          <pre className="bg-black/30 rounded p-3 text-xs overflow-auto">
-            /viewer/file?url=https%3A%2F%2Fexample.com%2Ffile.pdf
-          </pre>
-          <Link
-            to="/"
-            className="inline-block mt-4 px-4 py-2 rounded bg-white/10 hover:bg-white/20"
-          >
-            Về trang chủ
-          </Link>
-        </div>
-      </div>
-    );
-  }
-
-  const mainContent = isPdf(url) ? (
+  // nội dung chính: KHUNG TÀI LIỆU PLACEHOLDER
+  const mainContent = (
     <div className={`${CARD} overflow-hidden`}>
-      {/* Dùng PDF.js render canvas; đổi previewPages=0 để hiện toàn bộ */}
-      <PdfJsViewer url={url} title={title} previewPages={5} scale={1.4} />
-    </div>
-  ) : isImage(url) ? (
-    <div className={`${CARD} overflow-hidden`}>
-      <div className={`w-full min-h-[60vh] bg-black/20 grid place-items-center`}>
-        <img
-          src={url}
-          alt={title}
-          className="max-h-full max-w-full object-contain"
-        />
-      </div>
-    </div>
-  ) : (
-    <div className={`${CARD} overflow-hidden`}>
-      <div className={`w-full min-h-[60vh] grid place-items-center text-gray-300`}>
+      <div className="w-full min-h-[60vh] grid place-items-center text-gray-300">
         <p>Post content will be shown here</p>
       </div>
     </div>
@@ -309,28 +72,43 @@ export default function FileViewerPage() {
 
   return (
     <div className={WRAP}>
-      <h1 className="text-[18px] md:text-[20px] font-bold mb-3">{title}</h1>
+      <div className="px-4 lg:px-8 pt-4">
+        <h1 className="text-[18px] md:text-[20px] font-bold">{title}</h1>
+      </div>
+
       <div className="container mx-auto p-4 lg:p-8">
         <section className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Cột trái */}
           <div className="lg:col-span-2">
-            <div className={`${viewerClass}`}>{mainContent}</div>
+            {mainContent}
+
             <div className="mt-3 flex items-center gap-2">
-              <a
-                href={url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="px-3 py-1.5 text-sm rounded bg-white/10 hover:bg-white/20"
-              >
-                Mở bản gốc
-              </a>
-              <Link
-                to={-1}
-                className="px-3 py-1.5 text-sm rounded bg-white/10 hover:bg-white/20"
-              >
+              {url ? (
+                <a href={url} target="_blank" rel="noopener noreferrer"
+                   className="px-3 py-1.5 text-sm rounded bg-white/10 hover:bg-white/20">
+                  Mở bản gốc
+                </a>
+              ) : null}
+              <Link to={-1} className="px-3 py-1.5 text-sm rounded bg-white/10 hover:bg-white/20">
                 Quay lại
               </Link>
             </div>
+
+            {/* Comments từ BE */}
+            <div className="mt-6">
+              {postId ? (
+                /* Nếu chưa có user id ở FE, có thể bỏ currentUserId đi */
+                <CommentsPanel postId={postId} />
+                // hoặc nếu bạn có user id (ví dụ lấy từ context / localStorage):
+                // <CommentsPanel postId={postId} currentUserId={me?.user_id} />
+              ) : (
+                <div className={`${CARD} p-4 text-sm text-gray-400`}>
+                  Thiếu <code>post_id</code> trên URL — ví dụ: <br />
+                  <code className="text-xs">/viewer/file?post_id=POST000000000100100001000001</code>
+                </div>
+              )}
+            </div>
+
           </div>
 
           {/* Cột phải */}
@@ -351,10 +129,7 @@ export default function FileViewerPage() {
                   {hashtags.length ? (
                     <div className="flex flex-wrap gap-2 mt-1">
                       {hashtags.map((t, i) => (
-                        <span
-                          key={`${t}-${i}`}
-                          className="bg-gray-700/40 px-2 py-0.5 rounded text-[11px]"
-                        >
+                        <span key={`${t}-${i}`} className="bg-gray-700/40 px-2 py-0.5 rounded text-[11px]">
                           {t.startsWith("#") ? t : `#${t}`}
                         </span>
                       ))}
@@ -391,6 +166,8 @@ export default function FileViewerPage() {
             </div>
           </aside>
         </section>
+
+        <PageFooter />
       </div>
     </div>
   );

@@ -116,9 +116,7 @@ export default function PostCard({
 
   const preview = fileUrl ? (
     <Link
-      to={`/viewer/file?url=${encodeURIComponent(
-        fileUrl
-      )}&title=${encodeURIComponent(title)}`}
+      to={`/viewer/file?url=${encodeURIComponent(fileUrl)}&title=${encodeURIComponent(title)}${postId ? `&post_id=${encodeURIComponent(postId)}` : ""}`}
       className="block"
       aria-label="Xem nội dung"
     >
@@ -135,8 +133,16 @@ export default function PostCard({
       {contentEl}
     </a>
   ) : (
-    <div>{contentEl}</div>
+    // Luôn wrap contentEl trong Link để clickable
+    <Link
+      to={`/viewer/post/${postId}`}
+      className="block"
+      aria-label="Xem post"
+    >
+      {contentEl}
+    </Link>
   );
+  
 
   const initialBM =
     typeof initiallyBookmarked === "boolean"
@@ -231,7 +237,7 @@ export default function PostCard({
               postId={postId}
               initialCounts={{ like: stats.likes, dislike: stats.dislikes }}
               initialMyReaction={initialThumbReaction}
-              autoRefresh={false}
+              autoRefresh={true}
             />
             {/* <div className="flex items-center gap-1.5 text-gray-400">
               <i className="fa-solid fa-comment"></i>

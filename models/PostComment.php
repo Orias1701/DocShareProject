@@ -15,7 +15,7 @@ class PostComment
     public function getRootByPost($postId)
     {
         $stmt = $this->pdo->prepare("
-            SELECT c.comment_id, c.content, c.created_at, c.user_id, ui.full_name, c.parent_id
+            SELECT c.comment_id, c.content, c.created_at, c.user_id, ui.full_name, c.parent_id,ui.avatar_url
             FROM post_comments c
             LEFT JOIN user_infos ui ON c.user_id = ui.user_id
             WHERE c.post_id = :pid AND c.parent_id IS NULL

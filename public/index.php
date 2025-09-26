@@ -485,43 +485,26 @@ if (isset($_GET['action'])) {
             exit;
 
         /*************** COMMENT ***************/
-        case 'create_comment':
-            if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-                if (!isset($_SESSION['user_id'])) {
-                    header("Location: index.php?action=login");
-                    exit;
-                }
-                $postId  = $_POST['post_id'];
-                $content = trim($_POST['content']);
-                $parentId = $_POST['parent_id'] ?? null; // hỗ trợ comment nhiều cấp
-                $commentController->createComment($postId, $content, $parentId);
-            }
+        case 'list_comments_by_post':
+            $commentController->getCommentsByPostId($_GET['post_id'] ?? '');
             exit;
 
-        case 'edit_comment':
-            if (isset($_GET['id'])) {
-                $comment = (new PostComment())->getById($_GET['id']);
-                include __DIR__ . '/../views/postcomment/edit_comment.php';
-            }
+        case 'create_comment':
+            // POST only
+            $body = wants_json() ? read_json_body() : $_POST;
+            $commentController->createComment($body['post_id'] ?? '', $body['content'] ?? '', $body['parent_id'] ?? null);
             exit;
+
         case 'update_comment':
-            if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-                $commentId = $_POST['comment_id'];
-                $content = $_POST['content'];
-                $commentController->updateComment($commentId, $content);
-            }
+            // POST only
+            $body = wants_json() ? read_json_body() : $_POST;
+            $commentController->updateComment($body['comment_id'] ?? '', $body['content'] ?? '');
             exit;
+
         case 'delete_comment':
-            if (isset($_GET['id'])) {
-                if (!isset($_SESSION['user_id'])) {
-                    header("Location: index.php?action=login");
-                    exit;
-                }
-                $userId = $_SESSION['user_id'];
-                $commentController->deleteComment($_GET['id'], $userId);
-                header("Location: " . ($_SERVER['HTTP_REFERER'] ?? 'index.php'));
-                exit;
-            }
+            // GET ?id=... hoặc POST id
+            $id = $_GET['id'] ?? $_POST['id'] ?? '';
+            $commentController->deleteComment($id, $_SESSION['user_id'] ?? null);
             exit;
 
 

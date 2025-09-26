@@ -13,7 +13,7 @@ const ACTIONS = {
   update: "update_post",
   delete: "delete_post",
   listPostByUser: "list_posts_by_user",
-
+  listUserPosts : "list_posts_by_user",
   // Post ↔ Hashtag
   listPostHashtags: "list_post_hashtags",
   postsByHashtag: "posts_by_hashtag",
@@ -182,6 +182,13 @@ export const postService = {
   // ---------- My posts ----------
   async listMyPosts() {
     const res = await fetchJson(ACTIONS.listPostByUser); // GET
+    return Array.isArray(res?.data) ? res.data : [];
+  },
+  // Lấy bài viết của user bất kỳ (dùng ở profile public)
+  async listUserPosts(user_id) {
+    const res = await fetchJson(
+      `${ACTIONS.listUserPosts}&user_id=${encodeURIComponent(user_id)}`
+    ); // GET
     return Array.isArray(res?.data) ? res.data : [];
   },
 };

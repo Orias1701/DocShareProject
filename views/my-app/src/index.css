@@ -448,6 +448,63 @@ nav .nav-header {
   color: #155724;
   border: 1px solid #c3e6cb;
 }
+.content-html {
+  background: #0F172A;
+  color: #fff;
+  border-radius: 12px;
+  overflow: auto;
+  min-height: 480px;
+  text-align: left; /* quan trọng: tất cả text left-aligned */
+}
+
+/* Reset margin của thẻ p, h1-h6 */
+.content-html p,
+.content-html h1,
+.content-html h2,
+.content-html h3,
+.content-html h4,
+.content-html h5,
+.content-html h6 {
+  margin: 0 0 1em 0;
+  text-align: left; /* đảm bảo thẻ p tuân theo content HTML */
+}
+
+/* Các thẻ khác (blockquote, code, ul, ol) */
+.content-html blockquote {
+  border-left: 3px solid #60a5fa;
+  padding-left: 0.75rem;
+  color: #f3f4f6;
+  background: #0c1118;
+  margin: 0.5rem 0;
+  border-radius: 6px;
+}
+
+.content-html ul,
+.content-html ol {
+  padding-left: 1.25rem;
+  margin: 0.5rem 0;
+}
+
+.content-html code {
+  background: #0b1220;
+  padding: 2px 6px;
+  border-radius: 6px;
+  font-size: 0.9rem;
+}
+
+.content-html pre {
+  background: #0b1220;
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px solid #233045;
+  overflow: auto;
+}
+/* Đảm bảo hiển thị đúng trong vùng soạn thảo */
+.ProseMirror strong { font-weight: 700; }
+.ProseMirror em { font-style: italic; }
+.ProseMirror code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: .95em; }
+.ProseMirror h1, .ProseMirror h2, .ProseMirror h3 { text-align: left; margin-top: 1em; margin-bottom: .5em; }
+.ProseMirror p { margin: 0.5em 0; text-align: left; }
 
 /* --- Responsive --- */
 @media (max-width: 48rem) {          /* 768px */

@@ -169,7 +169,7 @@ export default function ViewPost() {
                 />
               ) : data.content_html ? (
                 <div
-                  className="prose prose-invert max-w-none p-6"
+                  className="content-html p-6"
                   dangerouslySetInnerHTML={{ __html: data.content_html }}
                 />
               ) : (
