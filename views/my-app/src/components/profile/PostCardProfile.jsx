@@ -1,28 +1,83 @@
-import React from "react";
+// src/components/profile/PostCardProfile.jsx
+import React, { useEffect, useState } from "react";
 import PropTypes from "prop-types";
 import { Link } from "react-router-dom";
 import ReactionThumbs from "../post/ReactionThumbs";
+import CommentsPanel from "../comments/CommentsPanel";
+import useAuth from "../../hook/useAuth"; // ✅ chú ý: hooks/useAuth
+import post_commentServices from "../../services/post_commentServices";
 
 const FALLBACK_IMG =
   "https://i.pinimg.com/736x/18/bd/a5/18bda5a4616cd195fe49a9a32dbab836.jpg";
 
 export default function PostCardProfile({ post = {} }) {
+  // Lấy user hiện đang đăng nhập để truyền xuống CommentsPanel
+  const { user } = useAuth();
+  const currentUserId = user?.user_id || user?.id || null;
+
+  const [showComments, setShowComments] = useState(false);
+  const [commentCount, setCommentCount] = useState(
+    Number(post?.commentCount ?? post?.comment_count ?? 0)
+  );
+
   const author = {
     id: post?.author?.id ?? post?.author_id ?? post?.user_id ?? null,
-    realName: post?.author?.realName || "Real name",
-    avatar: post?.author?.avatar || FALLBACK_IMG,
+    realName: post?.author?.realName || post?.author_name || "Real name",
+    avatar: post?.author?.avatar || post?.avatar_url || FALLBACK_IMG,
   };
-  const postDate = post?.postDate || "Post date";
+  const postDate = post?.postDate || post?.created_at || "Post date";
   const mangles = Array.isArray(post?.mangles) ? post.mangles.slice(0, 2) : [];
 
-  const likeCount = Number(post?.reactionCounts?.like ?? post?.reaction_like_count ?? 0);
-  const dislikeCount = Number(post?.reactionCounts?.dislike ?? post?.reaction_dislike_count ?? 0);
-  const commentCount = Number(post?.commentCount ?? 0) || 0;
+  const likeCount = Number(
+    post?.reactionCounts?.like ?? post?.reaction_like_count ?? 0
+  );
+  const dislikeCount = Number(
+    post?.reactionCounts?.dislike ?? post?.reaction_dislike_count ?? 0
+  );
   const myReaction =
     post?.my_reaction === "like" || post?.my_reaction === "dislike"
       ? post.my_reaction
       : null;
+
   const postId = post?.post_id ?? post?.id ?? null;
+
+  // 🔢 Lấy count thực tế từ BE (dùng countCommentByPost)
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      if (!postId) return;
+      try {
+        const res = await post_commentServices.countCommentByPost(postId);
+        if (alive && res?.ok) {
+          setCommentCount(Number(res.data?.count || 0));
+        }
+      } catch {
+        // giữ nguyên count sẵn có khi lỗi
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [postId]);
+
+  // (Tuỳ chọn) mỗi lần mở khung comment thì refresh count 1 nhịp
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      if (!postId || !showComments) return;
+      try {
+        const res = await post_commentServices.countCommentByPost(postId);
+        if (alive && res?.ok) {
+          setCommentCount(Number(res.data?.count || 0));
+        }
+      } catch {
+        // im lặng
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [postId, showComments]);
 
   return (
     <div className="bg-[#1f2430] border border-[#2b3240] rounded-2xl p-4 sm:p-5 text-white">
@@ -67,7 +122,7 @@ export default function PostCardProfile({ post = {} }) {
         </button>
       </div>
 
-      {/* Mangles */}
+      {/* Mangles (thumbnail + tiêu đề) */}
       <div className="mt-4 space-y-3">
         {mangles.map((m, idx) => {
           const imgSrc = m?.image || FALLBACK_IMG;
@@ -94,7 +149,9 @@ export default function PostCardProfile({ post = {} }) {
                   <Link
                     to={`/viewer/file?url=${encodeURIComponent(
                       m.fileUrl
-                    )}&title=${encodeURIComponent(m?.title || "")}`}
+                    )}&title=${encodeURIComponent(m?.title || "")}${
+                      postId ? `&post_id=${encodeURIComponent(postId)}` : ""
+                    }`}
                     aria-label="Xem nội dung"
                   >
                     {imgEl}
@@ -117,7 +174,7 @@ export default function PostCardProfile({ post = {} }) {
         })}
       </div>
 
-      {/* Footer */}
+      {/* Footer: reactions + nút mở bình luận (kèm count) */}
       <div className="flex items-center justify-between mt-3">
         <ReactionThumbs
           postId={postId}
@@ -129,12 +186,33 @@ export default function PostCardProfile({ post = {} }) {
           dislikeColor="#9ca3af"
         />
 
-        <div className="flex items-center gap-2 text-sm">
-          <span className="text-gray-400">Comments</span>
-          <span className="inline-block w-2 h-2 rounded-full bg-fuchsia-500" />
-          <span className="text-gray-300">{commentCount}</span>
-        </div>
+        <button
+          type="button"
+          onClick={() => setShowComments((s) => !s)}
+          className={`px-3 py-1.5 text-sm rounded-lg transition
+            ${
+              showComments
+                ? "bg-fuchsia-600 text-white"
+                : "bg-[#2b3240] text-gray-200 hover:bg-[#333a49]"
+            }`}
+          aria-expanded={showComments}
+        >
+          Bình luận • {commentCount}
+        </button>
       </div>
+
+      {/* Khung bình luận (toggle) */}
+      {showComments && postId && (
+        <div className="mt-4">
+          <CommentsPanel
+            postId={postId}
+            currentUserId={currentUserId}
+            // Nếu sau này bạn bổ sung onCountChange trong CommentsPanel,
+            // có thể bật dòng dưới để cập nhật realtime:
+            // onCountChange={(n) => setCommentCount(n)}
+          />
+        </div>
+      )}
     </div>
   );
 }

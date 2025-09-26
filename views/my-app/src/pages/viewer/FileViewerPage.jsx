@@ -1,7 +1,7 @@
-// src/pages/viewer/FileViewerPage.jsx
-import React, { useMemo } from "react";
+import React from "react";
 import { useLocation, Link } from "react-router-dom";
 import CommentsPanel from "../../components/comments/CommentsPanel";
+import useAuth from "../../hook/useAuth";
 
 const WRAP = "min-h-screen bg-[#0D1117] text-white";
 const CARD = "bg-[#0F172A] rounded-lg border border-white/10";
@@ -23,19 +23,16 @@ function useQuery() {
 
   const title = p.get("title") || "Post title";
   const album = p.get("album") || "Album name";
-  const category = p.get("category") || "Album name";
-  const hashtags = (p.get("hashtags") || "").split(/[\,\s]+/).filter(Boolean);
+  const category = p.get("category") || "Category";
+  const hashtags = (p.get("hashtags") || "").split(/[,\s]+/).filter(Boolean);
   const authorName = p.get("author") || "Full name";
   const username = p.get("username") || "Username";
-  const followers = p.get("followers") || "Following number";
+  const followers = p.get("followers") || "0 followers";
   const avatarParam = p.get("avatar") || "";
   const summary = p.get("summary") || "Summary will be shown here";
   const postId = p.get("post_id") || p.get("postId") || "";
-
   const avatar = avatarParam || FALLBACK_AVATAR;
-
-  // vẫn chấp nhận có hoặc không có url, nhưng nội dung chính là placeholder
-  const url = p.get("url") || ""; // dùng cho nút "Mở bản gốc" nếu muốn
+  const url = p.get("url") || "";
 
   return { title, album, category, hashtags, authorName, username, followers, avatar, summary, postId, url };
 }
@@ -61,7 +58,9 @@ export default function FileViewerPage() {
     summary, postId, url
   } = useQuery();
 
-  // nội dung chính: KHUNG TÀI LIỆU PLACEHOLDER
+  const { user } = useAuth();              // ✅ lấy user từ context (api_me)
+  const currentUserId = user?.user_id;     // ✅ id user đang đăng nhập
+
   const mainContent = (
     <div className={`${CARD} overflow-hidden`}>
       <div className="w-full min-h-[60vh] grid place-items-center text-gray-300">
@@ -94,13 +93,10 @@ export default function FileViewerPage() {
               </Link>
             </div>
 
-            {/* Comments từ BE */}
+            {/* Comments */}
             <div className="mt-6">
               {postId ? (
-                /* Nếu chưa có user id ở FE, có thể bỏ currentUserId đi */
-                <CommentsPanel postId={postId} />
-                // hoặc nếu bạn có user id (ví dụ lấy từ context / localStorage):
-                // <CommentsPanel postId={postId} currentUserId={me?.user_id} />
+                <CommentsPanel postId={postId} currentUserId={currentUserId} />
               ) : (
                 <div className={`${CARD} p-4 text-sm text-gray-400`}>
                   Thiếu <code>post_id</code> trên URL — ví dụ: <br />
@@ -108,7 +104,6 @@ export default function FileViewerPage() {
                 </div>
               )}
             </div>
-
           </div>
 
           {/* Cột phải */}
@@ -134,9 +129,7 @@ export default function FileViewerPage() {
                         </span>
                       ))}
                     </div>
-                  ) : (
-                    <p className="text-gray-500">—</p>
-                  )}
+                  ) : <p className="text-gray-500">—</p>}
                 </div>
               </div>
             </div>

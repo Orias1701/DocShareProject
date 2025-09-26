@@ -1,4 +1,3 @@
-// src/hooks/useAuth.jsx
 import {
   createContext,
   useCallback,
@@ -16,12 +15,11 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // ✅ Gọi /api_me để khôi phục session
   const refresh = useCallback(async () => {
     try {
       const res = await fetch(API_ME_URL, {
         method: "GET",
-        credentials: "include", // giữ cookie PHP session
+        credentials: "include",
         headers: { Accept: "application/json" },
       });
 
@@ -60,11 +58,7 @@ export function AuthProvider({ children }) {
     [user, loading, refresh]
   );
 
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 export default function useAuth() {

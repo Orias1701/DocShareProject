@@ -1,8 +1,8 @@
-// src/services/post_commentServices.js
 import fetchJson from "./fetchJson";
 
 const ACTIONS = {
   listByPost: "list_comments_by_post",
+  countCommentByPost:"count_comments_by_post",
   create: "create_comment",
   update: "update_comment",
   remove: "delete_comment",
@@ -12,8 +12,11 @@ export const post_commentServices = {
   listByPost(post_id) {
     return fetchJson(`${ACTIONS.listByPost}&post_id=${encodeURIComponent(post_id)}`);
   },
+  countCommentByPost(post_id) {
+    return fetchJson(`${ACTIONS.countCommentByPost}&post_id=${encodeURIComponent(post_id)}`);
+  },
 
-  // ⬇️ GỬI JSON, không dùng FormData
+  // Gửi JSON
   create({ post_id, content }) {
     const body = JSON.stringify({ post_id, content });
     return fetchJson(ACTIONS.create, {

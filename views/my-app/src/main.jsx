@@ -1,10 +1,19 @@
-import { StrictMode } from 'react'
-import { createRoot } from 'react-dom/client'
-import './index.css'
-import App from './App.jsx'
+import { StrictMode } from "react";
+import { createRoot } from "react-dom/client";
+
+// Bọc app bằng AuthProvider
+import { AuthProvider } from "./hook/useAuth.jsx";
 import AppRoutes from './routes/index.jsx'
-createRoot(document.getElementById('root')).render(
+// Chúng ta sẽ render App (đã trả về routes)
+import App from "./App.jsx";
+
+import "./index.css";
+
+createRoot(document.getElementById("root")).render(
   <StrictMode>
-     <AppRoutes />
-  </StrictMode>,
-)
+    <AuthProvider>
+      <AppRoutes />
+    </AuthProvider>
+  </StrictMode>
+);
+

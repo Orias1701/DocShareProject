@@ -231,4 +231,22 @@ class CommentController
             'data' => ['deleted' => true, 'comment_id' => $commentId]
         ], 200);
     }
+    public function countCommentsByPostId($postId)
+    {
+        $postId = trim((string)$postId);
+        if ($postId === '') {
+            $this->jsonResponse([
+                'ok' => false,
+                'error' => 'BAD_REQUEST',
+                'message' => 'Thiếu post_id'
+            ], 400);
+        }
+
+        $count = $this->postCommentModel->countByPost($postId);
+
+        $this->jsonResponse([
+            'ok'   => true,
+            'data' => [ 'post_id' => $postId, 'count' => $count ]
+        ], 200);
+    }
 }

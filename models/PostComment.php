@@ -94,7 +94,13 @@ class PostComment
         $stmt->execute([$userId]);
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
-
+    public function countByPost(string $postId): int
+    {
+        $stmt = $this->pdo->prepare("SELECT COUNT(*) AS cnt FROM post_comments WHERE post_id = :pid");
+        $stmt->execute([':pid' => $postId]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        return (int)($row['cnt'] ?? 0);
+    }
     // Tạo comment mới (có thể là reply)
     public function create($commentId, $postId, $userId, $content, $parentId = null)
     {

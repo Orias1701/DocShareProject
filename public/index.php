@@ -489,6 +489,10 @@ if (isset($_GET['action'])) {
             $commentController->getCommentsByPostId($_GET['post_id'] ?? '');
             exit;
 
+        case 'count_comments_by_post':
+            $commentController->countCommentsByPostId($_GET['post_id'] ?? '');
+        exit;
+            
         case 'create_comment':
             // POST only
             $body = wants_json() ? read_json_body() : $_POST;
