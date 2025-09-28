@@ -185,18 +185,18 @@ export default function ExplorePage() {
           <h2 className="text-2xl font-bold text-white mb-3">✨ Vì bạn hay xem</h2>
           <div className="flex flex-wrap gap-2">
           {trendingTags.map((t) => {
-  const label = t.name || t.hashtag_name || "";
-  const slug = encodeURIComponent(label.replace(/^#/, ""));
-  return (
-    <Link
-      key={t.id || t.hashtag_id || label}
-      to={`/hashtag/${slug}`}
-      className="px-3 py-1 rounded-lg bg-white/10 text-white hover:bg-white/20"
-    >
-      {label}
-    </Link>
-  );
-})}
+            const label = t.name || t.hashtag_name || "";
+            const slug = encodeURIComponent(label.replace(/^#/, ""));
+            return (
+              <Link
+                key={t.id || t.hashtag_id || label}
+                to={`/hashtag/${slug}`}
+                className="px-3 py-1 rounded-lg bg-white/10 text-white hover:bg-white/20"
+              >
+                {label}
+              </Link>
+            );
+          })}
 
           </div>
         </section>

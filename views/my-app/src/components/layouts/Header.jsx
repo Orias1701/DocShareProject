@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import '../../assets/font-awesome-6.6.0-pro-full-main/css/all.css';
 import useAuth from '../../hook/useAuth';
 import images from '../../assets/image';
+import SearchBar from "../search/SearchBar";
 
 // Custom Hook để phát hiện click ra ngoài
 const useClickOutside = (handler) => {
@@ -43,9 +44,14 @@ export default function Header() {
 
       {/* Search */}
       <div className="header-search flex items-center">
-        <input type="text" placeholder="Search..." className="px-2 py-1 rounded text-black"/>
+        <input 
+          type="text" 
+          placeholder="Search..." 
+          className="px-2 py-1 rounded text-black"
+        />
         <button className="ml-2">
-          <i className="fa-regular fa-circle fa-beat-fade"></i>
+          {/* ✅ Thay icon search */}
+          <i className="fa-solid fa-magnifying-glass"></i>
         </button>
       </div>
 
@@ -73,12 +79,11 @@ export default function Header() {
               className="header-user"
               onClick={() => setDropdownOpen(!isDropdownOpen)}
             >
-            <img
-              src={user?.avatar_url || images.avtImage}
-              alt="User Avatar"
-              className="w-9 h-9 rounded-full"
-            />
-
+              <img
+                src={user?.avatar_url || images.avtImage}
+                alt="User Avatar"
+                className="w-9 h-9 rounded-full"
+              />
             </button>
 
             {/* Dropdown menu */}
@@ -92,12 +97,11 @@ export default function Header() {
                   className="absolute top-full right-0 mt-3 w-60 bg-[#2C323B] border border-gray-700 rounded-lg shadow-lg"
                 >
                   <div className="flex items-center gap-3 p-3 border-b border-gray-700">
-                  <img
-                    src={user?.avatar_url || images.avtImage}
-                    alt="User Avatar"
-                    className="w-9 h-9 rounded-full"
-                  />
-                                      
+                    <img
+                      src={user?.avatar_url || images.avtImage}
+                      alt="User Avatar"
+                      className="w-9 h-9 rounded-full"
+                    />
                     <div>
                       <p className="font-semibold text-white">{user.full_name || "Real name"}</p>
                       <p className="text-sm text-gray-400">{user.username || "User name"}</p>
