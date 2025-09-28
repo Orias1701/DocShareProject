@@ -11,23 +11,35 @@ export default function BookmarksPage() {
   // Map dữ liệu từ API về shape PostCard
   const mapToCard = (p = {}) => ({
     id: p.post_id,
-    post_id: p.post_id,                 // ✅ đảm bảo có post_id
+    post_id: p.post_id, // ✅ đảm bảo có post_id
     title: p.title || "Untitled",
-    authorName: p.author_name || "Ẩn danh",
+  
+    // 🔑 Ưu tiên dữ liệu từ join users
+    authorName: p.full_name || p.username || p.author_name || "Ẩn danh",
     authorAvatar:
       p.avatar_url || p.author_avatar || "https://via.placeholder.com/80?text=User",
+  
     uploadTime: p.created_at,
+  
     banner: p.banner_url || null,
     file: p.file_url ? { url: p.file_url, type: p.file_type || "" } : null,
-    hashtags: p.hashtags,
+  
+    // có thể là array hoặc string
+    hashtags: p.hashtags || [],
+  
     stats: {
       likes: p.reaction_count || 0,
       comments: p.comment_count || 0,
       views: p.view_count || 0,
     },
-    album_name: p.album_name,
-    is_bookmarked: true,                // ✅ QUAN TRỌNG: vì đây là trang bookmarks
+  
+    // 🔑 từ join albums
+    album_name: p.album_name || "",
+  
+    // ✅ Vì đây là trang Bookmarks
+    is_bookmarked: true,
   });
+  
 
   useEffect(() => {
     (async () => {

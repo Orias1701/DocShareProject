@@ -311,9 +311,10 @@ if (isset($_GET['action'])) {
         case 'list_posts_by_category':
             $postController->getPostsByCategory();
             exit;
-        case 'list_posts_by_hashtag':
-            $postController->getPostsByHashtag();
-            exit;
+        case 'posts_by_hashtag':
+            $postHashtagController->getPostsByHashtagId($_GET['hashtag_id'] ?? null);
+        exit;
+            
         case 'list_posts_by_user':
             $userId = $_GET['user_id'] ?? null;
             $postController->getPostsByUserId($userId);

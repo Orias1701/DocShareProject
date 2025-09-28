@@ -31,18 +31,27 @@ class Bookmark
     }
 
     // Lấy danh sách post đã bookmark của user
+   // models/Bookmark.php
     public function getBookmarksByUser($userId)
     {
         $stmt = $this->pdo->prepare("
-            SELECT p.*, 1 AS is_bookmarked
+            SELECT p.*, 
+                ui.full_name, u.username,
+                ui.avatar_url,
+                a.album_name,
+                1 AS is_bookmarked
             FROM posts p
             JOIN bookmarks b ON p.post_id = b.post_id
+            LEFT JOIN albums a ON p.album_id = a.album_id
+            LEFT JOIN users u ON a.user_id = u.user_id
+            LEFT JOIN user_infos ui ON u.user_id = ui.user_id
             WHERE b.user_id = ?
             ORDER BY b.created_at DESC
         ");
         $stmt->execute([$userId]);
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
+
 
     // Lấy toàn bộ posts kèm cờ is_bookmarked
     public function getPostsWithBookmarkFlag($userId)

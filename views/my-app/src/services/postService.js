@@ -3,11 +3,11 @@ import fetchJson from "./fetchJson";
 
 const ACTIONS = {
   // Posts
-  getLatest: "get_latest_posts",
-  getPopular: "get_popular_posts",
-  postDetail: "post_detail",
-  postsByCategory: "get_posts_by_category",
-  showPostDetail: "show_post_detail",
+  getLatest: "latest_posts",            // đổi từ get_latest_posts
+  getPopular: "popular_posts",          // đổi từ get_popular_posts
+  postDetail: "post_detail_api",        // đổi từ post_detail
+  postsByCategory: "list_posts_by_category", // đổi từ get_posts_by_category
+  showPostDetail: "show_post_detail",   // giữ nguyên nếu router có case này
   listAll: "list_all_posts",
   create: "create_post",
   update: "update_post",
@@ -145,7 +145,7 @@ export const postService = {
   },
   getByHashtagId(hashtag_id) {
     return fetchJson(`${ACTIONS.postsByHashtag}&hashtag_id=${encodeURIComponent(hashtag_id)}`);
-  },
+  },  
   addHashtagToPost({ post_id, hashtag_id }) {
     const body = toFormData({ post_id, hashtag_id });
     return fetchJson(ACTIONS.createPostHashtag, { method: "POST", body });

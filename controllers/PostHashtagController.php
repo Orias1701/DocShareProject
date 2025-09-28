@@ -14,101 +14,107 @@ class PostHashtagController
         $this->hashtagModel = new Hashtag();
     }
 
-    // Hiển thị danh sách hashtag của một bài post
+    // Trả JSON thay vì include view
     public function listByPost($postId)
     {
-        $hashtags = $this->postHashtagModel->getPostsByHashtag($postId);
-        if ($postId) {
-            include __DIR__ . '/../views/post_hashtag/list.php';
-        } else {
-            echo "Lỗi: Không tìm thấy bài viết.";
-        }
-    }
-    public function getPostsByHashtagId($hashtagId)
-    {
-        $posts = $this->postHashtagModel->getPostsByHashtagId($hashtagId);
-
-        // Gửi dữ liệu sang view
-        include __DIR__ . '/../views/post_hashtag/posts_by_hashtag.php';
-    }
-
-    // Hiển thị form để thêm hashtag cho một bài post
-    public function showCreateForm($postId)
-    {
         if (empty($postId)) {
-            $message = "Lỗi: Post ID không được cung cấp!";
-            include __DIR__ . '/../views/post_hashtag/create.php';
+            echo json_encode([
+                'status' => 'error',
+                'message' => 'Không tìm thấy bài viết'
+            ], JSON_UNESCAPED_UNICODE);
             return;
         }
-        $message = '';
-        include __DIR__ . '/../views/post_hashtag/create.php';
+        $hashtags = $this->postHashtagModel->getPostsByHashtag($postId);
+        echo json_encode([
+            'status' => 'success',
+            'data' => $hashtags
+        ], JSON_UNESCAPED_UNICODE);
+    }
+
+    public function getPostsByHashtagId($hashtagId)
+    {
+        if (empty($hashtagId)) {
+            echo json_encode([
+                'status' => 'error',
+                'message' => 'hashtag_id là bắt buộc'
+            ], JSON_UNESCAPED_UNICODE);
+            return;
+        }
+        $posts = $this->postHashtagModel->getPostsByHashtagId($hashtagId);
+        echo json_encode([
+            'status' => 'success',
+            'data' => $posts
+        ], JSON_UNESCAPED_UNICODE);
+    }
+
+    public function showCreateForm($postId)
+    {
+        echo json_encode([
+            'status' => empty($postId) ? 'error' : 'success',
+            'message' => empty($postId) ? 'Post ID không được cung cấp' : 'OK'
+        ], JSON_UNESCAPED_UNICODE);
     }
 
     public function create()
     {
-        $message = '';
-
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            $message = "Lỗi: Phương thức HTTP không được hỗ trợ!";
-            include __DIR__ . '/../views/post_hashtag/create.php';
+            echo json_encode([
+                'status' => 'error',
+                'message' => 'Phương thức HTTP không được hỗ trợ'
+            ], JSON_UNESCAPED_UNICODE);
             return;
         }
 
         $postId = filter_var($_POST['post_id'] ?? null, FILTER_SANITIZE_STRING);
         $hashtagInput = filter_var($_POST['hashtag_name'] ?? null, FILTER_SANITIZE_STRING);
 
-        if (empty($postId)) {
-            $message = "Lỗi: Post ID không được cung cấp!";
-            include __DIR__ . '/../views/post_hashtag/create.php';
+        if (empty($postId) || empty($hashtagInput)) {
+            echo json_encode([
+                'status' => 'error',
+                'message' => 'Thiếu post_id hoặc hashtag_name'
+            ], JSON_UNESCAPED_UNICODE);
             return;
         }
 
-        if (empty($hashtagInput)) {
-            $message = "Lỗi: Vui lòng nhập ít nhất một hashtag.";
-            include __DIR__ . '/../views/post_hashtag/create.php';
-            return;
-        }
-
-        // Tách chuỗi hashtag thành mảng bằng dấu phẩy
         $hashtags = array_filter(array_map('trim', explode(',', $hashtagInput)));
 
-        if (empty($hashtags)) {
-            $message = "Lỗi: Vui lòng nhập ít nhất một hashtag hợp lệ.";
-            include __DIR__ . '/../views/post_hashtag/create.php';
-            return;
-        }
-
-        // Kiểm tra định dạng từng hashtag
         foreach ($hashtags as $hashtag) {
             if (!preg_match('/^#[a-zA-Z0-9_]+$/', $hashtag)) {
-                $message = "Lỗi: Hashtag '$hashtag' không hợp lệ! Mỗi hashtag phải bắt đầu bằng # và chỉ chứa chữ cái, số, hoặc dấu gạch dưới.";
-                include __DIR__ . '/../views/post_hashtag/create.php';
+                echo json_encode([
+                    'status' => 'error',
+                    'message' => "Hashtag '$hashtag' không hợp lệ"
+                ], JSON_UNESCAPED_UNICODE);
                 return;
             }
         }
 
         try {
-            // Thêm từng hashtag
             foreach ($hashtags as $hashtag) {
                 $this->postHashtagModel->createHashtagToPost($postId, $hashtag);
             }
-            header("Location: index.php?action=list_post_hashtags&post_id=" . urlencode($postId));
-            exit;
+            echo json_encode([
+                'status' => 'success',
+                'message' => 'Đã thêm hashtag',
+                'post_id' => $postId,
+                'hashtags' => $hashtags
+            ], JSON_UNESCAPED_UNICODE);
         } catch (Exception $e) {
-            $message = "Lỗi: " . $e->getMessage();
-            include __DIR__ . '/../views/post_hashtag/create.php';
+            echo json_encode([
+                'status' => 'error',
+                'message' => $e->getMessage()
+            ], JSON_UNESCAPED_UNICODE);
         }
     }
-    // Xử lý yêu cầu
 
-    // Hiển thị form để sửa hashtag của một bài post
     public function showEditForm($postId, $oldHashtagId)
     {
         $allHashtags = $this->hashtagModel->getAllHashtags();
-        include __DIR__ . '/../views/post_hashtag/edit.php';
+        echo json_encode([
+            'status' => 'success',
+            'data' => $allHashtags
+        ], JSON_UNESCAPED_UNICODE);
     }
 
-    // Xử lý logic cập nhật hashtag
     public function update()
     {
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -118,15 +124,20 @@ class PostHashtagController
 
             if ($postId && $oldHashtagId && $newHashtagId) {
                 $this->postHashtagModel->updateHashtagForPost($postId, $oldHashtagId, $newHashtagId);
-                header("Location: index.php?action=list_post_hashtags&post_id=$postId");
-                exit;
+                echo json_encode([
+                    'status' => 'success',
+                    'message' => 'Cập nhật hashtag thành công',
+                    'post_id' => $postId
+                ], JSON_UNESCAPED_UNICODE);
             } else {
-                echo "Lỗi: Dữ liệu không hợp lệ.";
+                echo json_encode([
+                    'status' => 'error',
+                    'message' => 'Dữ liệu không hợp lệ'
+                ], JSON_UNESCAPED_UNICODE);
             }
         }
     }
 
-    // Xử lý logic xóa hashtag
     public function delete()
     {
         $postId = $_GET['post_id'] ?? null;
@@ -134,10 +145,17 @@ class PostHashtagController
 
         if ($postId && $hashtagId) {
             $this->postHashtagModel->deleteHashtagFromPost($postId, $hashtagId);
-            header("Location: index.php?action=list_post_hashtags&post_id=$postId");
-            exit;
+            echo json_encode([
+                'status' => 'success',
+                'message' => 'Xoá hashtag thành công',
+                'post_id' => $postId,
+                'hashtag_id' => $hashtagId
+            ], JSON_UNESCAPED_UNICODE);
         } else {
-            echo "Lỗi: Dữ liệu không hợp lệ.";
+            echo json_encode([
+                'status' => 'error',
+                'message' => 'Dữ liệu không hợp lệ'
+            ], JSON_UNESCAPED_UNICODE);
         }
     }
 }

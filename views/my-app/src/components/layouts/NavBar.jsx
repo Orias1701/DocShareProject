@@ -43,7 +43,7 @@ function NavBar({ isCollapsed, setIsCollapsed, onNewAlbumClick }) {
       items: [
         { icon: "fa-solid fa-ranking-star", text: "Leaderboard", path: "/leaderboard" },
         { icon: "fa-solid fa-list", text: "Categories", path: "/categories" },
-        { icon: "fa-solid fa-hashtag", text: "Hashtags", path: "/hashtags" },
+        // { icon: "fa-solid fa-hashtag", text: "Hashtags", path: "/hashtags" },
         { icon: "fa-regular fa-bookmark", text: "Bookmarks", path: "/bookmarks" },
       ],
     },
