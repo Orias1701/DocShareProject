@@ -1,28 +1,30 @@
 // src/components/profile/ProfileHeader.jsx
-import React from 'react';
-
-const ProfileHeader = ({ avatar, realName, userName, followerCount, onEdit }) => {
+export default function ProfileHeader({
+  avatar,
+  realName,
+  userName,
+  followerCount,
+  birthday,
+  onEdit,
+  actionButton,   // 👈 thêm prop
+}) {
   return (
-    <div className="flex justify-between gap-6">
-      <div className="flex items-center gap-6">
-        <img src={avatar} alt={realName} className="w-36 h-36 rounded-lg border-4 border-[#2d2d33]" />
-        <div className="flex-grow">
-          <h1 className="text-4xl font-bold">{realName}</h1>
-          <p className="text-lg text-gray-400">{userName}</p>
-          <p className="text-md text-gray-500 mt-1">{followerCount}</p>
-        </div>
-      </div>
+    <div className="flex items-center gap-6">
+      <img src={avatar} alt={realName} className="w-20 h-20 rounded-full" />
       <div>
-        <button
-          onClick={onEdit}
-          className="bg-[#2C323B] hover:bg-[#3e4550] text-white font-semibold py-2 px-5 rounded-lg transition-colors"
-        >
-          <i className="fa-solid fa-pencil mr-2"></i>
-          Edit profile
-        </button>
+        <h2 className="text-xl font-bold">{realName}</h2>
+        <p className="text-gray-400">@{userName}</p>
+        <p className="text-gray-400">Followers: {followerCount}</p>
+        <p className="text-gray-400">Birthday: {birthday}</p>
+      </div>
+      <div className="ml-auto flex gap-3">
+        {actionButton}
+        {onEdit && (
+          <button className="px-4 py-1 bg-gray-700 rounded hover:bg-gray-600">
+            Edit
+          </button>
+        )}
       </div>
     </div>
   );
-};
-
-export default ProfileHeader;
+}

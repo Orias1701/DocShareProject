@@ -285,7 +285,11 @@ if (isset($_GET['action'])) {
         case 'post_detail_api':
             $postController->postDetail($_GET['post_id'] ?? null);
             exit;
-
+        case 'get_posts_by_album':
+            $postController->getPostsByAlbum();
+            exit;
+            
+            
         /*************** POST DETAIL (VIEW) ***************/
         case 'post_detail':
             $postController->showPostDetail();

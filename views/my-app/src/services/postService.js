@@ -14,6 +14,7 @@ const ACTIONS = {
   delete: "delete_post",
   listPostByUser: "list_posts_by_user",
   listUserPosts : "list_posts_by_user",
+  postsByAlbum: "get_posts_by_album",   
   // Post ↔ Hashtag
   listPostHashtags: "list_post_hashtags",
   postsByHashtag: "posts_by_hashtag",
@@ -191,6 +192,10 @@ export const postService = {
     ); // GET
     return Array.isArray(res?.data) ? res.data : [];
   },
+  getByAlbum(album_id) {
+    return fetchJson(`${ACTIONS.postsByAlbum}&album_id=${encodeURIComponent(album_id)}`);
+  },
+
 };
 
 export default postService;

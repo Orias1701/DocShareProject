@@ -16,6 +16,7 @@ const ACTIONS = {
   listMine: "list_user_albums",
   listAll: "list_albums",
   listByUser: "list_albums_by_user",
+  detail: "get_album_detail",   
 };
 
 // Helper: bóc mảng từ nhiều kiểu payload khác nhau
@@ -56,6 +57,13 @@ export const albumService = {
     const res = await fetchJson(`${ACTIONS.listByUser}&user_id=${encodeURIComponent(user_id)}`);
     return pickArray(res);
   },
+  async getAlbumDetail(album_id) {
+    const res = await fetchJson(`${ACTIONS.detail}&album_id=${encodeURIComponent(album_id)}`);
+    // trả về object album
+    return res?.data || res || null;
+  },
+
+  
 };
 
 export default albumService;

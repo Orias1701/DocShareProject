@@ -1,3 +1,4 @@
+// src/pages/profile/ProfilePageOther.jsx
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import ProfileHeader from "../../components/profile/ProfileHeader";
@@ -5,11 +6,11 @@ import BioCard from "../../components/profile/BioCard";
 import PostFeed from "../../components/profile/PostFeed";
 import { userInfoApi } from "../../services/user_infoServices";
 import postService from "../../services/postService";
+import { user_followServices } from "../../services/user_followServices";
 
-/** Map JSON BE -> cấu trúc PostCardProfile */
+// Map BE → FE
 function normalizePostForProfile(p) {
   const isPdf = String(p?.file_type || "").toLowerCase().includes("pdf");
-
   const banner =
     p?.banner_url && p.banner_url.trim() !== ""
       ? p.banner_url
@@ -44,17 +45,21 @@ function normalizePostForProfile(p) {
 }
 
 function ProfilePageOther() {
-  const { userId } = useParams(); // 👈 lấy userId từ URL (/profile/:userId)
+  const { userId } = useParams();
 
   const [userData, setUserData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  const [userPosts, setUserPosts] = useState([]);
   const [postsLoading, setPostsLoading] = useState(false);
   const [postsError, setPostsError] = useState(null);
-  const [userPosts, setUserPosts] = useState([]);
 
-  // Lấy thông tin user khác
+  // follow state
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [followLoading, setFollowLoading] = useState(false);
+
+  // Lấy thông tin user
   useEffect(() => {
     if (!userId) return;
     (async () => {
@@ -71,13 +76,13 @@ function ProfilePageOther() {
     })();
   }, [userId]);
 
-  // Lấy bài viết của user khác
+  // Lấy danh sách bài viết của user
   useEffect(() => {
     if (!userId) return;
     (async () => {
       try {
         setPostsLoading(true);
-        const raw = await postService.listUserPosts(userId); // ⚡ cần API list bài viết của user khác
+        const raw = await postService.listUserPosts(userId);
         const mapped = (Array.isArray(raw) ? raw : []).map(normalizePostForProfile);
         setUserPosts(mapped);
       } catch (e) {
@@ -87,6 +92,42 @@ function ProfilePageOther() {
       }
     })();
   }, [userId]);
+
+  // Check follow (lấy từ API followers)
+  useEffect(() => {
+    if (!userId) return;
+    (async () => {
+      try {
+        const res = await user_followServices.userFollowing(); // danh sách mình đang follow
+        const followingIds = res?.data?.map((f) => String(f?.user_id));
+        setIsFollowing(followingIds?.includes(String(userId)));
+      } catch (e) {
+        console.error("Check follow failed:", e);
+      }
+    })();
+  }, [userId]);
+
+  const toggleFollow = async () => {
+    console.log("🔘 Toggle clicked for user:", userId);
+    try {
+      setFollowLoading(true);
+      const res = await user_followServices.toggle(userId);
+      console.log("🔁 Toggle API result:", res);
+  
+      if (res.status === "success") {
+        setIsFollowing((prev) => !prev);
+      } else {
+        console.error("Toggle follow error status:", res);
+        alert("Không thực hiện được theo dõi. Vui lòng thử lại.");
+      }
+    } catch (e) {
+      console.error("Toggle follow failed:", e);
+      alert(e?.message || "Không gọi được API follow (kiểm tra Network/CORS/đăng nhập).");
+    } finally {
+      setFollowLoading(false);
+    }
+  };
+  
 
   if (loading) return <div className="text-white p-4">Đang tải hồ sơ...</div>;
   if (error) {
@@ -113,7 +154,19 @@ function ProfilePageOther() {
         userName={userName}
         followerCount={userData?.followers_count ?? 0}
         birthday={birthday}
-        onEdit={null} // ❌ không cho sửa vì là user khác
+        actionButton={
+          <button
+            onClick={toggleFollow}
+            disabled={followLoading}
+            className={`px-4 py-1 rounded font-semibold ${
+              isFollowing
+                ? "bg-gray-700 text-white hover:bg-gray-600"
+                : "bg-blue-500 text-white hover:bg-blue-600"
+            }`}
+          >
+            {isFollowing ? "Unfollow" : "Follow"}
+          </button>
+        }
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-6">

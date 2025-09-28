@@ -25,7 +25,7 @@ class UserFollow
             $stmt = $this->pdo->prepare("INSERT INTO user_follows (follower_id, following_id) VALUES (?, ?)");
             $stmt->execute([$followerId, $followingId]);
 
-            $update = $this->pdo->prepare("UPDATE users SET followers_count = followers_count + 1 WHERE id = ?");
+            $update = $this->pdo->prepare("UPDATE users SET followers_count = followers_count + 1 WHERE user_id = ?");
             $update->execute([$followingId]);
 
             $this->pdo->commit();
@@ -42,7 +42,7 @@ class UserFollow
             $stmt = $this->pdo->prepare("DELETE FROM user_follows WHERE follower_id=? AND following_id=?");
             $stmt->execute([$followerId, $followingId]);
 
-            $update = $this->pdo->prepare("UPDATE users SET followers_count = GREATEST(followers_count - 1, 0) WHERE id = ?");
+            $update = $this->pdo->prepare("UPDATE users SET followers_count = GREATEST(followers_count - 1, 0) WHERE user_id = ?");
             $update->execute([$followingId]);
 
             $this->pdo->commit();

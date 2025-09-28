@@ -414,4 +414,23 @@ class PostController
             return $this->respondError($e->getMessage(), 500);
         }
     }
+    public function getPostsByAlbum()
+    {
+        try {
+            $albumId = $_GET['album_id'] ?? null;
+            if (!$albumId) {
+                return $this->respondError('album_id required', 422);
+            }
+
+            $rows = $this->postModel->getPostsByAlbumId($albumId);
+
+            return $this->respondJson([
+                'status' => 'ok',
+                'data'   => $rows
+        ]);
+    } catch (Exception $e) {
+        return $this->respondError($e->getMessage(), 500);
+    }
+}
+
 }

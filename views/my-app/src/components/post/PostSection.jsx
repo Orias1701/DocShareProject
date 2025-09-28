@@ -70,4 +70,5 @@ PostSection.propTypes = {
   gridClassName: PropTypes.string,
   onBookmarkChange: PropTypes.func, // ✅ khai báo prop types
   hideReactions: PropTypes.bool, 
+  CardComponent: PropTypes.elementType, // 👈 thêm dòng này
 };

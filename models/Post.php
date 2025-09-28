@@ -23,11 +23,11 @@ class Post
         try {
             $sql = "
                 SELECT
-                    p.post_id, p.title, p.file_url, p.file_type,
+                    p.post_id, p.title, p.file_url, p.file_type, p.banner_url,
                     LEFT(p.content, 400) AS excerpt,
                     p.created_at,
                     a.album_id, a.album_name,
-                    ui.user_id AS author_id, ui.full_name AS author_name,
+                    ui.user_id , ui.full_name ,ui.avatar_url,
                     COALESCE((SELECT COUNT(*) FROM user_follows uf WHERE uf.following_id = ui.user_id), 0) AS author_followers,
                     COALESCE((SELECT COUNT(*) FROM post_comments pc WHERE pc.post_id = p.post_id), 0) AS comment_count,
                     COALESCE((SELECT COUNT(*) FROM post_reactions pr WHERE pr.post_id = p.post_id), 0) AS reaction_count,
@@ -53,11 +53,11 @@ class Post
         try {
             $sql = "
                 SELECT
-                    p.post_id, p.title, p.file_url, p.file_type,
+                    p.post_id, p.title, p.file_url, p.file_type,p.banner_url,
                     LEFT(p.content, 400) AS excerpt,
                     p.created_at,
                     a.album_id, a.album_name,
-                    ui.user_id AS author_id, ui.full_name AS author_name,
+                    ui.user_id , ui.full_name ,ui.avatar_url,
                     c.category_id, c.category_name,
                     GROUP_CONCAT(DISTINCT h.hashtag_name SEPARATOR ', ') AS hashtags,
                     COALESCE((SELECT COUNT(*) FROM post_comments pc WHERE pc.post_id = p.post_id), 0) AS comment_count,
@@ -88,7 +88,7 @@ class Post
         try {
             // main
             $sql = "
-                SELECT p.*, a.album_id, a.album_name, a.user_id AS album_owner_id, ui.full_name AS author_name,
+                SELECT p.*, a.album_id, a.album_name, a.user_id , ui.full_name ,ui.avatar_url,
                        c.category_id, c.category_name
                 FROM posts p
                 LEFT JOIN albums a ON p.album_id = a.album_id
@@ -270,7 +270,7 @@ class Post
     {
         try {
             $sql = "
-            SELECT p.*, a.user_id AS author_id, ui.full_name AS author_name, a.album_name, c.category_name
+            SELECT p.*, a.user_id AS author_id, ui.full_name AS author_name, a.album_name, c.category_name,ui.avatar_url,ui.user_id
             FROM posts p
             LEFT JOIN albums a ON p.album_id = a.album_id
             LEFT JOIN user_infos ui ON a.user_id = ui.user_id
@@ -350,10 +350,14 @@ class Post
                     p.*, 
                     a.album_name, 
                     c.category_name, 
-                    u.username
+                    u.username,
+                    ui.user_id ,
+                    ui.full_name ,
+                    ui.avatar_url ,
                 FROM posts AS p
                 LEFT JOIN albums AS a ON p.album_id = a.album_id
                 LEFT JOIN categories AS c ON p.category_id = c.category_id
+                LEFT JOIN users_infos AS ui ON a.user_id = ui.user_id
                 LEFT JOIN users AS u ON a.user_id = u.user_id 
                 ORDER BY p.created_at DESC
             ";
@@ -529,6 +533,55 @@ class Post
             return [];
         }
     }
+    public function getPostsByAlbumId($albumId)
+{
+    try {
+        $sql = "
+            SELECT 
+                p.post_id,
+                p.title,
+                p.file_url,
+                p.file_type,
+                p.banner_url,
+                LEFT(p.content, 400) AS excerpt,
+                p.created_at,
+                a.album_id,
+                a.album_name,
+                ui.user_id,
+                ui.full_name,
+                ui.avatar_url,
+                GROUP_CONCAT(DISTINCT h.hashtag_name ORDER BY h.hashtag_name SEPARATOR ',') AS hashtags_concat
+            FROM posts p
+            LEFT JOIN albums a         ON p.album_id = a.album_id
+            LEFT JOIN user_infos ui    ON a.user_id  = ui.user_id
+            LEFT JOIN post_hashtags ph ON p.post_id  = ph.post_id
+            LEFT JOIN hashtags h       ON ph.hashtag_id = h.hashtag_id
+            WHERE p.album_id = ?
+            GROUP BY p.post_id
+            ORDER BY p.created_at DESC
+        ";
+
+        $stmt = $this->pdo->prepare($sql);
+        $stmt->execute([$albumId]);
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        // Chuẩn hoá hashtags về mảng (giống getPostsFromFollowedUsers)
+        foreach ($rows as &$row) {
+            if (!empty($row['hashtags_concat'])) {
+                $arr = array_map('trim', explode(',', $row['hashtags_concat']));
+                $row['hashtags'] = array_values(array_filter($arr, fn($x) => $x !== ''));
+            } else {
+                $row['hashtags'] = [];
+            }
+            unset($row['hashtags_concat']);
+        }
+
+        return $rows;
+    } catch (Exception $e) {
+        error_log("Error in getPostsByAlbumId: " . $e->getMessage());
+        return [];
+    }
+}
 
     
     // public function getHashtagsByUserId($userId)

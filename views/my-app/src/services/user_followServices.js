@@ -1,56 +1,56 @@
 // src/services/user_followServices.js
 import fetchJson from "./fetchJson";
 
-// Action names phải khớp router/index.php của bạn
 const ACTIONS = {
   toggle: "toggle_follow",
-  top: "api_top_followed",         // ✅ API bạn cung cấp
+  top: "api_top_followed",
   following: "api_user_following",
   followers: "api_user_followers",
 };
 
-// Gửi POST dạng FormData vì BE đọc từ $_POST (không parse JSON body)
-function postForm(action, payload = {}) {
+// Helper POST FormData (đừng set Content-Type tự tay)
+async function postForm(action, payload = {}) {
   const fd = new FormData();
   Object.entries(payload).forEach(([k, v]) => {
     if (v !== undefined && v !== null) fd.append(k, v);
   });
-  return fetchJson(action, { method: "POST", body: fd });
+
+  // Nếu fetchJson CHƯA set credentials, ta thêm ở đây:
+  return fetchJson(action, {
+    method: "POST",
+    body: fd,
+    credentials: "include", // 👈 đảm bảo mang cookie/session
+  });
 }
 
-// Luôn trả {status, data}
 async function normalizeApiResponse(promise) {
   const res = await promise;
+  // Log để nhìn rõ BE trả gì
+  console.log("[followServices] raw response:", res);
 
-  // BE của bạn trả {"status":"ok","data":[...]}
   if (res && typeof res === "object" && "status" in res && "data" in res) {
-    // Chuẩn hoá status về 'success' cho FE dễ dùng
-    const status =
-      String(res.status).toLowerCase() === "ok" ? "success" : String(res.status);
+    const status = String(res.status).toLowerCase() === "ok" ? "success" : String(res.status);
     return { status, data: Array.isArray(res.data) ? res.data : [] };
   }
-
-  // Nếu trả mảng thẳng
   if (Array.isArray(res)) return { status: "success", data: res };
-
-  // Fallback
   return { status: "success", data: [] };
 }
 
 export const user_followServices = {
-  toggle(following_id) {
-    return normalizeApiResponse(postForm(ACTIONS.toggle, { following_id }));
-  },
-  top(limit = 10) {
+  // ⚠️ GỬI CẢ HAI: following_id VÀ user_id để “an toàn”
+  toggle(targetUserId) {
     return normalizeApiResponse(
-      fetchJson(`${ACTIONS.top}&limit=${encodeURIComponent(limit)}`)
+      postForm(ACTIONS.toggle, { following_id: targetUserId, user_id: targetUserId })
     );
   },
+  top(limit = 10) {
+    return normalizeApiResponse(fetchJson(`${ACTIONS.top}&limit=${encodeURIComponent(limit)}`, { credentials: "include" }));
+  },
   userFollowing() {
-    return normalizeApiResponse(fetchJson(ACTIONS.following));
+    return normalizeApiResponse(fetchJson(ACTIONS.following, { credentials: "include" }));
   },
   userFollowers() {
-    return normalizeApiResponse(fetchJson(ACTIONS.followers));
+    return normalizeApiResponse(fetchJson(ACTIONS.followers, { credentials: "include" }));
   },
 };
 
