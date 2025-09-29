@@ -32,6 +32,7 @@ import ProfilePageOther from "../pages/profile/ProfilePageOther";
 import AlbumDetailPage from "../pages/myalbum/AlbumDetailPage";
 import CategoryDetailPage from "../pages/categories/CategoryDetailPage";
 import HashtagDetailPage from "../pages/hashtags/HashtagDetailPage";
+import SearchPage from "../pages/search/SearchPage";
 // Global css
 import "../assets/font-awesome-6.6.0-pro-full-main/css/all.css";
 
@@ -73,6 +74,7 @@ function ProtectedLayout({ isCollapsed, setIsCollapsed, isNewAlbumModalOpen, set
             <Route path="/albums/:albumId" element={<AlbumDetailPage />} />
             <Route path="/categories/:categoryId" element={<CategoryDetailPage />} />
             <Route path="/hashtag/:slug" element={<HashtagDetailPage />} />
+            <Route path="/search" element={<SearchPage />} />
           </Routes>
         </main>
       </div>

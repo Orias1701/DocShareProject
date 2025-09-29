@@ -6,7 +6,7 @@ export default function ProfileHeader({
   followerCount,
   birthday,
   onEdit,
-  actionButton,   // 👈 thêm prop
+  actionButton,
 }) {
   return (
     <div className="flex items-center gap-6">
@@ -17,10 +17,14 @@ export default function ProfileHeader({
         <p className="text-gray-400">Followers: {followerCount}</p>
         <p className="text-gray-400">Birthday: {birthday}</p>
       </div>
+
       <div className="ml-auto flex gap-3">
         {actionButton}
         {onEdit && (
-          <button className="px-4 py-1 bg-gray-700 rounded hover:bg-gray-600">
+          <button
+            onClick={onEdit}   // 👈 GỌI hàm onEdit
+            className="px-4 py-1 bg-gray-700 rounded hover:bg-gray-600"
+          >
             Edit
           </button>
         )}

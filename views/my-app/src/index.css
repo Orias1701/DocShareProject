@@ -448,6 +448,20 @@ nav .nav-header {
   color: #155724;
   border: 1px solid #c3e6cb;
 }
+/* Wrapper của thanh search mở rộng */
+.search-panel {
+  position: absolute;
+  top: var(--header-height);
+  left: var(--sidebar-width);
+  right: 0;
+  max-width: 1200px;
+  margin: 0 auto;
+  background-color: var(--color-bg);
+  border-bottom: 1px solid var(--color-header-border);
+  z-index: 999;
+  padding: 1rem;
+}
+
 .content-html {
   background: #0F172A;
   color: #fff;

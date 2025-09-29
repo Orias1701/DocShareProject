@@ -1,17 +1,17 @@
 // src/pages/search/SearchPage.jsx
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import PostSection from "../../components/post/PostSection";
 import AlbumSection from "../../components/album/AlbumSection";
 import CategoryInfoCard from "../../components/category/CategoryInfoCard";
 import HashtagLink from "../../components/hashtag/HashtagLink";
 
-/** DỮ LIỆU MẪU — thay bằng API thật sau */
+/** MOCK dữ liệu demo */
 const MOCK = {
   posts: [
     { id: 1, title: "React Hooks", excerpt: "useState, useEffect", hashtags: ["react", "hooks"] },
     { id: 2, title: "Next.js Routing", excerpt: "App Router", hashtags: ["nextjs"] },
-    { id: 3, title: "Tailwind Layouts", excerpt: "Grid / Flex patterns", hashtags: ["tailwind", "css"] },
+    { id: 3, title: "Tailwind Layouts", excerpt: "Grid/Flex patterns", hashtags: ["tailwind", "css"] },
   ],
   albums: [
     { id: "a1", name: "Frontend 2025", thumbnail: "https://picsum.photos/seed/a1/800/450" },
@@ -31,20 +31,14 @@ const MOCK = {
 
 const TABS = ["post", "album", "category", "hashtag"];
 
-/** đọc query string */
-function useQueryParams() {
-  const { search } = useLocation();
-  return useMemo(() => new URLSearchParams(search), [search]);
-}
-
-/** map MOCK post -> shape PostCard */
+/** map post mock -> PostCard shape */
 const mapMockPostToCard = (p = {}) => ({
   id: p.id,
   post_id: p.id,
   title: p.title || "Untitled",
   authorName: "Demo User",
-  authorAvatar: "/images/default-avatar.png",
-  author: { id: "u1", name: "Demo User", avatar: "https://i.pinimg.com/736x/18/bd/a5/18bda5a4616cd195fe49a9a32dbab836.jpg" },
+  authorAvatar: "https://i.pinimg.com/736x/18/bd/a5/18bda5a4616cd195fe49a9a32dbab836.jpg",
+  author: { id: "u1", name: "Demo User", avatar: "/https://i.pinimg.com/736x/18/bd/a5/18bda5a4616cd195fe49a9a32dbab836.jpg" },
   uploadTime: "2025-09-01 12:00:00",
   banner: null,
   file: null,
@@ -54,7 +48,7 @@ const mapMockPostToCard = (p = {}) => ({
   is_bookmarked: false,
 });
 
-/** map MOCK album -> shape AlbumCard/AlbumSection */
+/** map album mock -> AlbumCard shape */
 const mapMockAlbumToCard = (a = {}) => ({
   id: a.id,
   album_id: a.id,
@@ -68,34 +62,30 @@ const mapMockAlbumToCard = (a = {}) => ({
 
 export default function SearchPage() {
   const navigate = useNavigate();
-  const qp = useQueryParams();
+  const { search } = useLocation();
 
-  const initType = (qp.get("type") || "post").toLowerCase();
-  const initQ = qp.get("q") || "";
+  // 👉 Mỗi lần URL thay đổi, những giá trị này thay đổi theo
+  const params = useMemo(() => new URLSearchParams(search), [search]);
+  const q     = params.get("q")?.toLowerCase() || "";
+  const type  = (params.get("type") || "post").toLowerCase();
 
-  const [type, setType] = useState(TABS.includes(initType) ? initType : "post");
-  const [q] = useState(initQ); // chỉ đọc — thanh Search ở Header
+  // Đổi tab = ghi lại URL (không dùng state)
+  const setType = (nextType) => {
+    const p = new URLSearchParams(params);
+    p.set("type", nextType);
+    navigate(`/search?${p.toString()}`);
+  };
 
-  // Đồng bộ URL khi đổi tab
-  useEffect(() => {
-    const params = new URLSearchParams();
-    params.set("type", type);
-    if (q) params.set("q", q);
-    navigate(`/search?${params.toString()}`, { replace: true });
-  }, [type, q, navigate]);
-
-  // Lọc client-side (MOCK). Khi dùng API thật, thay khối này bằng dữ liệu từ server.
+  // Lọc client-side theo q (MOCK)
   const filtered = useMemo(() => {
-    const kw = q.trim().toLowerCase();
-    if (!kw) return { posts: [], albums: [], categories: [], hashtags: [] };
-
+    if (!q.trim()) return { posts: [], albums: [], categories: [], hashtags: [] };
     return {
       posts: MOCK.posts.filter(p =>
-        [p.title, p.excerpt, (p.hashtags || []).join(" ")].join(" ").toLowerCase().includes(kw)
+        [p.title, p.excerpt, (p.hashtags || []).join(" ")].join(" ").toLowerCase().includes(q)
       ),
-      albums: MOCK.albums.filter(a => (a.name || "").toLowerCase().includes(kw)),
-      categories: MOCK.categories.filter(c => (c.name || "").toLowerCase().includes(kw)),
-      hashtags: MOCK.hashtags.filter(h => (h.tag || "").toLowerCase().includes(kw)),
+      albums: MOCK.albums.filter(a => (a.name || "").toLowerCase().includes(q)),
+      categories: MOCK.categories.filter(c => (c.name || "").toLowerCase().includes(q)),
+      hashtags: MOCK.hashtags.filter(h => (h.tag || "").toLowerCase().includes(q)),
     };
   }, [q]);
 
@@ -141,7 +131,7 @@ export default function SearchPage() {
       </div>
 
       {/* Results */}
-      {q.trim() === "" ? (
+      {!q.trim() ? (
         <div className="text-gray-400 text-sm">
           Không có từ khoá. Hãy nhập từ khoá ở thanh Search trên Header.
         </div>
@@ -188,15 +178,11 @@ export default function SearchPage() {
               Hashtags ({counts.hashtag})
             </h2>
           </div>
-          {list.length === 0 ? (
-            <p className="text-gray-400">Không tìm thấy hashtag nào.</p>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              {list.map((h) => (
-                <HashtagLink key={h.id} tag={h.tag} />
-              ))}
-            </div>
-          )}
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {list.map((h) => (
+              <HashtagLink key={h.id} tag={h.tag} />
+            ))}
+          </div>
         </section>
       )}
     </div>

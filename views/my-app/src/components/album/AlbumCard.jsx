@@ -1,7 +1,7 @@
 import React from "react";
 import { Link } from "react-router-dom";
 
-const FALLBACK = "https://via.placeholder.com/640x360?text=Album";
+const FALLBACK = "https://i.pinimg.com/736x/18/bd/a5/18bda5a4616cd195fe49a9a32dbab836.jpg";
 
 export default function AlbumCard({ post: a = {} }) {
   const id = a.album_id || a.id;
@@ -15,7 +15,7 @@ export default function AlbumCard({ post: a = {} }) {
       <div className="mb-3">
         <div className="flex items-center gap-2">
           <img
-            src={a.authorAvatar || "https://i.pravatar.cc/40?img=2"}
+            src={a.authorAvatar || "https://i.pinimg.com/736x/18/bd/a5/18bda5a4616cd195fe49a9a32dbab836.jpg"}
             className="w-8 h-8 rounded-full"
             alt="owner"
           />

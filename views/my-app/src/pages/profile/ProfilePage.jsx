@@ -10,8 +10,6 @@ import postService from "../../services/postService";
 /** Map JSON BE -> cấu trúc PostCardProfile */
 function normalizePostForProfile(p) {
   const isPdf = String(p?.file_type || "").toLowerCase().includes("pdf");
-
-  // Nếu BE không trả banner_url thì dùng fallback
   const banner =
     p?.banner_url && p.banner_url.trim() !== ""
       ? p.banner_url
@@ -45,7 +43,6 @@ function normalizePostForProfile(p) {
   };
 }
 
-
 function ProfilePage() {
   const [userData, setUserData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -61,8 +58,10 @@ function ProfilePage() {
   useEffect(() => {
     (async () => {
       try {
-        const meRes = await authApi.me(); // {status,user}
-        const currentUser = meRes?.user;
+        const meRes = await authApi.me();
+        if (!meRes?.user) throw new Error("API /me không trả user");
+
+        const currentUser = meRes.user;
         const id = currentUser?.user_id;
         if (!id) throw new Error("Không tìm thấy user_id từ api_me");
         setMe(currentUser);
@@ -71,11 +70,13 @@ function ProfilePage() {
           const infoRes = await userInfoApi.showUserInfo(id);
           const fromInfo = infoRes?.user ?? null;
           setUserData(fromInfo || currentUser);
-        } catch {
+        } catch (err) {
+          console.error("Lỗi lấy user info:", err);
           setUserData(currentUser);
         }
       } catch (e) {
-        setError(e.message || "Lỗi không xác định");
+        console.error("Lỗi lấy me:", e);
+        setError(e.message || "Không lấy được thông tin người dùng");
       } finally {
         setLoading(false);
       }
@@ -89,10 +90,11 @@ function ProfilePage() {
       setPostsLoading(true);
       setPostsError(null);
       try {
-        const raw = await postService.listMyPosts(); // service đã unwrap -> []
+        const raw = await postService.listMyPosts();
         const mapped = (Array.isArray(raw) ? raw : []).map(normalizePostForProfile);
         setUserPosts(mapped);
       } catch (e) {
+        console.error("Lỗi lấy posts:", e);
         setPostsError(e.message || "Không tải được bài viết");
       } finally {
         setPostsLoading(false);
@@ -102,13 +104,25 @@ function ProfilePage() {
 
   // Cập nhật hồ sơ
   const handleUpdate = async ({ full_name, bio, birth_date, avatar }) => {
-    if (!me?.user_id) throw new Error("Thiếu user_id");
-    await userInfoApi.updateUserInfo({ user_id: me.user_id, full_name, bio, birth_date, avatar });
-    const fresh = await userInfoApi.showUserInfo(me.user_id);
-    const u = fresh?.user ?? fresh?.data?.user ?? fresh?.data ?? fresh;
-    setUserData(u);
-    setOpenEdit(false);
-    return true;
+    try {
+      if (!me?.user_id) throw new Error("Thiếu user_id");
+      await userInfoApi.updateUserInfo({
+        user_id: me.user_id,
+        full_name,
+        bio,
+        birth_date,
+        avatar,
+      });
+
+      const fresh = await userInfoApi.showUserInfo(me.user_id);
+      const u = fresh?.user ?? fresh?.data?.user ?? fresh?.data ?? fresh;
+      setUserData(u);
+      setOpenEdit(false);
+      return true;
+    } catch (err) {
+      console.error("Lỗi cập nhật profile:", err);
+      throw err; // để EditProfileModal nhận và hiển thị
+    }
   };
 
   if (loading) return <div className="text-white p-4">Đang tải hồ sơ...</div>;
@@ -151,6 +165,8 @@ function ProfilePage() {
             <div className="bg-yellow-900/30 border border-yellow-700 rounded p-3 text-sm">
               {postsError}
             </div>
+          ) : userPosts.length === 0 ? (
+            <div className="text-gray-400 italic">Bạn chưa có bài viết nào</div>
           ) : (
             <PostFeed posts={userPosts} />
           )}

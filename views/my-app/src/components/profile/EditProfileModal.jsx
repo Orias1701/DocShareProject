@@ -1,8 +1,8 @@
-// src/components/profile/EditProfileModal.jsx
-import React, { useMemo, useState } from "react";
-import Modal from "../common/Modal"; // đường dẫn tới Modal bạn đã dán
+import React, { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
+import Modal from "../common/Modal"; // Modal của bạn đã sửa có z-index cao
 
-// format 'YYYY-MM-DD' cho <input type="date">
+// format 'YYYY-MM-DD'
 function toDateInputValue(d) {
   if (!d) return "";
   const dt = new Date(d);
@@ -14,28 +14,28 @@ function toDateInputValue(d) {
 }
 
 const EditProfileModal = ({ isOpen, onClose, user, onSubmit }) => {
-  const [fullName, setFullName] = useState(user?.full_name || "");
-  const [bio, setBio] = useState(user?.bio || "");
-  const [birthDate, setBirthDate] = useState(
-    toDateInputValue(user?.birth_date || user?.birthday)
-  );
+  const [fullName, setFullName] = useState("");
+  const [bio, setBio] = useState("");
+  const [birthDate, setBirthDate] = useState("");
   const [avatarFile, setAvatarFile] = useState(null);
-  const [previewUrl, setPreviewUrl] = useState(user?.avatar_url || "");
+  const [previewUrl, setPreviewUrl] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
-  useMemo(() => {
+  // Reset form khi mở modal
+  useEffect(() => {
+    if (!isOpen) return;
     setFullName(user?.full_name || "");
     setBio(user?.bio || "");
     setBirthDate(toDateInputValue(user?.birth_date || user?.birthday));
     setPreviewUrl(user?.avatar_url || "");
     setAvatarFile(null);
     setError("");
-  }, [user, isOpen]);
+  }, [isOpen, user]);
 
   const handleFile = (e) => {
-    const f = e.target.files?.[0];
-    setAvatarFile(f || null);
+    const f = e.target.files?.[0] || null;
+    setAvatarFile(f);
     if (f) setPreviewUrl(URL.createObjectURL(f));
   };
 
@@ -48,24 +48,22 @@ const EditProfileModal = ({ isOpen, onClose, user, onSubmit }) => {
         full_name: fullName.trim(),
         bio: bio.trim(),
         birth_date: birthDate || null,
-        avatar: avatarFile || undefined,   // 👈 đúng key "avatar" để PHP nhận file
+        avatar: avatarFile || undefined,
       };
-      console.log("[EditProfile] submit payload:", payload);
-      await onSubmit(payload);             // 👈 gọi sang ProfilePage
+      await onSubmit(payload);
+      onClose();
     } catch (err) {
+      console.error("Lỗi cập nhật:", err);
       setError(err?.message || "Cập nhật thất bại");
+    } finally {
       setSaving(false);
-      return;
     }
-    setSaving(false);
-    onClose();                             // đóng modal sau khi ok
   };
 
-
-  return (
+  // Render qua portal để thoát khỏi container cha
+  return createPortal(
     <Modal isOpen={isOpen} onClose={saving ? () => {} : onClose}>
       <h3 className="text-xl font-semibold mb-4">Edit profile</h3>
-
       <form onSubmit={submit} className="space-y-4">
         {/* Avatar */}
         <div className="flex items-center gap-4">
@@ -93,7 +91,7 @@ const EditProfileModal = ({ isOpen, onClose, user, onSubmit }) => {
           />
         </div>
 
-        {/* Username: chỉ hiển thị, không sửa ở API này */}
+        {/* Username */}
         <div>
           <label className="block mb-1 text-sm text-gray-300">Your username</label>
           <input
@@ -101,9 +99,7 @@ const EditProfileModal = ({ isOpen, onClose, user, onSubmit }) => {
             disabled
             className="w-full bg-[#11151d] border border-[#2d2d33] rounded-lg px-3 py-2 text-gray-400 outline-none"
           />
-          <p className="text-xs text-gray-500 mt-1">
-            (Username không cập nhật tại đây)
-          </p>
+          <p className="text-xs text-gray-500 mt-1">(Username không cập nhật tại đây)</p>
         </div>
 
         {/* Biography */}
@@ -153,7 +149,8 @@ const EditProfileModal = ({ isOpen, onClose, user, onSubmit }) => {
           </button>
         </div>
       </form>
-    </Modal>
+    </Modal>,
+    document.body
   );
 };
 
