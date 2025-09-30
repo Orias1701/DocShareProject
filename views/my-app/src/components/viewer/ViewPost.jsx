@@ -4,18 +4,21 @@ import PostLayout, { css } from "./ViewLayout";
 import CommentsPanel from "../comments/CommentsPanel";
 import postService from "../../services/postService";
 import post_commentServices from "../../services/post_commentServices";
+import PostOptionsMenu from "../post/PostOptionsMenu";
 
 const FALLBACK_AVATAR =
   "https://i.pinimg.com/736x/18/bd/a5/18bda5a4616cd195fe49a9a32dbab836.jpg";
+
+const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:3000";
 
 export default function ViewPost({ postId, currentUserId, backHref, onBack }) {
   const [loading, setLoading] = useState(true);
   const [post, setPost] = useState(null);
   const [hashtags, setHashtags] = useState([]);
   const [commentCount, setCommentCount] = useState(0);
-  const [showComments, setShowComments] = useState(false); // 🔹 toggle
+  const [showComments, setShowComments] = useState(false);
 
-  // load post + hashtags + comment count (nếu BE chưa trả mảng comments)
+  // Load post + hashtags + comment count
   useEffect(() => {
     if (!postId) return;
     (async () => {
@@ -25,10 +28,8 @@ export default function ViewPost({ postId, currentUserId, backHref, onBack }) {
         const res = await postService.getByIdCompact(postId);
         const p = res?.data?.post || res?.data || null;
 
-        // === Debug log toàn bộ data nhận từ API ===
         console.group("🔎 API DEBUG ViewPost");
         console.log("Full API response:", res);
-        console.log("res.data:", res?.data);
         console.log("Post object (p):", p);
         console.log("API file_url:", p?.file_url);
         console.groupEnd();
@@ -51,7 +52,7 @@ export default function ViewPost({ postId, currentUserId, backHref, onBack }) {
     })();
   }, [postId]);
 
-  // mỗi lần mở khung bình luận thì làm tươi count một nhịp (giống PostCardProfile)
+  // Refresh count khi mở bình luận
   useEffect(() => {
     if (!postId || !showComments) return;
     (async () => {
@@ -63,8 +64,7 @@ export default function ViewPost({ postId, currentUserId, backHref, onBack }) {
     })();
   }, [postId, showComments]);
 
-  if (loading)
-    return <div className="p-6 text-gray-400">Đang tải post…</div>;
+  if (loading) return <div className="p-6 text-gray-400">Đang tải post…</div>;
   if (!post)
     return <div className="p-6 text-red-400">Không tìm thấy dữ liệu post.</div>;
 
@@ -79,12 +79,11 @@ export default function ViewPost({ postId, currentUserId, backHref, onBack }) {
     full_name,
     avatar_url,
     summary,
+    post_id, // phòng trường hợp BE trả kèm trong object post
   } = post;
 
-  // 🔎 Debug log ngay trước khi render
-  console.log("👉 FE render file_url:", file_url);
+  const effectivePostId = postId || post_id;
 
-  // fallback hiển thị
   const safeTitle = title || "Chưa có dữ liệu";
   const safeAlbum = album_name || "Chưa có dữ liệu";
   const safeCategory = category_name || "Chưa có dữ liệu";
@@ -94,52 +93,36 @@ export default function ViewPost({ postId, currentUserId, backHref, onBack }) {
     avatar: avatar_url || FALLBACK_AVATAR,
   };
 
-  // ==== MAIN (nội dung + thanh hành động bên dưới) ====
+  // === Handler: tải tài liệu qua BE ===
+  const handleDownload = () => {
+    if (!effectivePostId) {
+      alert("Không xác định được post_id để tải.");
+      return;
+    }
+    // Endpoint PHP: ?action=post.download&post_id=...
+    const url = `${API_BASE}/index.php?action=post.download&post_id=${encodeURIComponent(
+      effectivePostId
+    )}`;
+
+    // Mở tab mới để trình duyệt tự tải; hoặc dùng window.location.href nếu muốn tải trong tab hiện tại
+    window.open(url, "_blank");
+  };
+
+  // === MAIN ===
   const main = (
     <div className={`${css.card} min-h-[420px]`}>
-        {file_url ? (
-        file_url.toLowerCase().endsWith(".pdf") ? (
-          // 🟢 PDF viewer
-          <div className="w-full h-[70vh]">   {/* cao ~70% viewport cho thoáng */}
-            <iframe
-              src={`${file_url}#toolbar=1&navpanes=0&scrollbar=1`}
-              title="PDF Viewer"
-              className="w-full h-full rounded-md"
-            />
-          </div>
-        ) : (
-          <img
-            src={file_url || banner_url}
-            alt={safeTitle}
-            className="w-full h-auto object-contain rounded-md"
-          />
-        )
-      ) : content ? (
-        <div
-          className="p-4 prose prose-invert max-w-none"
-          dangerouslySetInnerHTML={{ __html: content }}
-        />
-      ) : (
-        <div className="w-full h-[420px] grid place-items-center text-gray-400">
-          Chưa có dữ liệu
-        </div>
-      )}
-
-      {/* Action bar */}
+      {/* Thanh tác vụ góc phải */}
       <div className="p-4 flex items-center gap-2">
         {file_url ? (
-          <>
-            {/* 🔎 Debug log trong thẻ <a> */}
-            {console.log("👉 Link Mở bản gốc dùng file_url:", file_url)}
-            <a
-              href={file_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="px-3 py-1.5 text-sm rounded bg-white/10 hover:bg-white/20"
-            >
-              Mở bản gốc
-            </a>
-          </>
+          <a
+            href={file_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="px-3 py-1.5 text-sm rounded bg-white/10 hover:bg-white/20"
+            title="Mở bản gốc"
+          >
+            Mở bản gốc
+          </a>
         ) : null}
 
         {backHref ? (
@@ -165,26 +148,70 @@ export default function ViewPost({ postId, currentUserId, backHref, onBack }) {
           </button>
         )}
 
-        {postId ? (
+        {/* Menu tuỳ chọn (Report / Tải) */}
+        <div className="ml-auto">
+          <PostOptionsMenu
+            onReport={() => {
+              // TODO: mở modal report
+              alert("Report chưa triển khai.");
+            }}
+            onDownload={handleDownload}
+          />
+        </div>
+      </div>
+
+      {/* Vùng preview nội dung */}
+      {file_url ? (
+        file_url.toLowerCase().endsWith(".pdf") ? (
+          // PDF preview (ẩn toolbar của viewer trình duyệt bằng hash; có thể không đồng nhất mọi browser)
+          <div className="w-full h-[70vh]">
+            <embed
+              src={`${file_url}#toolbar=0&navpanes=0&scrollbar=0&view=FitH`}
+              type="application/pdf"
+              width="100%"
+              height="100%"
+              className="rounded-md"
+            />
+          </div>
+        ) : (
+          <img
+            src={file_url || banner_url}
+            alt={safeTitle}
+            className="w-full h-auto object-contain rounded-md"
+          />
+        )
+      ) : content ? (
+        <div
+          className="p-4 prose prose-invert max-w-none"
+          dangerouslySetInnerHTML={{ __html: content }}
+        />
+      ) : (
+        <div className="w-full h-[420px] grid place-items-center text-gray-400">
+          Chưa có dữ liệu
+        </div>
+      )}
+
+      {/* Thanh hành động (bình luận) */}
+      {effectivePostId ? (
+        <div className="p-4 flex items-center gap-2">
           <button
             type="button"
             onClick={() => setShowComments((s) => !s)}
-            className={`ml-auto px-3 py-1.5 text-sm rounded-lg transition
-              ${
-                showComments
-                  ? "bg-fuchsia-600 text-white"
-                  : "bg-white/10 text-white hover:bg-white/20"
-              }`}
+            className={`ml-auto px-3 py-1.5 text-sm rounded-lg transition ${
+              showComments
+                ? "bg-fuchsia-600 text-white"
+                : "bg-white/10 text-white hover:bg-white/20"
+            }`}
             aria-expanded={showComments}
           >
             Bình luận • {commentCount}
           </button>
-        ) : null}
-      </div>
+        </div>
+      ) : null}
     </div>
   );
 
-  // ==== SIDEBAR PHẢI ====
+  // === SIDEBAR PHẢI ===
   const right = (
     <>
       <div className={`${css.card} p-5`}>
@@ -200,7 +227,7 @@ export default function ViewPost({ postId, currentUserId, backHref, onBack }) {
             {hashtags?.length ? (
               hashtags.map((h) => (
                 <span
-                  key={h.hashtag_id}
+                  key={h.hashtag_id || `${h.hashtag_name}-${Math.random()}`}
                   className="bg-white/10 text-xs px-2 py-0.5 rounded"
                 >
                   #{h.hashtag_name}
@@ -237,9 +264,9 @@ export default function ViewPost({ postId, currentUserId, backHref, onBack }) {
   );
 
   const comments =
-    showComments && postId ? (
+    showComments && effectivePostId ? (
       <CommentsPanel
-        postId={postId}
+        postId={effectivePostId}
         currentUserId={currentUserId}
         initialCount={commentCount}
         onCountChange={(n) => setCommentCount(n)}

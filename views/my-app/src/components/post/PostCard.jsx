@@ -10,6 +10,8 @@ const FALLBACK_URL =
 const FALLBACK_AVATAR =
   "https://i.pinimg.com/736x/c7/cd/4d/c7cd4dde24c8fcfeeddc73899a45c4b0.jpg";
 
+const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:3000";
+
 /** Chuẩn hoá hashtag */
 function normalizeHashtags(hx) {
   const toDisplay = (s) => {
@@ -100,6 +102,22 @@ export default function PostCard({
 
   const fileUrl = (post?.file?.url || post?.file_url || "").trim();
 
+  // === Handler tải tài liệu: gọi BE ?action=post.download&post_id=... ===
+  const handleDownload = () => {
+    if (!postId) {
+      alert("Không xác định được post_id để tải.");
+      return;
+    }
+    // Nếu bạn đã setup Vite proxy cho /api, thay dòng dưới bằng:
+    // const url = `/api/index.php?action=post.download&post_id=${encodeURIComponent(postId)}`;
+    const url = `${API_BASE}/index.php?action=post.download&post_id=${encodeURIComponent(
+      postId
+    )}`;
+
+    // Mở tab mới để trình duyệt tự tải (BE sẽ set Content-Disposition: attachment; filename="...").
+    window.open(url, "_blank");
+  };
+
   const contentEl = (
     <div className="w-full rounded-lg overflow-hidden">
       <img
@@ -116,7 +134,9 @@ export default function PostCard({
 
   const preview = fileUrl ? (
     <Link
-      to={`/viewer/file?url=${encodeURIComponent(fileUrl)}&title=${encodeURIComponent(title)}${postId ? `&post_id=${encodeURIComponent(postId)}` : ""}`}
+      to={`/viewer/file?url=${encodeURIComponent(fileUrl)}&title=${encodeURIComponent(
+        title
+      )}${postId ? `&post_id=${encodeURIComponent(postId)}` : ""}`}
       className="block"
       aria-label="Xem nội dung"
     >
@@ -133,7 +153,6 @@ export default function PostCard({
       {contentEl}
     </a>
   ) : (
-    // Luôn wrap contentEl trong Link để clickable
     <Link
       to={`/viewer/content/${postId}`}
       className="block"
@@ -142,7 +161,6 @@ export default function PostCard({
       {contentEl}
     </Link>
   );
-  
 
   const initialBM =
     typeof initiallyBookmarked === "boolean"
@@ -185,10 +203,10 @@ export default function PostCard({
             </>
           )}
         </div>
-        
+
         <PostOptionsMenu
           onReport={() => alert("Báo cáo bài viết")}
-          onDownload={() => alert("Tải tài liệu (sẽ code sau)")}
+          onDownload={handleDownload}
         />
       </div>
 
@@ -239,14 +257,6 @@ export default function PostCard({
               initialMyReaction={initialThumbReaction}
               autoRefresh={true}
             />
-            {/* <div className="flex items-center gap-1.5 text-gray-400">
-              <i className="fa-solid fa-comment"></i>
-              <span className="text-xs font-medium">{stats.comments}</span>
-            </div>
-            <div className="flex items-center gap-1.5 text-gray-400">
-              <i className="fa-solid fa-eye"></i>
-              <span className="text-xs font-medium">{stats.views}</span>
-            </div> */}
           </div>
           <BookmarkButton
             postId={postId}

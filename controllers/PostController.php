@@ -469,4 +469,64 @@ class PostController
             return $this->respondError($e->getMessage(), 500);
         }
     }
+    public function download()
+    {
+        if (!isset($_SESSION['user_id'])) {
+            http_response_code(401);
+            echo "Bạn cần đăng nhập để tải file.";
+            exit;
+        }
+
+        $postId = $_GET['post_id'] ?? null;
+        if (!$postId) {
+            http_response_code(422);
+            echo "Thiếu post_id.";
+            exit;
+        }
+
+        $post = $this->postModel->getPostById($postId);
+        if (!$post) {
+            http_response_code(404);
+            echo "Không tìm thấy bài viết.";
+            exit;
+        }
+
+        // Nếu có quyền riêng tư thì check
+        if (isset($post['privacy']) && $post['privacy'] === 'private' && $post['author_id'] !== $_SESSION['user_id']) {
+            http_response_code(403);
+            echo "Bạn không có quyền tải file này.";
+            exit;
+        }
+
+        // Kiểm tra có file không
+        if (empty($post['file_url'])) {
+            http_response_code(404);
+            echo "Bài viết không có file đính kèm.";
+            exit;
+        }
+
+        // Lấy đường dẫn file thật
+        $filePath = __DIR__ . '/../' . ltrim(parse_url($post['file_url'], PHP_URL_PATH), '/');
+        if (!file_exists($filePath)) {
+            http_response_code(404);
+            echo "File không tồn tại trên server.";
+            exit;
+        }
+
+        // Tạo tên đẹp từ tiêu đề post
+        $ext = pathinfo($filePath, PATHINFO_EXTENSION);
+        $safeName = preg_replace('/[^a-zA-Z0-9-_]/', '_', $post['title'] ?? 'tai_lieu') . '.' . $ext;
+
+        // Gửi header tải về
+        header("Content-Type: " . mime_content_type($filePath));
+        header("Content-Disposition: attachment; filename=\"$safeName\"");
+        header("Content-Length: " . filesize($filePath));
+
+        // (Tuỳ chọn) Log lượt tải
+        // $this->downloadLogModel->logDownload($_SESSION['user_id'], $postId, date('Y-m-d H:i:s'));
+
+        // Xuất file
+        readfile($filePath);
+        exit;
+    }
 }
