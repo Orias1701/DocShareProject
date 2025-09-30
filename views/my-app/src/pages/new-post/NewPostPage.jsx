@@ -7,7 +7,8 @@ import postService from "../../services/postService";
 import albumService from "../../services/albumService";
 import hashtagService from "../../services/hashtagService";
 import Toast from "../../components/common/Toast";
-import RichTextEditor from "../../components/post/RichTextEditor";
+import RichTextEditor from "../../components/new-post/RichTextEditor";
+import categoryServices from "../../services/categoryServices";
 
 const NewPostPage = () => {
   // ===== Mode: pdf | word
@@ -77,8 +78,8 @@ const NewPostPage = () => {
     const loadAll = async () => {
       try {
         const [cats, albs, tags] = await Promise.all([
-          postService
-            .listCategories()
+          categoryServices
+            .list()
             .catch((e) => (setOptErrors((p) => ({ ...p, categories: e.message })), [])),
           albumService
             .listMyAlbums()
@@ -88,7 +89,14 @@ const NewPostPage = () => {
             .catch((e) => (setOptErrors((p) => ({ ...p, hashtags: e.message })), [])),
         ]);
 
-        setCategories(Array.isArray(cats) ? cats : []);
+        // ✅ Chuẩn hoá categories từ {category_id, category_name} -> {id, name}
+        const normCats = (Array.isArray(cats) ? cats : [])
+          .map((c) => ({
+            id: c.id ?? c.category_id,
+            name: c.name ?? c.category_name,
+          }))
+          .filter((x) => x.id && x.name);
+        setCategories(normCats);
 
         const normAlbums = (Array.isArray(albs) ? albs : [])
           .map((a) => ({ id: a.id ?? a.album_id, name: a.name ?? a.album_name }))
@@ -105,6 +113,7 @@ const NewPostPage = () => {
     };
     loadAll();
   }, []);
+
 
   // === validate theo mode
   const validate = () => {
@@ -292,7 +301,12 @@ const NewPostPage = () => {
                 <label className="block text-sm font-medium text-gray-300 mb-2">
                   Write content (additional)
                 </label>
-                <RichTextEditor value={editorHtml} onChange={setEditorHtml} />
+                <RichTextEditor
+                  value={editorHtml}
+                  onChange={(html) => {
+                    setEditorHtml(html);
+                  }}
+                />
                 {errors.editor && <p className="text-sm text-red-400 mt-2">{errors.editor}</p>}
               </div>
 
@@ -352,6 +366,7 @@ const NewPostPage = () => {
               <FilePreview file={mainFile} />
             ) : (
               <>
+                {/* SỬA: truyền đúng prop htmlContent để preview khớp với nội dung Word */}
                 <FilePreview file={null} htmlContent={editorHtml} />
                 <div className="flex-1 rounded-xl border border-white/10 bg-[#0D1117] p-4 text-sm text-white/70 mt-2">
                   Nội dung WORD sẽ được lưu dưới dạng HTML và hiển thị tại trang chi tiết bài viết.

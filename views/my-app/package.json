@@ -21,6 +21,7 @@
     "framer-motion": "^12.23.16",
     "lowlight": "^3.3.0",
     "lucide-react": "^0.544.0",
+    "mammoth": "^1.11.0",
     "pdfjs-dist": "^5.4.149",
     "prop-types": "^15.8.1",
     "react": "^19.1.1",

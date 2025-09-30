@@ -2,9 +2,9 @@
 import React, { useEffect, useRef } from "react";
 
 export default function RichTextEditor({ value = "", onChange }) {
-  const wrapperRef = useRef(null);
-  const editorRef  = useRef(null);
-  const quillRef   = useRef(null);
+  const mountRef = useRef(null);
+  const quillRef = useRef(null);
+  const htmlRef = useRef("");
 
   const setHtmlSafely = (quill, html) => {
     const safeHtml = String(html || "");
@@ -13,21 +13,15 @@ export default function RichTextEditor({ value = "", onChange }) {
   };
 
   useEffect(() => {
-    if (typeof window === "undefined" || !window.Quill) {
-      console.warn("[RTE] window.Quill chưa sẵn sàng");
-      return;
-    }
-    if (!wrapperRef.current || !editorRef.current) return;
+    if (typeof window === "undefined" || !window.Quill) return;
+    if (!mountRef.current) return;
 
-    // tránh init trùng trong StrictMode/HMR
-    if (quillRef.current || wrapperRef.current.dataset.initialized === "true") {
-      console.log("[RTE] Bỏ qua init do đã có instance");
-      return;
-    }
+    // Làm sạch trước khi init
+    mountRef.current.innerHTML = "";
+    const editorEl = document.createElement("div");
+    mountRef.current.appendChild(editorEl);
 
-    editorRef.current.innerHTML = "";
-
-    const quill = new window.Quill(editorRef.current, {
+    const quill = new window.Quill(editorEl, {
       theme: "snow",
       placeholder: "Nhập nội dung bài viết...",
       modules: {
@@ -43,58 +37,71 @@ export default function RichTextEditor({ value = "", onChange }) {
         ],
       },
     });
-
     quillRef.current = quill;
-    wrapperRef.current.dataset.initialized = "true";
 
-    if (value && value !== "<p><br></p>") {
-      setHtmlSafely(quill, value);
+    // Set initial content
+    if (value && value !== "<p><br></p>") setHtmlSafely(quill, value);
+    htmlRef.current = quill.root.innerHTML;
+
+    // Đảm bảo luôn có selection khi click toolbar
+    const toolbarEl = mountRef.current.querySelector(".ql-toolbar");
+    if (toolbarEl) {
+      toolbarEl.addEventListener(
+        "mousedown",
+        () => {
+          quill.focus();
+          if (!quill.getSelection()) {
+            const len = quill.getLength();
+            quill.setSelection(len, 0, "silent");
+          }
+        },
+        true
+      );
     }
 
-    // Emit ngay lần đầu
-    const html0 = quill.root.innerHTML;
-    console.log("[RTE] emit initial html:", html0);
-    onChange?.(html0);
-
+    // Sync onChange
     const handleChange = () => {
       const html = quill.root.innerHTML;
-      const text = quill.getText(); // text thuần (dùng debug)
-      console.log("[RTE] text-change htmlLen=", html.length, " textLen=", text.trim().length);
-      onChange?.(html);
+      if (html !== htmlRef.current) {
+        htmlRef.current = html;
+        onChange?.(html);
+      }
     };
-
     quill.on("text-change", handleChange);
 
     return () => {
-      quill.off("text-change", handleChange);
+      try {
+        quill.off("text-change", handleChange);
+      } catch {}
       quillRef.current = null;
-      if (editorRef.current) editorRef.current.innerHTML = "";
-      if (wrapperRef.current) delete wrapperRef.current.dataset.initialized;
+      if (mountRef.current) mountRef.current.innerHTML = "";
     };
-  }, []);
+  }, []); // init once
 
-  // Đồng bộ từ prop value -> editor (khi cha set lại)
+  // Đồng bộ value từ ngoài vào
   useEffect(() => {
     const quill = quillRef.current;
     if (!quill) return;
-    const current = quill.root.innerHTML || "";
     const incoming = String(value || "");
+    const current = quill.root.innerHTML || "";
     if (incoming !== current) {
-      console.log("[RTE] sync from prop value. incomingLen=", incoming.length);
       setHtmlSafely(quill, incoming);
+      htmlRef.current = incoming;
     }
   }, [value]);
 
   return (
-    <div
-      ref={wrapperRef}
-      className="rounded-xl overflow-hidden border border-white/10 bg-white"
-    >
-      <div
-        ref={editorRef}
-        className="ql-container ql-snow"
-        style={{ minHeight: 320 }}
-      />
+    <div className="rounded-xl overflow-hidden">
+      <style>{`
+        .rte .ql-toolbar.ql-snow,
+        .rte .ql-container.ql-snow { border: none !important; }
+        .rte .ql-toolbar { background: #f8fafc; }
+        .rte .ql-container { background: #ffffff; }
+        .rte .ql-editor { min-height: 320px; color: #0f172a; }
+        .rte .ql-editor:focus { outline: none; }
+        .rte .ql-toolbar + .ql-container { border-top: none !important; }
+      `}</style>
+      <div className="rte" ref={mountRef} />
     </div>
   );
 }
