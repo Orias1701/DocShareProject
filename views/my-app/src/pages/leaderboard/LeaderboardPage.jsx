@@ -1,10 +1,11 @@
 // src/pages/leaderboard/LeaderboardPage.jsx
 import React, { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";   // 👈 THÊM
+import { useNavigate } from "react-router-dom";
 import LeaderboardTabs from "../../components/leaderboard/LeaderboardTabs";
 import RankItem from "../../components/leaderboard/RankItem";
 import UserProfileCard from "../../components/leaderboard/UserProfileCard";
 import user_followServices from "../../services/user_followServices";
+import postService from "../../services/postService";
 
 const tabs = ["Criterion 1", "Criterion 2", "Criterion 3", "Criterion 4"];
 const FALLBACK_AVATAR = "https://via.placeholder.com/96?text=User";
@@ -15,7 +16,11 @@ export default function LeaderboardPage() {
   const [selectedUserId, setSelectedUserId] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  const navigate = useNavigate(); // 👈 THÊM
+  // 👉 state riêng cho số liệu phụ thuộc user đang chọn (không ăn theo session)
+  const [selectedFollowingCount, setSelectedFollowingCount] = useState("-");
+  const [selectedTotalPosts, setSelectedTotalPosts] = useState("-");
+
+  const navigate = useNavigate();
 
   useEffect(() => {
     (async () => {
@@ -35,6 +40,36 @@ export default function LeaderboardPage() {
       }
     })();
   }, []);
+
+  // 👉 Khi đổi user đang chọn, fetch đúng counts theo selectedUserId (tránh ăn theo session)
+  useEffect(() => {
+    let alive = true;
+    if (!selectedUserId) {
+      setSelectedFollowingCount("-");
+      setSelectedTotalPosts("-");
+      return;
+    }
+    (async () => {
+      try {
+        // countFollowing cho user đang xem
+        const fRes = await user_followServices.countFollowing(selectedUserId);
+        if (alive) setSelectedFollowingCount(Number(fRes?.data?.count ?? 0));
+
+        // countPostsByUser cho user đang xem
+        const pCnt = await postService.countPostsByUser(selectedUserId);
+        if (alive) setSelectedTotalPosts(Number(pCnt ?? 0));
+      } catch (err) {
+        console.error("[Leaderboard] fetch selected user's counts failed:", err);
+        if (alive) {
+          setSelectedFollowingCount("-");
+          setSelectedTotalPosts("-");
+        }
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [selectedUserId]);
 
   const rankings = useMemo(() => {
     if (allRankings.length === 0) return [];
@@ -73,7 +108,7 @@ export default function LeaderboardPage() {
                   score={user.followers_count ?? 0}
                   isSelected={selectedUserId === user.user_id}
                   onClick={() => setSelectedUserId(user.user_id)}
-                  onAvatarClick={() => navigate(`/profile/${user.user_id}`)} // 👈 THÊM
+                  onAvatarClick={() => navigate(`/profile/${user.user_id}`)}
                 />
               ))
             )}
@@ -92,8 +127,9 @@ export default function LeaderboardPage() {
                     followerCount: selectedUser.followers_count ?? 0,
                     biography: selectedUser.bio || "",
                     birthday: selectedUser.birth_date || "",
-                    followingCount: selectedUser.following_count ?? "-",
-                    totalPosts: selectedUser.total_posts ?? "-",
+                    // 👇 hai số này là từ API theo selectedUserId, không ăn theo session
+                    followingCount: selectedFollowingCount,
+                    totalPosts: selectedTotalPosts,
                     recentPosts: [],
                   }
                 : {

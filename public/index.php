@@ -330,7 +330,18 @@ if (isset($_GET['action'])) {
             }
             $postController->getPostsFromFollowedUsers($_SESSION['user_id']);
             exit;
-
+        case 'count_posts_all':
+                (new PostController())->countAllPosts();
+                break;
+            
+        case 'count_posts_by_user':
+                (new PostController())->countPostsByUser(); // ?user_id=... (hoặc session)
+                break;
+            
+        case 'count_posts_by_album':
+                (new PostController())->countPostsByAlbum(); // ?album_id=...
+                break;
+            
 
 
 
@@ -585,6 +596,14 @@ if (isset($_GET['action'])) {
             $ctrl = new UserFollowController();
             $ctrl->userFollowers();
             exit;
+        case 'count_followers':
+            (new UserFollowController())->countFollowers();
+            break;
+            
+        case 'count_following':
+            (new UserFollowController())->countFollowing();
+            break;
+            
         /*************** BOOKMARK CRUD ***************/
         case 'create_bookmark':
             $bookmarkController->create();

@@ -59,6 +59,10 @@ function ProfilePageOther() {
   const [isFollowing, setIsFollowing] = useState(false);
   const [followLoading, setFollowLoading] = useState(false);
 
+  // counts
+  const [followersCount, setFollowersCount] = useState(0);
+  const [followingCount, setFollowingCount] = useState(0);
+
   // Lấy thông tin user
   useEffect(() => {
     if (!userId) return;
@@ -93,7 +97,7 @@ function ProfilePageOther() {
     })();
   }, [userId]);
 
-  // Check follow (lấy từ API followers)
+  // Check follow (mình đang follow user này không?)
   useEffect(() => {
     if (!userId) return;
     (async () => {
@@ -107,15 +111,32 @@ function ProfilePageOther() {
     })();
   }, [userId]);
 
+  // Load số followers/following của userId
+  useEffect(() => {
+    if (!userId) return;
+    (async () => {
+      try {
+        const f1 = await user_followServices.countFollowers(userId);
+        const f2 = await user_followServices.countFollowing(userId);
+        setFollowersCount(f1?.data?.count || 0);
+        setFollowingCount(f2?.data?.count || 0);
+      } catch (e) {
+        console.error("Lỗi lấy số follow:", e);
+      }
+    })();
+  }, [userId, isFollowing]);
+
   const toggleFollow = async () => {
     console.log("🔘 Toggle clicked for user:", userId);
     try {
       setFollowLoading(true);
       const res = await user_followServices.toggle(userId);
       console.log("🔁 Toggle API result:", res);
-  
+
       if (res.status === "success") {
         setIsFollowing((prev) => !prev);
+        window.dispatchEvent(new Event("follow-updated"));
+        // khi đổi trạng thái follow → useEffect [isFollowing] sẽ chạy và reload count
       } else {
         console.error("Toggle follow error status:", res);
         alert("Không thực hiện được theo dõi. Vui lòng thử lại.");
@@ -127,7 +148,6 @@ function ProfilePageOther() {
       setFollowLoading(false);
     }
   };
-  
 
   if (loading) return <div className="text-white p-4">Đang tải hồ sơ...</div>;
   if (error) {
@@ -152,7 +172,8 @@ function ProfilePageOther() {
         avatar={avatarUrl}
         realName={fullName}
         userName={userName}
-        followerCount={userData?.followers_count ?? 0}
+        followerCount={followersCount}
+        followingCount={followingCount}
         birthday={birthday}
         actionButton={
           <button

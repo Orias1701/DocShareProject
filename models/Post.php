@@ -582,7 +582,50 @@ class Post
         return [];
     }
 }
-
+    public function countAllPosts()
+    {
+        try {
+            $sql = "SELECT COUNT(*) FROM posts";
+            $stmt = $this->pdo->query($sql);
+            return (int)$stmt->fetchColumn();
+        } catch (Exception $e) {
+            error_log("Error in countAllPosts: " . $e->getMessage());
+            return 0;
+        }
+    }
+    public function countPostsByUserId($userId)
+        {
+            try {
+                $sql = "
+                    SELECT COUNT(*)
+                    FROM posts p
+                    JOIN albums a ON p.album_id = a.album_id
+                    WHERE a.user_id = ?
+                ";
+                $stmt = $this->pdo->prepare($sql);
+                $stmt->execute([$userId]);
+                return (int)$stmt->fetchColumn();
+            } catch (Exception $e) {
+                error_log("Error in countPostsByUserId: " . $e->getMessage());
+                return 0;
+            }
+    }
+    
+        /** 
+         * Đếm số bài viết trong một album 
+         */
+        public function countPostsByAlbumId($albumId)
+        {
+            try {
+                $sql = "SELECT COUNT(*) FROM posts WHERE album_id = ?";
+                $stmt = $this->pdo->prepare($sql);
+                $stmt->execute([$albumId]);
+                return (int)$stmt->fetchColumn();
+            } catch (Exception $e) {
+                error_log("Error in countPostsByAlbumId: " . $e->getMessage());
+                return 0;
+            }
+    }
     
     // public function getHashtagsByUserId($userId)
     // {

@@ -46,7 +46,7 @@ export default function SearchBarPanel({ open, onClose, query, onSubmit, loading
               {loading && <span className="ml-3 text-blue-400">…loading</span>}
             </div>
 
-            <div className="flex items-center gap-2 mb-2">
+            {/* <div className="flex items-center gap-2 mb-2">
               {["Post", "Album", "Category", "Hashtag"].map((t) => (
                 <button
                   key={t}
@@ -58,7 +58,7 @@ export default function SearchBarPanel({ open, onClose, query, onSubmit, loading
                   {t} <span className="text-xs opacity-80">({counts[t]})</span>
                 </button>
               ))}
-            </div>
+            </div> */}
 
             {/* chỉ hiển gợi ý/summary, không có nút search ở đây */}
             <div className="text-xs text-gray-300">

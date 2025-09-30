@@ -98,4 +98,18 @@ class UserFollow
         $stmt->execute([$userId]);
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
+    public function countFollowers($userId)
+    {
+        $stmt = $this->pdo->prepare("SELECT COUNT(*) FROM user_follows WHERE following_id = ?");
+        $stmt->execute([$userId]);
+        return (int)$stmt->fetchColumn();
+    }
+
+    public function countFollowing($userId)
+    {
+        $stmt = $this->pdo->prepare("SELECT COUNT(*) FROM user_follows WHERE follower_id = ?");
+        $stmt->execute([$userId]);
+        return (int)$stmt->fetchColumn();
+    }
+
 }

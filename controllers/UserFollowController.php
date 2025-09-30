@@ -105,5 +105,40 @@ class UserFollowController
             return $this->jsonResponse('error', ['message' => 'Lỗi máy chủ'], 500);
         }
     }
+     /** 🔹 Đếm số followers của một user */
+     /** 🔹 API: đếm số followers của user hiện tại */
+    // controllers/UserFollowController.php
+
+    public function countFollowers()
+    {
+        try {
+            $userId = $_GET['user_id'] ?? ($_SESSION['user_id'] ?? null);
+            if (!$userId) {
+                return $this->jsonResponse('error', ['message' => 'Thiếu user_id và chưa đăng nhập'], 401);
+            }
+            $count = $this->model->countFollowers($userId);
+            return $this->jsonResponse('success', ['count' => (int)$count]);
+        } catch (Throwable $e) {
+            error_log('[countFollowers] '.$e->getMessage());
+            return $this->jsonResponse('error', ['message' => 'Lỗi máy chủ'], 500);
+        }
+    }
+
+    public function countFollowing()
+    {
+        try {
+            $userId = $_GET['user_id'] ?? ($_SESSION['user_id'] ?? null);
+            if (!$userId) {
+                return $this->jsonResponse('error', ['message' => 'Thiếu user_id và chưa đăng nhập'], 401);
+            }
+            $count = $this->model->countFollowing($userId);
+            return $this->jsonResponse('success', ['count' => (int)$count]);
+        } catch (Throwable $e) {
+            error_log('[countFollowing] '.$e->getMessage());
+            return $this->jsonResponse('error', ['message' => 'Lỗi máy chủ'], 500);
+        }
+    }
+
+
 }
 // Không đóng tag PHP để tránh BOM/space

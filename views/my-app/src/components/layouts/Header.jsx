@@ -6,6 +6,7 @@ import "../../assets/font-awesome-6.6.0-pro-full-main/css/all.css";
 import useAuth from "../../hook/useAuth";
 import images from "../../assets/image";
 import SearchBarPanel from "../search/SearchBarPanel.jsx";
+import { user_followServices } from "../../services/user_followServices";
 
 // click outside hook (đóng dropdown avatar khi click ra ngoài)
 const useClickOutside = (handler) => {
@@ -28,11 +29,16 @@ export default function Header() {
   const [openSearch, setOpenSearch] = useState(false);
   const [isDropdownOpen, setDropdownOpen] = useState(false);
 
+  const [followersCount, setFollowersCount] = useState(0);
+  const [followingCount, setFollowingCount] = useState(0);
+
   const userMenuRef = useClickOutside(() => setDropdownOpen(false));
 
   // ESC để đóng search panel
   useEffect(() => {
-    const onKey = (e) => { if (e.key === "Escape") setOpenSearch(false); };
+    const onKey = (e) => {
+      if (e.key === "Escape") setOpenSearch(false);
+    };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
@@ -46,6 +52,34 @@ export default function Header() {
       setOpenSearch(false);
     }
   };
+
+  // Load số follower/following khi user login
+  useEffect(() => {
+    if (!user) return;
+  
+    const loadCounts = async () => {
+      try {
+        const f1 = await user_followServices.countFollowers();
+        const f2 = await user_followServices.countFollowing();
+        setFollowersCount(f1?.data?.count || 0);
+        setFollowingCount(f2?.data?.count || 0);
+      } catch (e) {
+        console.error("Lỗi lấy số follow:", e);
+      }
+    };
+  
+    // load lần đầu
+    loadCounts();
+  
+    // 👂 lắng nghe sự kiện follow-updated
+    window.addEventListener("follow-updated", loadCounts);
+  
+    // cleanup khi unmount
+    return () => {
+      window.removeEventListener("follow-updated", loadCounts);
+    };
+  }, [user]);
+  
 
   if (loading) {
     return (
@@ -81,7 +115,10 @@ export default function Header() {
             <button
               aria-label="Clear search"
               title="Clear"
-              onClick={() => { setQ(""); setOpenSearch(false); }}
+              onClick={() => {
+                setQ("");
+                setOpenSearch(false);
+              }}
               className="absolute right-2 h-6 w-6 grid place-items-center rounded-md hover:bg-[#3a4654] transition"
             >
               <i className="fa-solid fa-xmark" />
@@ -101,13 +138,17 @@ export default function Header() {
         {/* Right icons + avatar */}
         <div className="flex items-center justify-end gap-5 pr-2 text-base">
           <i className="fa-regular fa-grid-2 cursor-pointer opacity-80 hover:opacity-100"></i>
+
+          {/* Followers count */}
           <div className="flex items-center gap-1">
             <i className="fa-solid fa-blog text-[#ff6a25]" />
-            <span className="text-sm">24</span>
+            <span className="text-sm">{followersCount}</span>
           </div>
+
+          {/* Following count */}
           <div className="flex items-center gap-1">
             <i className="fa-solid fa-user-check" style={{ color: "#9625ff" }} />
-            <span className="text-sm">36</span>
+            <span className="text-sm">{followingCount}</span>
           </div>
 
           {user ? (
@@ -139,8 +180,12 @@ export default function Header() {
                         className="w-9 h-9 rounded-full"
                       />
                       <div>
-                        <p className="font-semibold text-white">{user.full_name || "Real name"}</p>
-                        <p className="text-sm text-gray-400">{user.username || "User name"}</p>
+                        <p className="font-semibold text-white">
+                          {user.full_name || "Real name"}
+                        </p>
+                        <p className="text-sm text-gray-400">
+                          {user.username || "User name"}
+                        </p>
                       </div>
                     </div>
                     <div className="py-2">
@@ -172,10 +217,16 @@ export default function Header() {
             </div>
           ) : (
             <div className="flex gap-2">
-              <NavLink to="/login" className="px-3 py-1 rounded bg-[#2b333d] hover:bg-[#3a4654]">
+              <NavLink
+                to="/login"
+                className="px-3 py-1 rounded bg-[#2b333d] hover:bg-[#3a4654]"
+              >
                 Đăng nhập
               </NavLink>
-              <NavLink to="/register" className="px-3 py-1 rounded bg-[#2b333d] hover:bg-[#3a4654]">
+              <NavLink
+                to="/register"
+                className="px-3 py-1 rounded bg-[#2b333d] hover:bg-[#3a4654]"
+              >
                 Đăng ký
               </NavLink>
             </div>
@@ -193,7 +244,9 @@ export default function Header() {
           const type = (tab || "Post").toLowerCase(); // post | album | category | hashtag
           const keyword = (value ?? q).trim();
           if (!keyword) return;
-          navigate(`/search?type=${encodeURIComponent(type)}&q=${encodeURIComponent(keyword)}`);
+          navigate(
+            `/search?type=${encodeURIComponent(type)}&q=${encodeURIComponent(keyword)}`
+          );
           setOpenSearch(false);
         }}
       />

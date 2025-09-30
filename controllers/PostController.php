@@ -25,7 +25,7 @@ class PostController
         $this->albumModel    = new Album();
         $this->categoryModel = new Category();
         $this->reactionModel = new PostReaction();
-        $this->hashtagModel = new Hashtag();
+        $this->hashtagModel  = new Hashtag();
         $this->postHashtagModel = new PostHashtag();
     }
 
@@ -52,8 +52,6 @@ class PostController
     public function getLatestPosts()
     {
         try {
-            // NOTE: đổi tên hàm trong Model: getGroup1List() -> getLatestPosts()
-            // Nếu bạn chưa đổi trong Model, tạm thời gọi hàm cũ:
             $method = method_exists($this->postModel, 'getLatestPosts') ? 'getLatestPosts' : 'getGroup1List';
             $data = $this->postModel->{$method}();
             $this->respondJson(['status' => 'ok', 'data' => $data]);
@@ -66,7 +64,6 @@ class PostController
     public function getPopularPosts()
     {
         try {
-            // NOTE: đổi tên hàm trong Model: getGroup2List() -> getPopularPosts()
             $method = method_exists($this->postModel, 'getPopularPosts') ? 'getPopularPosts' : 'getGroup2List';
             $data = $this->postModel->{$method}();
             $this->respondJson(['status' => 'ok', 'data' => $data]);
@@ -161,12 +158,11 @@ class PostController
         try {
             $posts = $this->postModel->getAllPosts();
             $this->respondJson(['status' => 'ok', 'data' => $posts]);
-        } catch (Exception $e) {
+    } catch (Exception $e) {
             $this->respondError($e->getMessage(), 500);
         }
     }
 
-    /** Tạo bài viết */
     /** Tạo bài viết */
     public function create()
     {
@@ -188,7 +184,7 @@ class PostController
         $baseUrl    = 'http://' . $_SERVER['HTTP_HOST'] . '/';
 
         try {
-            // Upload banner (tuỳ chọn)
+            // Upload banner (optional)
             if (!empty($_FILES['banner']['tmp_name'])) {
                 $uploadBanner = $cloudinary->uploadApi()->upload($_FILES['banner']['tmp_name'], [
                     'folder' => 'post_banners'
@@ -196,7 +192,7 @@ class PostController
                 $bannerUrl = $uploadBanner['secure_url'];
             }
 
-            // Upload PDF (tuỳ chọn)
+            // Upload PDF (optional)
             if (!empty($_FILES['content_file']['tmp_name'])) {
                 $uploadedFile     = $_FILES['content_file'];
                 $uploadedFileType = $uploadedFile['type'];
@@ -220,7 +216,7 @@ class PostController
                 }
             }
 
-            // --- Tạo post ---
+            // Create post
             $postId = $this->postModel->createPost(
                 $title,
                 $content,
@@ -233,12 +229,11 @@ class PostController
                 $fileType
             );
 
-            // --- Xử lý hashtags ---
+            // Hashtags
             $createdHashtags = [];
             if (!empty($_POST['hashtags'])) {
                 $hashtags = array_filter(array_map('trim', explode(',', $_POST['hashtags'])));
                 foreach ($hashtags as $hashtag) {
-                    // Loại bỏ ký tự '#' nếu có
                     $cleanHashtag = ltrim($hashtag, '#');
                     if (preg_match('/^[a-zA-Z0-9_]+$/', $cleanHashtag)) {
                         $hashtagId = $this->hashtagModel->findOrCreateHashtag($cleanHashtag);
@@ -249,15 +244,14 @@ class PostController
             }
 
             $this->respondJson([
-                'status' => 'ok',
-                'post_id' => $postId,
+                'status'   => 'ok',
+                'post_id'  => $postId,
                 'hashtags' => $createdHashtags
             ], 201);
         } catch (Exception $e) {
             $this->respondError($e->getMessage(), 500);
         }
     }
-
 
     /** Cập nhật bài viết */
     public function update()
@@ -287,13 +281,13 @@ class PostController
         $baseUrl    = 'http://' . $_SERVER['HTTP_HOST'] . '/';
 
         try {
-            // Banner mới (tuỳ chọn)
+            // Banner mới (optional)
             if (!empty($_FILES['banner']['tmp_name'])) {
                 $upload = $cloudinary->uploadApi()->upload($_FILES['banner']['tmp_name'], ['folder' => 'post_banners']);
                 $bannerUrl = $upload['secure_url'];
             }
 
-            // File PDF mới (tuỳ chọn)
+            // File PDF mới (optional)
             if (!empty($_FILES['content_file']['tmp_name'])) {
                 $uploadedFile     = $_FILES['content_file'];
                 $uploadedFileType = $uploadedFile['type'];
@@ -373,11 +367,9 @@ class PostController
     }
 
     // API: Lấy danh sách post theo user_id
-    // API: Lấy danh sách post theo user_id
     public function getPostsByUserId($userId = null)
     {
         try {
-            // Ưu tiên ?user_id=..., fallback session
             $userId = $userId ?? ($_GET['user_id'] ?? ($_SESSION['user_id'] ?? null));
             if (empty($userId)) {
                 return $this->respondError('user_id is required', 422);
@@ -398,7 +390,6 @@ class PostController
     public function getPostsFromFollowedUsers($followerId = null)
     {
         try {
-            // Ưu tiên ?follower_id=..., fallback session
             $followerId = $followerId ?? ($_GET['follower_id'] ?? ($_SESSION['user_id'] ?? null));
             if (empty($followerId)) {
                 return $this->respondError('Unauthorized', 401);
@@ -414,6 +405,7 @@ class PostController
             return $this->respondError($e->getMessage(), 500);
         }
     }
+
     public function getPostsByAlbum()
     {
         try {
@@ -427,10 +419,54 @@ class PostController
             return $this->respondJson([
                 'status' => 'ok',
                 'data'   => $rows
-        ]);
-    } catch (Exception $e) {
-        return $this->respondError($e->getMessage(), 500);
+            ]);
+        } catch (Exception $e) {
+            return $this->respondError($e->getMessage(), 500);
+        }
     }
-}
 
+    /* =======================
+     *  COUNT POSTS ENDPOINTS
+     * ======================= */
+
+    /** Đếm tổng số bài viết trong hệ thống */
+    public function countAllPosts()
+    {
+        try {
+            $count = $this->postModel->countAllPosts();
+            return $this->respondJson(['status' => 'success', 'data' => ['count' => $count]]);
+        } catch (Exception $e) {
+            return $this->respondError($e->getMessage(), 500);
+        }
+    }
+
+    /** Đếm số bài viết của một user (ưu tiên ?user_id=..., nếu không có thì dùng session) */
+    public function countPostsByUser()
+    {
+        try {
+            $userId = $_GET['user_id'] ?? ($_SESSION['user_id'] ?? null);
+            if (empty($userId)) {
+                return $this->respondError('user_id is required', 422);
+            }
+            $count = $this->postModel->countPostsByUserId($userId);
+            return $this->respondJson(['status' => 'success', 'data' => ['count' => $count]]);
+        } catch (Exception $e) {
+            return $this->respondError($e->getMessage(), 500);
+        }
+    }
+
+    /** Đếm số bài viết trong một album (?album_id=...) */
+    public function countPostsByAlbum()
+    {
+        try {
+            $albumId = $_GET['album_id'] ?? null;
+            if (empty($albumId)) {
+                return $this->respondError('album_id is required', 422);
+            }
+            $count = $this->postModel->countPostsByAlbumId($albumId);
+            return $this->respondJson(['status' => 'success', 'data' => ['count' => $count]]);
+        } catch (Exception $e) {
+            return $this->respondError($e->getMessage(), 500);
+        }
+    }
 }

@@ -1,3 +1,4 @@
+// src/pages/profile/ProfilePage.jsx
 import React, { useEffect, useState } from "react";
 import ProfileHeader from "../../components/profile/ProfileHeader";
 import BioCard from "../../components/profile/BioCard";
@@ -6,6 +7,7 @@ import { authApi } from "../../services/usersServices";
 import { userInfoApi } from "../../services/user_infoServices";
 import EditProfileModal from "../../components/profile/EditProfileModal";
 import postService from "../../services/postService";
+import { user_followServices } from "../../services/user_followServices";
 
 /** Map JSON BE -> cấu trúc PostCardProfile */
 function normalizePostForProfile(p) {
@@ -54,6 +56,10 @@ function ProfilePage() {
   const [postsError, setPostsError] = useState(null);
   const [userPosts, setUserPosts] = useState([]);
 
+  // follow counts
+  const [followersCount, setFollowersCount] = useState(0);
+  const [followingCount, setFollowingCount] = useState(0);
+
   // Lấy me + info
   useEffect(() => {
     (async () => {
@@ -98,6 +104,21 @@ function ProfilePage() {
         setPostsError(e.message || "Không tải được bài viết");
       } finally {
         setPostsLoading(false);
+      }
+    })();
+  }, [me?.user_id]);
+
+  // Lấy số followers/following của tôi
+  useEffect(() => {
+    if (!me?.user_id) return;
+    (async () => {
+      try {
+        const f1 = await user_followServices.countFollowers(me.user_id);
+        const f2 = await user_followServices.countFollowing(me.user_id);
+        setFollowersCount(f1?.data?.count || 0);
+        setFollowingCount(f2?.data?.count || 0);
+      } catch (e) {
+        console.error("Lỗi lấy số follow:", e);
       }
     })();
   }, [me?.user_id]);
@@ -148,7 +169,8 @@ function ProfilePage() {
         avatar={avatarUrl}
         realName={fullName}
         userName={userName}
-        followerCount={123} // demo
+        followerCount={followersCount}
+        followingCount={followingCount}
         birthday={birthday}
         onEdit={() => setOpenEdit(true)}
       />

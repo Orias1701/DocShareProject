@@ -1,115 +1,126 @@
 // src/pages/search/SearchPage.jsx
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import PostSection from "../../components/post/PostSection";
 import AlbumSection from "../../components/album/AlbumSection";
 import CategoryInfoCard from "../../components/category/CategoryInfoCard";
-import HashtagLink from "../../components/hashtag/HashtagLink";
-
-/** MOCK dữ liệu demo */
-const MOCK = {
-  posts: [
-    { id: 1, title: "React Hooks", excerpt: "useState, useEffect", hashtags: ["react", "hooks"] },
-    { id: 2, title: "Next.js Routing", excerpt: "App Router", hashtags: ["nextjs"] },
-    { id: 3, title: "Tailwind Layouts", excerpt: "Grid/Flex patterns", hashtags: ["tailwind", "css"] },
-  ],
-  albums: [
-    { id: "a1", name: "Frontend 2025", thumbnail: "https://picsum.photos/seed/a1/800/450" },
-    { id: "a2", name: "Backend Notes",  thumbnail: "https://picsum.photos/seed/a2/800/450" },
-  ],
-  categories: [
-    { id: "c1", name: "Frontend" },
-    { id: "c2", name: "Backend"  },
-    { id: "c3", name: "Data"     },
-  ],
-  hashtags: [
-    { id: "h1", tag: "#react"  },
-    { id: "h2", tag: "#backend"},
-    { id: "h3", tag: "#nextjs" },
-  ],
-};
+import HashtagButton from "../../components/hashtag/HashtagButton"; // 👈 dùng HashtagButton
+import { searchCombined } from "../../services/searchService";
 
 const TABS = ["post", "album", "category", "hashtag"];
 
-/** map post mock -> PostCard shape */
-const mapMockPostToCard = (p = {}) => ({
-  id: p.id,
-  post_id: p.id,
+/** map post BE -> PostCard shape */
+const mapPostToCard = (p = {}) => ({
+  id: p.id || p.post_id,
+  post_id: p.post_id,
   title: p.title || "Untitled",
-  authorName: "Demo User",
-  authorAvatar: "https://i.pinimg.com/736x/18/bd/a5/18bda5a4616cd195fe49a9a32dbab836.jpg",
-  author: { id: "u1", name: "Demo User", avatar: "/https://i.pinimg.com/736x/18/bd/a5/18bda5a4616cd195fe49a9a32dbab836.jpg" },
-  uploadTime: "2025-09-01 12:00:00",
-  banner: null,
+  authorName: p.username || p.authorName || "Unknown",
+  authorAvatar:
+    p.authorAvatar || "https://i.pravatar.cc/100?u=" + (p.user_id || "guest"),
+  author: {
+    id: p.user_id,
+    name: p.username || "Unknown",
+    avatar:
+      p.authorAvatar || "https://i.pravatar.cc/100?u=" + (p.user_id || "guest"),
+  },
+  uploadTime: p.created_at || "",
+  banner: p.banner_url || null,
   file: null,
   hashtags: p.hashtags || [],
-  stats: { likes: 0, comments: 0, views: 0 },
-  album_name: null,
-  is_bookmarked: false,
+  stats: {
+    likes: p.likes || 0,
+    comments: p.comments || 0,
+    views: p.views || 0,
+  },
+  album_name: p.album_name || null,
+  is_bookmarked: !!p.is_bookmarked,
 });
 
-/** map album mock -> AlbumCard shape */
-const mapMockAlbumToCard = (a = {}) => ({
-  id: a.id,
-  album_id: a.id,
-  title: a.name || "Album",
-  authorName: "Demo User",
-  authorAvatar: "https://i.pinimg.com/736x/18/bd/a5/18bda5a4616cd195fe49a9a32dbab836.jpg",
-  uploadTime: "2025-09-01",
-  banner: a.thumbnail || null,
-  link: `/albums/${a.id}`,
+/** map album BE -> AlbumCard shape */
+const mapAlbumToCard = (a = {}) => ({
+  id: a.id || a.album_id,
+  album_id: a.album_id,
+  title: a.name || a.album_name || "Album",
+  authorName: a.username || "Unknown",
+  authorAvatar:
+    a.authorAvatar || "https://i.pravatar.cc/100?u=" + (a.user_id || "guest"),
+  uploadTime: a.created_at || "",
+  banner: a.thumbnail || a.banner_url || null,
+  link: `/albums/${a.album_id}`,
 });
 
 export default function SearchPage() {
   const navigate = useNavigate();
   const { search } = useLocation();
 
-  // 👉 Mỗi lần URL thay đổi, những giá trị này thay đổi theo
   const params = useMemo(() => new URLSearchParams(search), [search]);
-  const q     = params.get("q")?.toLowerCase() || "";
-  const type  = (params.get("type") || "post").toLowerCase();
+  const q = params.get("q")?.trim() || "";
+  const type = (params.get("type") || "post").toLowerCase();
 
-  // Đổi tab = ghi lại URL (không dùng state)
+  const [results, setResults] = useState({
+    posts: [],
+    albums: [],
+    categories: [],
+    hashtags: [],
+  });
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState(null);
+
+  // Đổi tab = update URL
   const setType = (nextType) => {
     const p = new URLSearchParams(params);
     p.set("type", nextType);
     navigate(`/search?${p.toString()}`);
   };
 
-  // Lọc client-side theo q (MOCK)
-  const filtered = useMemo(() => {
-    if (!q.trim()) return { posts: [], albums: [], categories: [], hashtags: [] };
-    return {
-      posts: MOCK.posts.filter(p =>
-        [p.title, p.excerpt, (p.hashtags || []).join(" ")].join(" ").toLowerCase().includes(q)
-      ),
-      albums: MOCK.albums.filter(a => (a.name || "").toLowerCase().includes(q)),
-      categories: MOCK.categories.filter(c => (c.name || "").toLowerCase().includes(q)),
-      hashtags: MOCK.hashtags.filter(h => (h.tag || "").toLowerCase().includes(q)),
-    };
+  // Fetch API mỗi khi q thay đổi
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      if (!q) {
+        setResults({ posts: [], albums: [], categories: [], hashtags: [] });
+        return;
+      }
+      setLoading(true);
+      setErr(null);
+      try {
+        const data = await searchCombined(q);
+        if (mounted) setResults(data);
+      } catch (e) {
+        if (mounted) setErr(e?.message || "Lỗi khi tìm kiếm.");
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    })();
+    return () => (mounted = false);
   }, [q]);
 
   const counts = {
-    post: filtered.posts.length,
-    album: filtered.albums.length,
-    category: filtered.categories.length,
-    hashtag: filtered.hashtags.length,
+    post: results.posts.length,
+    album: results.albums.length,
+    category: results.categories.length,
+    hashtag: results.hashtags.length,
   };
 
   const list =
-    type === "post" ? filtered.posts :
-    type === "album" ? filtered.albums :
-    type === "category" ? filtered.categories :
-    filtered.hashtags;
+    type === "post"
+      ? results.posts
+      : type === "album"
+      ? results.albums
+      : type === "category"
+      ? results.categories
+      : results.hashtags;
 
   return (
     <div className="with-fixed-header max-w-6xl mx-auto px-4 text-white">
-      {/* Header nhỏ */}
+      {/* Header */}
       <div className="mb-4">
         <h1 className="text-xl font-semibold">Search</h1>
         <div className="text-sm text-gray-400 mt-1">
           Result for:&nbsp;
-          <span className="text-gray-200 font-medium">{q ? `“${q}”` : "—"}</span>
+          <span className="text-gray-200 font-medium">
+            {q ? `“${q}”` : "—"}
+          </span>
         </div>
       </div>
 
@@ -131,7 +142,11 @@ export default function SearchPage() {
       </div>
 
       {/* Results */}
-      {!q.trim() ? (
+      {loading ? (
+        <div className="text-gray-400 text-sm">Đang tìm kiếm…</div>
+      ) : err ? (
+        <div className="text-red-400 text-sm">{err}</div>
+      ) : !q ? (
         <div className="text-gray-400 text-sm">
           Không có từ khoá. Hãy nhập từ khoá ở thanh Search trên Header.
         </div>
@@ -140,7 +155,7 @@ export default function SearchPage() {
       ) : type === "post" ? (
         <PostSection
           title={`Posts (${counts.post})`}
-          posts={list.map(mapMockPostToCard)}
+          posts={list.map(mapPostToCard)}
           showAlbum={false}
           hideReactions={true}
           emptyText="Không có bài viết nào."
@@ -148,7 +163,7 @@ export default function SearchPage() {
       ) : type === "album" ? (
         <AlbumSection
           title={`Albums (${counts.album})`}
-          albums={list.map(mapMockAlbumToCard)}
+          albums={list.map(mapAlbumToCard)}
           emptyText="Không có album nào."
         />
       ) : type === "category" ? (
@@ -160,12 +175,15 @@ export default function SearchPage() {
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
             {list.map((cat) => (
-              <Link key={cat.id} to={`/categories/${cat.id}`}>
+              <Link
+                key={cat.id || cat.category_id}
+                to={`/categories/${cat.id || cat.category_id}`}
+              >
                 <CategoryInfoCard
                   icon="fa-solid fa-folder"
-                  title={cat.name}
-                  subtitle={`ID: ${cat.id}`}
-                  description="Short category description..."
+                  title={cat.name || cat.category_name}
+                  subtitle={`ID: ${cat.id || cat.category_id}`}
+                  description={cat.description || "No description."}
                 />
               </Link>
             ))}
@@ -178,10 +196,17 @@ export default function SearchPage() {
               Hashtags ({counts.hashtag})
             </h2>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {list.map((h) => (
-              <HashtagLink key={h.id} tag={h.tag} />
-            ))}
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+            {list.map((h) => {
+              const tag = (h.tag || h.hashtag_name || "").replace(/^#/, "");
+              return (
+                <HashtagButton
+                  key={h.id || h.hashtag_id || tag}
+                  tag={tag}
+                  onClick={() => navigate(`/hashtags/${encodeURIComponent(tag)}`)}
+                />
+              );
+            })}
           </div>
         </section>
       )}

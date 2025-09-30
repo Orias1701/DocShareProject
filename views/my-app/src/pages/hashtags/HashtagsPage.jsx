@@ -1,203 +1,78 @@
-// src/pages/search/SearchPage.jsx
-import React, { useEffect, useMemo, useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+// src/pages/hashtags/HashtagsPage.jsx
+import React, { useEffect, useState } from "react";
+import { useParams } from "react-router-dom";
 import PostSection from "../../components/post/PostSection";
-import AlbumSection from "../../components/album/AlbumSection";
-import CategoryInfoCard from "../../components/category/CategoryInfoCard";
-import HashtagLink from "../../components/hashtag/HashtagLink";
+import postService from "../../services/postService";
 
-/** DỮ LIỆU MẪU — thay bằng API thật sau */
-const MOCK = {
-  posts: [
-    { id: 1, title: "React Hooks", excerpt: "useState, useEffect", hashtags: ["react", "hooks"] },
-    { id: 2, title: "Next.js Routing", excerpt: "App Router", hashtags: ["nextjs"] },
-    { id: 3, title: "Tailwind Layouts", excerpt: "Grid / Flex patterns", hashtags: ["tailwind", "css"] },
-  ],
-  albums: [
-    { id: "a1", name: "Frontend 2025", thumbnail: "https://picsum.photos/seed/a1/800/450" },
-    { id: "a2", name: "Backend Notes",  thumbnail: "https://picsum.photos/seed/a2/800/450" },
-  ],
-  categories: [
-    { id: "c1", name: "Frontend" },
-    { id: "c2", name: "Backend"  },
-    { id: "c3", name: "Data"     },
-  ],
-  hashtags: [
-    { id: "h1", tag: "#react"  },
-    { id: "h2", tag: "#backend"},
-    { id: "h3", tag: "#nextjs" },
-  ],
-};
-
-const TABS = ["post", "album", "category", "hashtag"];
-
-/** đọc query string */
-function useQueryParams() {
-  const { search } = useLocation();
-  return useMemo(() => new URLSearchParams(search), [search]);
+function normalizeTagName(s) {
+  return String(s || "").replace(/^#/, "").trim();
 }
 
-/** map MOCK post -> shape PostCard */
-const mapMockPostToCard = (p = {}) => ({
-  id: p.id,
-  post_id: p.id,
-  title: p.title || "Untitled",
-  authorName: "Demo User",
-  authorAvatar: "/images/default-avatar.png",
-  author: { id: "u1", name: "Demo User", avatar: "https://i.pinimg.com/736x/18/bd/a5/18bda5a4616cd195fe49a9a32dbab836.jpg" },
-  uploadTime: "2025-09-01 12:00:00",
-  banner: null,
-  file: null,
-  hashtags: p.hashtags || [],
-  stats: { likes: 0, comments: 0, views: 0 },
-  album_name: null,
-  is_bookmarked: false,
-});
+export default function HashtagsPage() {
+  const { slug } = useParams(); // ví dụ: /hashtags/Toán → slug="Toán"
+  const [title, setTitle] = useState(slug);
+  const [posts, setPosts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState(null);
 
-/** map MOCK album -> shape AlbumCard/AlbumSection */
-const mapMockAlbumToCard = (a = {}) => ({
-  id: a.id,
-  album_id: a.id,
-  title: a.name || "Album",
-  authorName: "Demo User",
-  authorAvatar: "https://i.pinimg.com/736x/18/bd/a5/18bda5a4616cd195fe49a9a32dbab836.jpg",
-  uploadTime: "2025-09-01",
-  banner: a.thumbnail || null,
-  link: `/albums/${a.id}`,
-});
-
-export default function SearchPage() {
-  const navigate = useNavigate();
-  const qp = useQueryParams();
-
-  const initType = (qp.get("type") || "post").toLowerCase();
-  const initQ = qp.get("q") || "";
-
-  const [type, setType] = useState(TABS.includes(initType) ? initType : "post");
-  const [q] = useState(initQ); // chỉ đọc — thanh Search ở Header
-
-  // Đồng bộ URL khi đổi tab
   useEffect(() => {
-    const params = new URLSearchParams();
-    params.set("type", type);
-    if (q) params.set("q", q);
-    navigate(`/search?${params.toString()}`, { replace: true });
-  }, [type, q, navigate]);
+    let mounted = true;
+    (async () => {
+      setLoading(true);
+      setErr(null);
+      try {
+        const wantedName = normalizeTagName(decodeURIComponent(slug));
 
-  // Lọc client-side (MOCK). Khi dùng API thật, thay khối này bằng dữ liệu từ server.
-  const filtered = useMemo(() => {
-    const kw = q.trim().toLowerCase();
-    if (!kw) return { posts: [], albums: [], categories: [], hashtags: [] };
+        // Gọi trực tiếp theo tên hashtag
+        let rows = await postService.getPostsByHashtag({ hashtag_name: wantedName });
 
-    return {
-      posts: MOCK.posts.filter(p =>
-        [p.title, p.excerpt, (p.hashtags || []).join(" ")].join(" ").toLowerCase().includes(kw)
-      ),
-      albums: MOCK.albums.filter(a => (a.name || "").toLowerCase().includes(kw)),
-      categories: MOCK.categories.filter(c => (c.name || "").toLowerCase().includes(kw)),
-      hashtags: MOCK.hashtags.filter(h => (h.tag || "").toLowerCase().includes(kw)),
+        // Nếu không có, fallback sang tìm id
+        if (!Array.isArray(rows) || rows.length === 0) {
+          const tags = await postService.listHashtags();
+          const found = (tags || []).find(
+            (t) => normalizeTagName(t.name).toLowerCase() === wantedName.toLowerCase()
+          );
+          if (found?.id) {
+            rows = await postService.getPostsByHashtag({ hashtag_id: found.id });
+            setTitle(found.name.startsWith("#") ? found.name.slice(1) : found.name);
+          } else {
+            setTitle(wantedName);
+            setPosts([]);
+            setErr("Không tìm thấy hashtag này.");
+            return;
+          }
+        } else {
+          setTitle(wantedName);
+        }
+
+        if (mounted) setPosts(Array.isArray(rows) ? rows : []);
+      } catch (e) {
+        if (mounted) setErr(e?.message || "Không tải được dữ liệu hashtag.");
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    })();
+    return () => {
+      mounted = false;
     };
-  }, [q]);
+  }, [slug]);
 
-  const counts = {
-    post: filtered.posts.length,
-    album: filtered.albums.length,
-    category: filtered.categories.length,
-    hashtag: filtered.hashtags.length,
-  };
-
-  const list =
-    type === "post" ? filtered.posts :
-    type === "album" ? filtered.albums :
-    type === "category" ? filtered.categories :
-    filtered.hashtags;
+  if (loading) return <div className="text-white p-4">Đang tải hashtag…</div>;
 
   return (
-    <div className="with-fixed-header max-w-6xl mx-auto px-4 text-white">
-      {/* Header nhỏ */}
-      <div className="mb-4">
-        <h1 className="text-xl font-semibold">Search</h1>
-        <div className="text-sm text-gray-400 mt-1">
-          Result for:&nbsp;
-          <span className="text-gray-200 font-medium">{q ? `“${q}”` : "—"}</span>
-        </div>
-      </div>
+    <div className="text-white p-4">
+      <h2 className="text-2xl font-bold mb-4"># {title}</h2>
 
-      {/* Tabs */}
-      <div className="flex gap-2 mb-6">
-        {TABS.map((t) => (
-          <button
-            key={t}
-            onClick={() => setType(t)}
-            className={`px-4 py-1.5 rounded-lg border text-sm ${
-              type === t
-                ? "bg-white/10 border-white/20"
-                : "bg-[#2b333d] border-transparent hover:bg-[#3a4654]"
-            }`}
-          >
-            {t.charAt(0).toUpperCase() + t.slice(1)} ({counts[t]})
-          </button>
-        ))}
-      </div>
-
-      {/* Results */}
-      {q.trim() === "" ? (
-        <div className="text-gray-400 text-sm">
-          Không có từ khoá. Hãy nhập từ khoá ở thanh Search trên Header.
-        </div>
-      ) : list.length === 0 ? (
-        <div className="text-gray-400 text-sm">Không có kết quả cho “{q}”.</div>
-      ) : type === "post" ? (
-        <PostSection
-          title={`Posts (${counts.post})`}
-          posts={list.map(mapMockPostToCard)}
-          showAlbum={false}
-          hideReactions={true}
-          emptyText="Không có bài viết nào."
-        />
-      ) : type === "album" ? (
-        <AlbumSection
-          title={`Albums (${counts.album})`}
-          albums={list.map(mapMockAlbumToCard)}
-          emptyText="Không có album nào."
-        />
-      ) : type === "category" ? (
-        <section className="w-full mb-12">
-          <div className="mb-6 flex items-center justify-between gap-4">
-            <h2 className="text-2xl font-bold text-white text-start">
-              Categories ({counts.category})
-            </h2>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-            {list.map((cat) => (
-              <Link key={cat.id} to={`/categories/${cat.id}`}>
-                <CategoryInfoCard
-                  icon="fa-solid fa-folder"
-                  title={cat.name}
-                  subtitle={`ID: ${cat.id}`}
-                  description="Short category description..."
-                />
-              </Link>
-            ))}
-          </div>
-        </section>
+      {err ? (
+        <div className="bg-red-900/40 border border-red-700 rounded p-3">{err}</div>
+      ) : posts.length === 0 ? (
+        <div className="text-gray-400">Chưa có bài viết nào cho hashtag này.</div>
       ) : (
-        <section className="w-full mb-12">
-          <div className="mb-6 flex items-center justify-between gap-4">
-            <h2 className="text-2xl font-bold text-white text-start">
-              Hashtags ({counts.hashtag})
-            </h2>
-          </div>
-          {list.length === 0 ? (
-            <p className="text-gray-400">Không tìm thấy hashtag nào.</p>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              {list.map((h) => (
-                <HashtagLink key={h.id} tag={h.tag} />
-              ))}
-            </div>
-          )}
-        </section>
+        <PostSection
+          title={`Có ${posts.length} bài viết`}
+          posts={posts}
+          hideReactions={false}
+        />
       )}
     </div>
   );
