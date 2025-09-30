@@ -204,7 +204,7 @@ class PostController
                 if ($uploadedFile['error'] !== UPLOAD_ERR_OK) throw new Exception("Lỗi upload file");
 
                 $fileName  = uniqid() . '.' . $uploadedFileExt;
-                $uploadDir = __DIR__ . '/../uploads/posts/';
+                $uploadDir = __DIR__ . '/../uploads/posts';
                 if (!is_dir($uploadDir)) mkdir($uploadDir, 0755, true);
                 $targetPath = $uploadDir . $fileName;
 

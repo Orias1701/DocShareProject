@@ -46,21 +46,6 @@ export default function SearchBarPanel({ open, onClose, query, onSubmit, loading
               {loading && <span className="ml-3 text-blue-400">…loading</span>}
             </div>
 
-            {/* <div className="flex items-center gap-2 mb-2">
-              {["Post", "Album", "Category", "Hashtag"].map((t) => (
-                <button
-                  key={t}
-                  onClick={() => setTab(t)}
-                  className={`px-4 py-1.5 rounded-lg border text-sm flex items-center gap-2 ${
-                    tab === t ? "bg-white/10 border-white/20" : "bg-[#2b333d] border-transparent hover:bg-[#3a4654]"
-                  }`}
-                >
-                  {t} <span className="text-xs opacity-80">({counts[t]})</span>
-                </button>
-              ))}
-            </div> */}
-
-            {/* chỉ hiển gợi ý/summary, không có nút search ở đây */}
             <div className="text-xs text-gray-300">
               {Object.values(counts).reduce((a,b)=>a+b,0) > 0
                 ? "Gợi ý đã sẵn sàng, bấm Enter hoặc nút kính lúp trên thanh header để tìm."

@@ -46,6 +46,7 @@ function CommentItem({ cmt, canManage, onStartEdit, onDelete }) {
           src={cmt.avatar_url}
           alt={cmt.full_name}
           className="w-7 h-7 rounded-full object-cover flex-shrink-0"
+          onError={(e) => { e.currentTarget.src = "/images/default-avatar.png"; }}
         />
       ) : (
         <div className="w-7 h-7 rounded-full bg-gray-600 flex items-center justify-center text-xs text-white">
@@ -68,6 +69,7 @@ function CommentItem({ cmt, canManage, onStartEdit, onDelete }) {
                 type="button"
                 onClick={() => onStartEdit(cmt)}
                 className="text-[11px] px-2 py-0.5 rounded bg-amber-600/30 hover:bg-amber-600/50 text-amber-200"
+                aria-label="Sửa bình luận"
               >
                 Sửa
               </button>
@@ -75,6 +77,7 @@ function CommentItem({ cmt, canManage, onStartEdit, onDelete }) {
                 type="button"
                 onClick={() => onDelete(cmt)}
                 className="text-[11px] px-2 py-0.5 rounded bg-rose-600/30 hover:bg-rose-600/50 text-rose-200"
+                aria-label="Xoá bình luận"
               >
                 Xoá
               </button>
@@ -92,7 +95,19 @@ function CommentItem({ cmt, canManage, onStartEdit, onDelete }) {
   );
 }
 
-export default function CommentsPanel({ postId, currentUserId }) {
+/**
+ * Props:
+ * - postId: string (bắt buộc)
+ * - currentUserId: string | null
+ * - initialCount?: number (để hiện count tức thời)
+ * - onCountChange?: (n: number) => void (callback cho parent cập nhật nút "Bình luận • n")
+ */
+export default function CommentsPanel({
+  postId,
+  currentUserId,
+  initialCount = 0,
+  onCountChange,
+}) {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
   const [comments, setComments] = useState([]);
@@ -111,6 +126,14 @@ export default function CommentsPanel({ postId, currentUserId }) {
   // delete confirm
   const [confirmDelete, setConfirmDelete] = useState(null);
 
+  // nếu có initialCount → báo cho parent ngay (hiển thị tức thời)
+  useEffect(() => {
+    if (typeof initialCount === "number") {
+      onCountChange?.(initialCount);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialCount]);
+
   const loadComments = useCallback(async () => {
     if (!postId) return;
     setLoading(true);
@@ -124,6 +147,7 @@ export default function CommentsPanel({ postId, currentUserId }) {
             parseLocalDatetime(a.created_at) - parseLocalDatetime(b.created_at)
         );
         setComments(arr);
+        onCountChange?.(arr.length); // 🔔 cập nhật count cho parent
       } else {
         setErr(res?.message || "Không lấy được bình luận");
       }
@@ -132,7 +156,7 @@ export default function CommentsPanel({ postId, currentUserId }) {
     } finally {
       setLoading(false);
     }
-  }, [postId]);
+  }, [postId, onCountChange]);
 
   useEffect(() => {
     loadComments();
@@ -149,7 +173,7 @@ export default function CommentsPanel({ postId, currentUserId }) {
         content: content.trim(),
       });
       setContent("");
-      await loadComments();
+      await loadComments(); // load lại → tự cập nhật count qua onCountChange
     } catch (e) {
       alert(e?.message || "Gửi bình luận thất bại");
     } finally {
@@ -218,6 +242,7 @@ export default function CommentsPanel({ postId, currentUserId }) {
             value={content}
             onChange={(e) => setContent(e.target.value)}
             disabled={!isLoggedIn}
+            aria-label="Nội dung bình luận"
           />
           <button
             type="submit"
@@ -227,6 +252,7 @@ export default function CommentsPanel({ postId, currentUserId }) {
                 ? "bg-green-600 hover:bg-green-500"
                 : "bg-gray-700 cursor-not-allowed"
             } text-white`}
+            aria-label="Gửi bình luận"
           >
             {posting ? "Đang gửi…" : "Gửi"}
           </button>
@@ -270,6 +296,7 @@ export default function CommentsPanel({ postId, currentUserId }) {
                             ? "bg-gray-700 text-gray-300 cursor-not-allowed"
                             : "bg-emerald-600 hover:bg-emerald-500 text-white"
                         }`}
+                        aria-label="Lưu chỉnh sửa"
                       >
                         Lưu
                       </button>
@@ -277,6 +304,7 @@ export default function CommentsPanel({ postId, currentUserId }) {
                         type="button"
                         onClick={cancelEdit}
                         className="px-3 py-1.5 text-sm rounded bg-gray-700 hover:bg-gray-600 text-gray-100"
+                        aria-label="Huỷ chỉnh sửa"
                       >
                         Hủy
                       </button>

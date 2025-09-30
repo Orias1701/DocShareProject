@@ -7,7 +7,6 @@ const ACTIONS = {
   getPopular: "popular_posts",
   postDetail: "post_detail_api",
   postsByCategory: "list_posts_by_category",
-  showPostDetail: "show_post_detail",
   listAll: "list_all_posts",
   create: "create_post",
   update: "update_post",

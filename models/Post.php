@@ -88,7 +88,7 @@ class Post
         try {
             // main
             $sql = "
-                SELECT p.*, a.album_id, a.album_name, a.user_id , ui.full_name ,ui.avatar_url,
+                SELECT p.*, a.album_id, a.album_name, a.user_id , ui.full_name ,ui.avatar_url,ui.full_name,p.file_url,p.file_type,
                        c.category_id, c.category_name
                 FROM posts p
                 LEFT JOIN albums a ON p.album_id = a.album_id

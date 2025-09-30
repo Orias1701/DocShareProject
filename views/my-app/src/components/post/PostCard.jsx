@@ -135,7 +135,7 @@ export default function PostCard({
   ) : (
     // Luôn wrap contentEl trong Link để clickable
     <Link
-      to={`/viewer/post/${postId}`}
+      to={`/viewer/content/${postId}`}
       className="block"
       aria-label="Xem post"
     >

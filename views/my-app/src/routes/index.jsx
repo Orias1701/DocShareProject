@@ -11,7 +11,7 @@ import Footer from "../components/layouts/Footer";
 import Modal from "../components/common/Modal";
 import NewAlbumForm from "../components/common/NewAlbumForm";
 import AuthLayout from "../layouts/AuthLayout";
-import ViewPost from "../components/post/ViewPost";
+import ViewPost from "../components/viewer/ViewPost";
 
 // Pages
 import ExplorePage from "../pages/explore/ExplorePage";
@@ -28,6 +28,7 @@ import ProfilePage from "../pages/profile/ProfilePage";
 import RegisterPage from "../pages/auth/RegisterPage";
 import LoginPage from "../pages/auth/LoginPage";
 import FileViewerPage from "../pages/viewer/FileViewerPage";
+import ContentViewerPage from "../pages/viewer/ContentViewerPage";
 import ProfilePageOther from "../pages/profile/ProfilePageOther";
 import AlbumDetailPage from "../pages/myalbum/AlbumDetailPage";
 import CategoryDetailPage from "../pages/categories/CategoryDetailPage";
@@ -68,7 +69,10 @@ function ProtectedLayout({ isCollapsed, setIsCollapsed, isNewAlbumModalOpen, set
             <Route path="leaderboard" element={<LeaderboardPage />} />
             <Route path="categories" element={<CategoriesPage />} />
             <Route path="hashtags/:slug" element={<HashtagsPage />} />
+
             <Route path="viewer/file" element={<FileViewerPage />} />
+            <Route path="viewer/content/:postId" element={<ContentViewerPage />} />
+
             <Route path="/profile/:userId" element={<ProfilePageOther />} />
             <Route path="/albums/:albumId" element={<AlbumDetailPage />} />
             <Route path="/categories/:categoryId" element={<CategoryDetailPage />} />
