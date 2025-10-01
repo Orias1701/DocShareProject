@@ -555,21 +555,32 @@ if (isset($_GET['action'])) {
         
 
         /*************** REPORT ***************/
+        // === REPORT API ===
         case 'toggle_report':
             $postId = $_POST['post_id'] ?? null;
-            $reason = $_POST['reason'] ?? null;
-            if (!$postId || !$reason) {
+            $reason = $_POST['reason'] ?? '';
+            if (!$postId) {
                 http_response_code(400);
-                echo "post_id và reason là bắt buộc";
+                echo json_encode(["ok" => false, "error" => "post_id là bắt buộc"]);
                 exit;
             }
             $reportController->toggleReport($postId, $reason);
-            header("Location: index.php?action=post_detail&post_id=" . $postId);
             exit;
 
         case 'list_reports':
+            $postId = $_GET['post_id'] ?? null;
+            if (!$postId) {
+                http_response_code(400);
+                echo json_encode(["ok" => false, "error" => "post_id là bắt buộc"]);
+                exit;
+            }
+            $reportController->listReports($postId);
+            exit;
+
+        case 'list_all_reports':
             $reportController->listAllReports();
             exit;
+
 
         /*************** USER FOLLOW ***************/
         case 'toggle_follow':

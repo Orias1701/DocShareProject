@@ -156,10 +156,7 @@ export default function PostCard({
           )}
         </div>
 
-        <PostOptionsMenu
-          postId={postId}
-          onReport={() => alert("Báo cáo bài viết")}
-        />
+        <PostOptionsMenu postId={postId} />
       </div>
 
       {/* Body */}

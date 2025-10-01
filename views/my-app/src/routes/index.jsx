@@ -11,7 +11,6 @@ import Footer from "../components/layouts/Footer";
 import Modal from "../components/common/Modal";
 import NewAlbumForm from "../components/common/NewAlbumForm";
 import AuthLayout from "../layouts/AuthLayout";
-import ViewPost from "../components/viewer/ViewPost";
 
 // Pages
 import ExplorePage from "../pages/explore/ExplorePage";
@@ -33,10 +32,12 @@ import ProfilePageOther from "../pages/profile/ProfilePageOther";
 import AlbumDetailPage from "../pages/myalbum/AlbumDetailPage";
 import CategoryDetailPage from "../pages/categories/CategoryDetailPage";
 import SearchPage from "../pages/search/SearchPage";
+
 // Global css
 import "../assets/font-awesome-6.6.0-pro-full-main/css/all.css";
 
-function ProtectedLayout({ isCollapsed, setIsCollapsed, isNewAlbumModalOpen, setNewAlbumModalOpen }) {
+/** Layout chính (public), không yêu cầu đăng nhập */
+function MainLayout({ isCollapsed, setIsCollapsed, isNewAlbumModalOpen, setNewAlbumModalOpen }) {
   useEffect(() => {
     document.body.classList.add("main-page");
     return () => document.body.classList.remove("main-page");
@@ -58,26 +59,75 @@ function ProtectedLayout({ isCollapsed, setIsCollapsed, isNewAlbumModalOpen, set
         />
         <main>
           <Routes>
+            {/* ===== PUBLIC ROUTES ===== */}
             <Route index element={<ExplorePage />} />
-            <Route path="following" element={<FollowingPage />} />
-            <Route path="history" element={<HistoryPage />} />
-            <Route path="my-posts" element={<MyPostsPage />} />
-            <Route path="bookmarks" element={<BookmarksPage />} />
-            <Route path="my-albums" element={<MyAlbumPage />} />
-            <Route path="new-post" element={<NewPostPage />} />
-            <Route path="profile" element={<ProfilePage />} />
             <Route path="leaderboard" element={<LeaderboardPage />} />
             <Route path="categories" element={<CategoriesPage />} />
             <Route path="hashtags/:slug" element={<HashtagsPage />} />
-
             <Route path="viewer/file" element={<FileViewerPage />} />
             <Route path="viewer/content/:postId" element={<ContentViewerPage />} />
-
             <Route path="/profile/:userId" element={<ProfilePageOther />} />
             <Route path="/albums/:albumId" element={<AlbumDetailPage />} />
             <Route path="/categories/:categoryId" element={<CategoryDetailPage />} />
-            {/* <Route path="/hashtags/:slug" element={<HashtagDetailPage />} /> */}
             <Route path="/search" element={<SearchPage />} />
+
+            {/* ===== PRIVATE ROUTES (bọc từng trang) ===== */}
+            <Route
+              path="following"
+              element={
+                <RequireAuth>
+                  <FollowingPage />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="history"
+              element={
+                <RequireAuth>
+                  <HistoryPage />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="my-posts"
+              element={
+                <RequireAuth>
+                  <MyPostsPage />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="bookmarks"
+              element={
+                <RequireAuth>
+                  <BookmarksPage />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="my-albums"
+              element={
+                <RequireAuth>
+                  <MyAlbumPage />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="new-post"
+              element={
+                <RequireAuth>
+                  <NewPostPage />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="profile"
+              element={
+                <RequireAuth>
+                  <ProfilePage />
+                </RequireAuth>
+              }
+            />
           </Routes>
         </main>
       </div>
@@ -97,7 +147,7 @@ function App() {
     <AuthProvider>
       <BrowserRouter>
         <Routes>
-          {/* Public */}
+          {/* Public auth pages */}
           <Route
             path="/login"
             element={
@@ -115,18 +165,16 @@ function App() {
             }
           />
 
-          {/* Private (bọc toàn bộ main) */}
+          {/* Main (public layout) – chỉ bọc riêng các route cần đăng nhập */}
           <Route
             path="/*"
             element={
-              <RequireAuth>
-                <ProtectedLayout
-                  isCollapsed={isCollapsed}
-                  setIsCollapsed={setIsCollapsed}
-                  isNewAlbumModalOpen={isNewAlbumModalOpen}
-                  setNewAlbumModalOpen={setNewAlbumModalOpen}
-                />
-              </RequireAuth>
+              <MainLayout
+                isCollapsed={isCollapsed}
+                setIsCollapsed={setIsCollapsed}
+                isNewAlbumModalOpen={isNewAlbumModalOpen}
+                setNewAlbumModalOpen={setNewAlbumModalOpen}
+              />
             }
           />
         </Routes>
@@ -136,3 +184,4 @@ function App() {
 }
 
 export default App;
+//

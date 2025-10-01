@@ -230,6 +230,7 @@ export default function Header() {
                 Đăng ký
               </NavLink>
             </div>
+
           )}
         </div>
       </header>
