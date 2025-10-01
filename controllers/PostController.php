@@ -469,16 +469,15 @@ class PostController
             return $this->respondError($e->getMessage(), 500);
         }
     }
-    public function download()
+    // controllers/PostController.php (method download)
+public function download()
 {
-    // 1) Bắt buộc đăng nhập
     if (empty($_SESSION['user_id'])) {
         http_response_code(401);
         echo "Bạn cần đăng nhập để tải file.";
         exit;
     }
 
-    // 2) Lấy post_id
     $postId = $_GET['post_id'] ?? null;
     if (!$postId) {
         http_response_code(422);
@@ -486,7 +485,6 @@ class PostController
         exit;
     }
 
-    // 3) Lấy post
     $post = $this->postModel->getPostById($postId);
     if (!$post) {
         http_response_code(404);
@@ -494,130 +492,86 @@ class PostController
         exit;
     }
 
-    // 4) Check quyền riêng tư
+    // Check quyền
     if (($post['privacy'] ?? null) === 'private'
         && ($post['author_id'] ?? null) !== ($_SESSION['user_id'] ?? null)) {
         http_response_code(403);
         echo "Bạn không có quyền tải file này.";
         exit;
     }
-
-    // Helper: tạo tên file an toàn
     $makeSafeName = function(string $title, string $ext) {
-        $base = preg_replace('/[^a-zA-Z0-9-_]+/', '_', $title ?: 'tai_lieu');
-        return $base . '.' . ltrim($ext, '.');
+        $base = preg_replace('/[^\p{L}\p{N}\-_. ]/u', '', $title ?: 'tai_lieu');
+        $base = preg_replace('/\s+/', '_', $base);
+        return $base . '.' . $ext;
     };
+    // === CASE 1: có file đính kèm (PDF, DOCX, ... trong uploads) ===
+    if (!empty($post['file_url'])) {
+        $fileUrl = $post['file_url'];
+        $uploadsBase = realpath(__DIR__ . '/../uploads');
 
-    // ===== CASE 1: Có file đính kèm =====
-if (!empty($post['file_url'])) {
-    $fileUrl = $post['file_url'];
+        $path = parse_url($fileUrl, PHP_URL_PATH) ?: '';
+        $relative = ltrim(preg_replace('#^/uploads#i', '', $path), '/');
+        $filePath = realpath($uploadsBase . DIRECTORY_SEPARATOR . $relative);
 
-    // Nếu là URL tuyệt đối (http/https)
-    if (preg_match('#^https?://#i', $fileUrl)) {
-        $ext = pathinfo(parse_url($fileUrl, PHP_URL_PATH) ?? '', PATHINFO_EXTENSION) ?: 'bin';
-        $safeName = $makeSafeName($post['title'] ?? 'tai_lieu', $ext);
-
-        if (ini_get('allow_url_fopen')) {
-            header('Content-Type: application/octet-stream');
-            header('Content-Disposition: attachment; filename="'.$safeName.'"');
+        if ($filePath && strpos($filePath, $uploadsBase) === 0 && is_file($filePath)) {
+            $ext  = pathinfo($filePath, PATHINFO_EXTENSION) ?: 'bin';
+            $safe = $makeSafeName($post['title'] ?? 'tai_lieu', $ext);
+            $mime = mime_content_type($filePath) ?: 'application/octet-stream';
+        
+            // >>> FIX QUAN TRỌNG <<<
             while (ob_get_level()) ob_end_clean();
-            readfile($fileUrl);
-            exit;
-        } else {
-            header("Location: ".$fileUrl);
+            if (!headers_sent()) {
+                header_remove("Content-Type");
+            }
+        
+            header('Content-Type: ' . $mime);
+            header('Content-Disposition: attachment; filename="' . $safe . '"');
+            header('Content-Length: ' . filesize($filePath));
+            readfile($filePath);
             exit;
         }
-    }
+        
 
-    // Nếu là file local
-    $path = parse_url($fileUrl, PHP_URL_PATH); // "/uploads/posts/xxx.pdf"
-    $uploadsBase = realpath(__DIR__ . '/../uploads'); 
-    $relative = preg_replace('#^/uploads#i', '', $path); 
-    $filePath = rtrim($uploadsBase, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . ltrim($relative, DIRECTORY_SEPARATOR);
-
-    if (!is_file($filePath)) {
         http_response_code(404);
-        echo "File không tồn tại trên server: $filePath";
+        echo "File không tồn tại.";
         exit;
     }
 
-    $ext = pathinfo($filePath, PATHINFO_EXTENSION) ?: 'bin';
-    $safeName = $makeSafeName($post['title'] ?? 'tai_lieu', $ext);
-    $mime = mime_content_type($filePath) ?: 'application/octet-stream';
-
-    header('Content-Type: '.$mime);
-    header('Content-Disposition: attachment; filename="'.$safeName.'"');
-    header('Content-Length: '.filesize($filePath));
-    while (ob_get_level()) ob_end_clean();
-    readfile($filePath);
-    exit;
-}
-
-
-    // ===== CASE 2: Không có file, nhưng có content HTML =====
+    // === CASE 2: không có file, chỉ có content HTML → xuất .doc ===
     $rawHtml = trim((string)($post['content'] ?? ''));
-    if ($rawHtml !== '') {
-        // a) Bỏ BOM, XML header nếu có
-        $rawHtml = preg_replace('/^\xEF\xBB\xBF/', '', $rawHtml);
-        $rawHtml = preg_replace('/^<\?xml[^>]*\?>/i', '', $rawHtml);
+if ($rawHtml !== '') {
+    while (ob_get_level()) ob_end_clean();
+    if (!headers_sent()) {
+        header_remove("Content-Type");
+    }
 
-        // b) Chuyển URL tương đối thành tuyệt đối
-        $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
-        $host   = $_SERVER['HTTP_HOST'] ?? 'localhost';
-        $base   = $scheme.'://'.$host.'/';
-
-        $absUrl = function($u) use ($base) {
-            $u = trim($u);
-            if ($u === '' || preg_match('#^(https?:)?//#i', $u)) return $u;
-            if ($u[0] === '/') return $base.ltrim($u, '/');
-            return $base.$u;
-        };
-
-        $rawHtml = preg_replace_callback(
-            '#\b(src|href)\s*=\s*([\'"])(.*?)\2#i',
-            function($m) use ($absUrl) {
-                return $m[1].'='.$m[2].$absUrl($m[3]).$m[2];
-            },
-            $rawHtml
-        );
-
-        // c) Bọc HTML chuẩn cho Word
-        $title = htmlspecialchars($post['title'] ?? 'Tai lieu', ENT_QUOTES, 'UTF-8');
-        $docHtml = <<<HTML
+    $title = htmlspecialchars($post['title'] ?? 'Tai lieu', ENT_QUOTES, 'UTF-8');
+    $docHtml = <<<HTML
 <!DOCTYPE html>
-<html>
+<html xmlns:w="urn:schemas-microsoft-com:office:word">
 <head>
 <meta charset="UTF-8" />
 <title>{$title}</title>
-<style>
-body { font-family: "Times New Roman", serif; font-size: 14pt; color: #000; }
-img { max-width: 100%; height: auto; }
-table { border-collapse: collapse; }
-table, th, td { border: 1px solid #ccc; }
-p { margin: 8pt 0; }
-</style>
 </head>
 <body>
-{$rawHtml}
+$rawHtml
 </body>
 </html>
 HTML;
 
-        $safeName = $makeSafeName($post['title'] ?? 'tai_lieu', 'doc');
-
-        header('Content-Type: application/msword; charset=UTF-8');
-        header('Content-Disposition: attachment; filename="'.$safeName.'"');
-        while (ob_get_level()) ob_end_clean();
-        echo $docHtml;
-        exit;
-    }
-
-    // ===== CASE 3: Không có gì để tải =====
-    http_response_code(404);
-    echo "Bài viết không có file hay nội dung để tải.";
+    $safe = $makeSafeName($post['title'] ?? 'tai_lieu', 'doc');
+    header('Content-Type: application/msword; charset=UTF-8');
+    header('Content-Disposition: attachment; filename="' . $safe . '"');
+    header('Content-Length: ' . strlen($docHtml));
+    echo $docHtml;
     exit;
 }
 
+
+    http_response_code(404);
+    echo "Bài viết không có file hay nội dung.";
+    exit;
+}
 
 
 }

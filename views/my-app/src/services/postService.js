@@ -253,27 +253,24 @@ export const postService = {
   async download(postId) {
     if (!postId) throw new Error("postId is required");
 
-    // base URL: đã fix sang public/index.php
     const API_BASE = "http://localhost:3000/public/index.php";
     const url = `${API_BASE}?action=download&post_id=${encodeURIComponent(postId)}`;
 
-    // gọi trực tiếp fetch, không dùng fetchJson
-    const res = await fetch(url, {
-      credentials: "include",
-    });
+    const res = await fetch(url, { credentials: "include" });
+    if (!res.ok) {
+      const msg = await res.text();
+      throw new Error(`Download failed: ${res.status} ${msg}`);
+    }
 
-    if (!res.ok) throw new Error("Download failed");
-
-    // Lấy tên file từ header Content-Disposition
-    const disposition = res.headers.get("Content-Disposition");
+    // lấy filename từ Content-Disposition
     let filename = "downloaded_file";
+    const disposition = res.headers.get("Content-Disposition");
     if (disposition && disposition.includes("filename=")) {
       filename = decodeURIComponent(
         disposition.split("filename=")[1].replace(/["']/g, "")
       );
     }
 
-    // Tạo link để tải file
     const blob = await res.blob();
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
@@ -282,7 +279,7 @@ export const postService = {
     link.click();
     URL.revokeObjectURL(link.href);
     link.remove();
-  }
+  },
 };
 
 export default postService;

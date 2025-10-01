@@ -81,10 +81,14 @@ export default function ViewPost({ postId, currentUserId, backHref, onBack }) {
     avatar: avatar_url || FALLBACK_AVATAR,
   };
 
+  const isPdf = (url) =>
+    typeof url === "string" && url.toLowerCase().trim().endsWith(".pdf");
+
   const main = (
     <div className={`${css.card} min-h-[420px]`}>
       {/* Action bar */}
       <div className="p-4 flex items-center gap-2">
+        {/* Mở bản gốc nếu có file_url */}
         {file_url ? (
           <a
             href={file_url}
@@ -97,6 +101,7 @@ export default function ViewPost({ postId, currentUserId, backHref, onBack }) {
           </a>
         ) : null}
 
+        {/* Quay lại */}
         {backHref ? (
           <a
             href={typeof backHref === "string" ? backHref : "#"}
@@ -120,7 +125,7 @@ export default function ViewPost({ postId, currentUserId, backHref, onBack }) {
           </button>
         )}
 
-        {/* Menu (Report / Tải) – truyền postId để PostOptionsMenu tự gọi service */}
+        {/* Menu (Report / Tải) – chỉ giữ trong menu */}
         <div className="ml-auto">
           <PostOptionsMenu
             postId={effectivePostId}
@@ -131,7 +136,7 @@ export default function ViewPost({ postId, currentUserId, backHref, onBack }) {
 
       {/* Nội dung */}
       {file_url ? (
-        file_url.toLowerCase().endsWith(".pdf") ? (
+        isPdf(file_url) ? (
           <div className="w-full h-[70vh]">
             <embed
               src={`${file_url}#toolbar=0&navpanes=0&scrollbar=0&view=FitH`}
@@ -151,7 +156,6 @@ export default function ViewPost({ postId, currentUserId, backHref, onBack }) {
       ) : content ? (
         <div
           className="p-4 prose prose-invert max-w-none"
-          // nếu cần: sanitize trước khi set
           dangerouslySetInnerHTML={{ __html: content }}
         />
       ) : (

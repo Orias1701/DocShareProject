@@ -17,14 +17,31 @@ export default function PostOptionsMenu({ postId, onReport }) {
   const handleDownload = async () => {
     if (!postId) {
       alert("❌ Không có postId để tải!");
+      console.warn("[Download] Không có postId -> bỏ qua.");
       return;
     }
 
     try {
       await postService.download(postId);
+      console.log(`✅ Tải thành công postId=${postId}`);
     } catch (err) {
-      console.error("Lỗi khi tải tài liệu:", err);
-      alert(`❌ Tải thất bại: ${err.message || "Có lỗi xảy ra."}`);
+      console.error("❌ Tải thất bại:", err);
+
+      // phân loại nguyên nhân
+      const msg = err?.message || "";
+      if (msg.includes("401")) {
+        console.log("Nguyên nhân: chưa đăng nhập (401).");
+      } else if (msg.includes("403")) {
+        console.log("Nguyên nhân: không có quyền tải (403).");
+      } else if (msg.includes("404")) {
+        console.log("Nguyên nhân: file không tồn tại (404).");
+      } else if (msg.toLowerCase().includes("failed to fetch")) {
+        console.log("Nguyên nhân: lỗi mạng hoặc CORS.");
+      } else {
+        console.log("Nguyên nhân khác:", msg);
+      }
+
+      alert(`❌ Tải thất bại: ${msg || "Có lỗi xảy ra."}`);
     }
   };
 
