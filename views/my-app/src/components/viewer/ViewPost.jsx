@@ -9,8 +9,6 @@ import PostOptionsMenu from "../post/PostOptionsMenu";
 const FALLBACK_AVATAR =
   "https://i.pinimg.com/736x/18/bd/a5/18bda5a4616cd195fe49a9a32dbab836.jpg";
 
-const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:3000";
-
 export default function ViewPost({ postId, currentUserId, backHref, onBack }) {
   const [loading, setLoading] = useState(true);
   const [post, setPost] = useState(null);
@@ -18,21 +16,13 @@ export default function ViewPost({ postId, currentUserId, backHref, onBack }) {
   const [commentCount, setCommentCount] = useState(0);
   const [showComments, setShowComments] = useState(false);
 
-  // Load post + hashtags + comment count
   useEffect(() => {
     if (!postId) return;
     (async () => {
       try {
         setLoading(true);
-
         const res = await postService.getByIdCompact(postId);
         const p = res?.data?.post || res?.data || null;
-
-        console.group("🔎 API DEBUG ViewPost");
-        console.log("Full API response:", res);
-        console.log("Post object (p):", p);
-        console.log("API file_url:", p?.file_url);
-        console.groupEnd();
 
         setPost(p || null);
         setHashtags(res?.data?.hashtags || []);
@@ -52,7 +42,6 @@ export default function ViewPost({ postId, currentUserId, backHref, onBack }) {
     })();
   }, [postId]);
 
-  // Refresh count khi mở bình luận
   useEffect(() => {
     if (!postId || !showComments) return;
     (async () => {
@@ -71,7 +60,6 @@ export default function ViewPost({ postId, currentUserId, backHref, onBack }) {
   const {
     title,
     file_url,
-    file_type,
     banner_url,
     content,
     album_name,
@@ -79,7 +67,7 @@ export default function ViewPost({ postId, currentUserId, backHref, onBack }) {
     full_name,
     avatar_url,
     summary,
-    post_id, // phòng trường hợp BE trả kèm trong object post
+    post_id,
   } = post;
 
   const effectivePostId = postId || post_id;
@@ -93,25 +81,9 @@ export default function ViewPost({ postId, currentUserId, backHref, onBack }) {
     avatar: avatar_url || FALLBACK_AVATAR,
   };
 
-  // === Handler: tải tài liệu qua BE ===
-  const handleDownload = () => {
-    if (!effectivePostId) {
-      alert("Không xác định được post_id để tải.");
-      return;
-    }
-    // Endpoint PHP: ?action=post.download&post_id=...
-    const url = `${API_BASE}/index.php?action=post.download&post_id=${encodeURIComponent(
-      effectivePostId
-    )}`;
-
-    // Mở tab mới để trình duyệt tự tải; hoặc dùng window.location.href nếu muốn tải trong tab hiện tại
-    window.open(url, "_blank");
-  };
-
-  // === MAIN ===
   const main = (
     <div className={`${css.card} min-h-[420px]`}>
-      {/* Thanh tác vụ góc phải */}
+      {/* Action bar */}
       <div className="p-4 flex items-center gap-2">
         {file_url ? (
           <a
@@ -148,22 +120,18 @@ export default function ViewPost({ postId, currentUserId, backHref, onBack }) {
           </button>
         )}
 
-        {/* Menu tuỳ chọn (Report / Tải) */}
+        {/* Menu (Report / Tải) – truyền postId để PostOptionsMenu tự gọi service */}
         <div className="ml-auto">
           <PostOptionsMenu
-            onReport={() => {
-              // TODO: mở modal report
-              alert("Report chưa triển khai.");
-            }}
-            onDownload={handleDownload}
+            postId={effectivePostId}
+            onReport={() => alert("Report chưa triển khai.")}
           />
         </div>
       </div>
 
-      {/* Vùng preview nội dung */}
+      {/* Nội dung */}
       {file_url ? (
         file_url.toLowerCase().endsWith(".pdf") ? (
-          // PDF preview (ẩn toolbar của viewer trình duyệt bằng hash; có thể không đồng nhất mọi browser)
           <div className="w-full h-[70vh]">
             <embed
               src={`${file_url}#toolbar=0&navpanes=0&scrollbar=0&view=FitH`}
@@ -183,6 +151,7 @@ export default function ViewPost({ postId, currentUserId, backHref, onBack }) {
       ) : content ? (
         <div
           className="p-4 prose prose-invert max-w-none"
+          // nếu cần: sanitize trước khi set
           dangerouslySetInnerHTML={{ __html: content }}
         />
       ) : (
@@ -191,7 +160,7 @@ export default function ViewPost({ postId, currentUserId, backHref, onBack }) {
         </div>
       )}
 
-      {/* Thanh hành động (bình luận) */}
+      {/* Bình luận */}
       {effectivePostId ? (
         <div className="p-4 flex items-center gap-2">
           <button
@@ -211,7 +180,6 @@ export default function ViewPost({ postId, currentUserId, backHref, onBack }) {
     </div>
   );
 
-  // === SIDEBAR PHẢI ===
   const right = (
     <>
       <div className={`${css.card} p-5`}>

@@ -14,7 +14,8 @@ const ACTIONS = {
   listPostByUser: "list_posts_by_user",
   listUserPosts: "list_posts_by_user",
   postsByAlbum: "get_posts_by_album",
-
+  //Dowload
+  download: "download",
   // Post ↔ Hashtag
   listPostHashtags: "list_post_hashtags",
   postsByHashtag: "posts_by_hashtag", // ← BE của bạn
@@ -247,6 +248,41 @@ export const postService = {
     );
     return pickCount(res);
   },
+  // ---------- DOWNLOAD ----------
+  // src/services/postService.js
+  async download(postId) {
+    if (!postId) throw new Error("postId is required");
+
+    // base URL: đã fix sang public/index.php
+    const API_BASE = "http://localhost:3000/public/index.php";
+    const url = `${API_BASE}?action=download&post_id=${encodeURIComponent(postId)}`;
+
+    // gọi trực tiếp fetch, không dùng fetchJson
+    const res = await fetch(url, {
+      credentials: "include",
+    });
+
+    if (!res.ok) throw new Error("Download failed");
+
+    // Lấy tên file từ header Content-Disposition
+    const disposition = res.headers.get("Content-Disposition");
+    let filename = "downloaded_file";
+    if (disposition && disposition.includes("filename=")) {
+      filename = decodeURIComponent(
+        disposition.split("filename=")[1].replace(/["']/g, "")
+      );
+    }
+
+    // Tạo link để tải file
+    const blob = await res.blob();
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    URL.revokeObjectURL(link.href);
+    link.remove();
+  }
 };
 
 export default postService;

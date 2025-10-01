@@ -1,3 +1,4 @@
+// src/components/post/PostCard.jsx
 import React, { useMemo } from "react";
 import PropTypes from "prop-types";
 import { Link } from "react-router-dom";
@@ -9,8 +10,6 @@ const FALLBACK_URL =
   "https://i.pinimg.com/736x/18/bd/a5/18bda5a4616cd195fe49a9a32dbab836.jpg";
 const FALLBACK_AVATAR =
   "https://i.pinimg.com/736x/c7/cd/4d/c7cd4dde24c8fcfeeddc73899a45c4b0.jpg";
-
-const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:3000";
 
 /** Chuẩn hoá hashtag */
 function normalizeHashtags(hx) {
@@ -36,9 +35,7 @@ function normalizeHashtags(hx) {
     return Array.from(
       new Set(
         hx
-          .split(/[,\s]+/)
-          .map((s) => toDisplay(s))
-          .filter(Boolean)
+          .split(/[,\s]+/).map((s) => toDisplay(s)).filter(Boolean)
       )
     );
   }
@@ -70,17 +67,12 @@ export default function PostCard({
   const authorName =
     post?.authorName ?? post?.author?.name ?? post?.full_name ?? "Ẩn danh";
   const authorAvatar =
-    post?.authorAvatar ??
-    post?.author?.avatar ??
-    post?.avatar_url ??
-    FALLBACK_AVATAR;
+    post?.authorAvatar ?? post?.author?.avatar ?? post?.avatar_url ?? FALLBACK_AVATAR;
   const authorId =
     post?.authorId ?? post?.author?.id ?? post?.author_id ?? post?.user_id ?? null;
 
-  const uploadTime =
-    post?.uploadTime ?? post?.createdAt ?? post?.created_at ?? "";
-  const albumName =
-    post?.albumName ?? post?.album?.name ?? post?.album_name ?? "";
+  const uploadTime = post?.uploadTime ?? post?.createdAt ?? post?.created_at ?? "";
+  const albumName = post?.albumName ?? post?.album?.name ?? post?.album_name ?? "";
 
   const hashtags = normalizeHashtags(post?.hashtags);
   const displayTags = hashtags.slice(0, maxTags);
@@ -90,10 +82,7 @@ export default function PostCard({
     likes: Number(post?.stats?.likes ?? post?.reaction_like_count ?? 0),
     dislikes: Number(post?.stats?.dislikes ?? post?.reaction_dislike_count ?? 0),
     comments: Number(post?.stats?.comments ?? post?.comment_count ?? 0),
-    views:
-      typeof post?.stats?.views !== "undefined"
-        ? post?.stats?.views
-        : post?.view_count ?? 0,
+    views: post?.stats?.views ?? post?.view_count ?? 0,
   };
 
   const rawBanner = post?.banner || post?.banner_url || post?.bannerUrl || "";
@@ -101,22 +90,6 @@ export default function PostCard({
   const displayImage = bannerUrl || placeholderImage;
 
   const fileUrl = (post?.file?.url || post?.file_url || "").trim();
-
-  // === Handler tải tài liệu: gọi BE ?action=post.download&post_id=... ===
-  const handleDownload = () => {
-    if (!postId) {
-      alert("Không xác định được post_id để tải.");
-      return;
-    }
-    // Nếu bạn đã setup Vite proxy cho /api, thay dòng dưới bằng:
-    // const url = `/api/index.php?action=post.download&post_id=${encodeURIComponent(postId)}`;
-    const url = `${API_BASE}/index.php?action=post.download&post_id=${encodeURIComponent(
-      postId
-    )}`;
-
-    // Mở tab mới để trình duyệt tự tải (BE sẽ set Content-Disposition: attachment; filename="...").
-    window.open(url, "_blank");
-  };
 
   const contentEl = (
     <div className="w-full rounded-lg overflow-hidden">
@@ -134,39 +107,23 @@ export default function PostCard({
 
   const preview = fileUrl ? (
     <Link
-      to={`/viewer/file?url=${encodeURIComponent(fileUrl)}&title=${encodeURIComponent(
-        title
-      )}${postId ? `&post_id=${encodeURIComponent(postId)}` : ""}`}
+      to={`/viewer/file?url=${encodeURIComponent(fileUrl)}&title=${encodeURIComponent(title)}${postId ? `&post_id=${encodeURIComponent(postId)}` : ""}`}
       className="block"
       aria-label="Xem nội dung"
     >
       {contentEl}
     </Link>
   ) : bannerUrl ? (
-    <a
-      href={bannerUrl}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="block"
-      aria-label="Mở banner"
-    >
+    <a href={bannerUrl} target="_blank" rel="noopener noreferrer" className="block" aria-label="Mở banner">
       {contentEl}
     </a>
   ) : (
-    <Link
-      to={`/viewer/content/${postId}`}
-      className="block"
-      aria-label="Xem post"
-    >
+    <Link to={`/viewer/content/${postId}`} className="block" aria-label="Xem post">
       {contentEl}
     </Link>
   );
 
-  const initialBM =
-    typeof initiallyBookmarked === "boolean"
-      ? initiallyBookmarked
-      : !!post?.is_bookmarked;
-
+  const initialBM = typeof initiallyBookmarked === "boolean" ? initiallyBookmarked : !!post?.is_bookmarked;
   const initialThumbReaction =
     post?.my_reaction === "like" || post?.my_reaction === "dislike"
       ? post.my_reaction
@@ -178,17 +135,12 @@ export default function PostCard({
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2 min-w-0">
           {authorId ? (
-            <Link
-              to={`/profile/${encodeURIComponent(authorId)}`}
-              className="flex items-center gap-2 min-w-0"
-            >
+            <Link to={`/profile/${encodeURIComponent(authorId)}`} className="flex items-center gap-2 min-w-0">
               <img
                 src={authorAvatar}
                 alt={authorName}
                 className="w-8 h-8 rounded-full object-cover flex-shrink-0"
-                onError={(e) => {
-                  e.currentTarget.src = FALLBACK_AVATAR;
-                }}
+                onError={(e) => (e.currentTarget.src = FALLBACK_AVATAR)}
               />
               <span className="font-semibold text-sm truncate">{authorName}</span>
             </Link>
@@ -205,8 +157,8 @@ export default function PostCard({
         </div>
 
         <PostOptionsMenu
+          postId={postId}
           onReport={() => alert("Báo cáo bài viết")}
-          onDownload={handleDownload}
         />
       </div>
 
@@ -219,19 +171,12 @@ export default function PostCard({
         <div className="min-h-[28px] mb-2">
           <div className="flex flex-wrap gap-2">
             {showAlbum && albumName && (
-              <span
-                className="bg-blue-600/30 text-blue-200 text-[11px] font-semibold px-2 py-1 rounded max-w-[180px] truncate"
-                title={albumName}
-              >
+              <span className="bg-blue-600/30 text-blue-200 text-[11px] font-semibold px-2 py-1 rounded max-w-[180px] truncate" title={albumName}>
                 {albumName}
               </span>
             )}
             {displayTags.map((tag) => (
-              <span
-                key={tag}
-                className="bg-gray-700/50 text-gray-300 text-xs font-medium px-2 py-1 rounded max-w-[140px] truncate"
-                title={tag}
-              >
+              <span key={tag} className="bg-gray-700/50 text-gray-300 text-xs font-medium px-2 py-1 rounded max-w-[140px] truncate" title={tag}>
                 {tag}
               </span>
             ))}
@@ -244,7 +189,6 @@ export default function PostCard({
         </div>
 
         {uploadTime && <p className="text-xs text-gray-500 mb-3">{uploadTime}</p>}
-
         <div className="mb-3">{preview}</div>
       </div>
 
@@ -258,11 +202,7 @@ export default function PostCard({
               autoRefresh={true}
             />
           </div>
-          <BookmarkButton
-            postId={postId}
-            initiallyBookmarked={initialBM}
-            onChange={onBookmarkChange}
-          />
+          <BookmarkButton postId={postId} initiallyBookmarked={initialBM} onChange={onBookmarkChange} />
         </div>
       )}
     </div>

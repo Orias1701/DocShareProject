@@ -615,6 +615,10 @@ if (isset($_GET['action'])) {
             $bookmarkController->listByUser();
             exit;
 
+        /*************** POST DOWNLOAD ***************/
+        case 'download':
+            $postController->download();
+            exit;
 
         /*************** PDF PROXY ***************/
         case 'pdf_proxy':
