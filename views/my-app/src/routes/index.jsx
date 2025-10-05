@@ -32,6 +32,7 @@ import ProfilePageOther from "../pages/profile/ProfilePageOther";
 import AlbumDetailPage from "../pages/myalbum/AlbumDetailPage";
 import CategoryDetailPage from "../pages/categories/CategoryDetailPage";
 import SearchPage from "../pages/search/SearchPage";
+import UserManager from "../pages/user_manager/UserManager";
 
 // Global css
 import "../assets/font-awesome-6.6.0-pro-full-main/css/all.css";
@@ -125,6 +126,16 @@ function MainLayout({ isCollapsed, setIsCollapsed, isNewAlbumModalOpen, setNewAl
               element={
                 <RequireAuth>
                   <ProfilePage />
+                </RequireAuth>
+              }
+            />
+          </Routes>
+          <Routes>
+            <Route
+              path="user-manager"
+              element={
+                <RequireAuth>
+                  <UserManager />
                 </RequireAuth>
               }
             />

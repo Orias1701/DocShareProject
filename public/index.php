@@ -630,7 +630,10 @@ if (isset($_GET['action'])) {
         case 'download':
             $postController->download();
             exit;
-
+        /*************** CHECK ADMIN ***************/
+        case 'api_admin':
+            $auth->isAdmin();
+            exit;
         /*************** PDF PROXY ***************/
         case 'pdf_proxy':
             $pdfProxyController->handle();

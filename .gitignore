@@ -1,6 +1,0 @@
-config
-/vendors
-/vendor/*
-!/vendor/empty.txt
-vendor
-/vendor

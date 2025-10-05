@@ -82,4 +82,19 @@ class User
 
         return $userInserted;
     }
+    public function getAllUsers()
+    {
+        $stmt = $this->conn->query("SELECT u.user_id, u.username, u.email, r.role_name, ui.full_name, ui.avatar_url, ui.bio, ui.birth_date 
+                                    FROM users u
+                                    JOIN roles r ON u.role_id = r.role_id
+                                    LEFT JOIN user_infos ui ON u.user_id = ui.user_id");
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+    public function deleteUser($id)
+    {
+        // Xóa user
+        $sql = "DELETE FROM users WHERE user_id = ?";
+        $stmt = $this->conn->prepare($sql);
+        return $stmt->execute([$id]);
+    }
 }

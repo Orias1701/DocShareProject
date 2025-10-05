@@ -1,4 +1,3 @@
-// src/components/layouts/Header.jsx
 import React, { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { NavLink, useNavigate } from "react-router-dom";
@@ -43,7 +42,7 @@ export default function Header() {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  // Enter trong ô header => điều hướng sang trang search (mặc định type=post)
+  // Enter trong ô header => điều hướng sang trang search
   const onHeaderKeyDown = (e) => {
     if (e.key === "Enter") {
       const val = q.trim();
@@ -55,8 +54,12 @@ export default function Header() {
 
   // Load số follower/following khi user login
   useEffect(() => {
-    if (!user) return;
-  
+    if (!user) {
+      setFollowersCount(0);
+      setFollowingCount(0);
+      return;
+    }
+
     const loadCounts = async () => {
       try {
         const f1 = await user_followServices.countFollowers();
@@ -67,19 +70,12 @@ export default function Header() {
         console.error("Lỗi lấy số follow:", e);
       }
     };
-  
-    // load lần đầu
+
     loadCounts();
-  
-    // 👂 lắng nghe sự kiện follow-updated
     window.addEventListener("follow-updated", loadCounts);
-  
-    // cleanup khi unmount
-    return () => {
-      window.removeEventListener("follow-updated", loadCounts);
-    };
+
+    return () => window.removeEventListener("follow-updated", loadCounts);
   }, [user]);
-  
 
   if (loading) {
     return (
@@ -91,14 +87,11 @@ export default function Header() {
 
   return (
     <>
-      {/* HEADER */}
       <header className="fixed top-0 left-0 w-full h-12 grid grid-cols-[1fr_minmax(320px,600px)_1fr] items-center px-4 bg-[#151a21] text-gray-200 border-y-2 border-[#2a7fff] z-50">
-        {/* Logo */}
         <div className="flex items-center font-semibold text-lg">
           <i className="fa-solid fa-code mr-2"></i> Logo
         </div>
 
-        {/* Search input trung tâm */}
         <div className="relative flex items-center">
           <i className="fa-solid fa-magnifying-glass absolute left-3 text-gray-400 pointer-events-none" />
           <input
@@ -109,8 +102,6 @@ export default function Header() {
             placeholder="Search Posts"
             className="w-full h-8 pl-9 pr-9 rounded-md bg-[#232a33] text-sm text-gray-200 placeholder:text-gray-400 border border-[#3a4654] focus:border-[#4e9bff] outline-none"
           />
-
-          {/* Nút bên phải input: có chữ -> ✕ (clear & đóng), trống -> toggle panel */}
           {q ? (
             <button
               aria-label="Clear search"
@@ -135,17 +126,14 @@ export default function Header() {
           )}
         </div>
 
-        {/* Right icons + avatar */}
         <div className="flex items-center justify-end gap-5 pr-2 text-base">
           <i className="fa-regular fa-grid-2 cursor-pointer opacity-80 hover:opacity-100"></i>
 
-          {/* Followers count */}
           <div className="flex items-center gap-1">
             <i className="fa-solid fa-blog text-[#ff6a25]" />
             <span className="text-sm">{followersCount}</span>
           </div>
 
-          {/* Following count */}
           <div className="flex items-center gap-1">
             <i className="fa-solid fa-user-check" style={{ color: "#9625ff" }} />
             <span className="text-sm">{followingCount}</span>
@@ -180,12 +168,8 @@ export default function Header() {
                         className="w-9 h-9 rounded-full"
                       />
                       <div>
-                        <p className="font-semibold text-white">
-                          {user.full_name || "Real name"}
-                        </p>
-                        <p className="text-sm text-gray-400">
-                          {user.username || "User name"}
-                        </p>
+                        <p className="font-semibold text-white">{user.full_name || "Real name"}</p>
+                        <p className="text-sm text-gray-400">{user.username || "User name"}</p>
                       </div>
                     </div>
                     <div className="py-2">
@@ -202,14 +186,21 @@ export default function Header() {
                           fetch("http://localhost:3000/public/index.php?action=logout", {
                             method: "POST",
                             credentials: "include",
-                          }).then(() => setUser(null));
-                          setDropdownOpen(false);
+                          })
+                            .then(() => {
+                              setDropdownOpen(false); // đóng dropdown
+                              setTimeout(() => {
+                                window.location.reload(); // reload trang sau 1 giây
+                              }, 1000);
+                            })
+                            .catch((err) => console.error(err));
                         }}
                         className="flex items-center gap-3 px-4 py-2 text-red-500 hover:bg-white/5 hover:text-red-400 w-full text-left"
                       >
                         <i className="fa-solid fa-arrow-right-from-bracket w-4 text-center" />
                         <span>Log out</span>
                       </button>
+
                     </div>
                   </motion.div>
                 )}
@@ -230,19 +221,17 @@ export default function Header() {
                 Đăng ký
               </NavLink>
             </div>
-
           )}
         </div>
       </header>
 
-      {/* SEARCH PANEL dưới header */}
       <SearchBarPanel
         open={openSearch}
         onClose={() => setOpenSearch(false)}
         query={q}
         setQuery={setQ}
         onSubmit={(tab, value) => {
-          const type = (tab || "Post").toLowerCase(); // post | album | category | hashtag
+          const type = (tab || "Post").toLowerCase();
           const keyword = (value ?? q).trim();
           if (!keyword) return;
           navigate(

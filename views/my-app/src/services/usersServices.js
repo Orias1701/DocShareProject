@@ -62,6 +62,9 @@ export const authApi = {
   me() {
     return fetchJson("api_me");
   },
+  admin(){
+    return fetchJson("api_admin");
+  }
 };
 
 export default authApi;

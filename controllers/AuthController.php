@@ -187,6 +187,7 @@ class AuthController
                     'birth_date' => $info['birth_date'] ?? null,
                     'bio'    => $info['bio'] ?? null,
                     'avatar_url' => $info['avatar_url'] ?? null,
+                    'role_id'   => $user['role_id'],
                 ]
             ], 200);
         } else {
@@ -196,4 +197,53 @@ class AuthController
             ], 401);
         }
     }
+    function isAdmin()
+    {
+        // Set header để trình duyệt hiểu đây là response JSON
+        header('Content-Type: application/json');
+
+        $response = [];
+
+        // Nếu session user_id không tồn tại, chắc chắn không phải admin
+        if (!isset($_SESSION['user_id'])) {
+            $response = [
+                'status' => 'error',
+                'isAdmin' => false,
+                'message' => 'No user logged in.',
+                'debug' => [
+                    'session_user_id' => $_SESSION['user_id'] ?? null,
+                    'session_data' => $_SESSION
+                ]
+            ];
+        } else {
+            $roleId = $_SESSION['user']['role_id'] ?? null;
+        
+            $response = [
+                'status' => 'ok',
+                'isAdmin' => $roleId === 'ROLE000',
+                'roleId' => $roleId,
+                'session_user' => $_SESSION['user_id'], // in chi tiết user
+                'session_data' => $_SESSION, // in toàn bộ session để debug
+                'message' => $roleId === 'ROLE000' 
+                    ? 'User is an administrator.' 
+                    : 'Access denied. User does not have administrator privileges.'
+            ];
+        }
+        
+        // trả về JSON
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode($response, JSON_PRETTY_PRINT);
+        exit;
+        
+    }
+
+
+    public function requireAdmin(): void
+    {
+        if (!$this->isAdmin()) {
+            http_response_code(403);
+            $this->json(['status' => 'error', 'message' => 'Chỉ admin mới được phép truy cập'], 403);
+        }
+    }
+
 }
