@@ -3,11 +3,13 @@
 require_once __DIR__ . '/../models/UserInfo.php';
 require_once __DIR__ . '/../models/User.php';
 
-class UserInfoController {
+class UserInfoController
+{
     private $userInfoModel;
     private $userModel;
 
-    public function __construct() {
+    public function __construct()
+    {
         // Đảm bảo có session trước khi dùng $_SESSION
         if (session_status() === PHP_SESSION_NONE) {
             session_start();
@@ -17,21 +19,24 @@ class UserInfoController {
     }
 
     /** -------- Helpers -------- */
-    private function respondJson($payload, int $code = 200): void {
+    private function respondJson($payload, int $code = 200): void
+    {
         http_response_code($code);
         header('Content-Type: application/json; charset=utf-8');
         echo json_encode($payload, JSON_UNESCAPED_UNICODE);
         exit;
     }
 
-    private function respondError(string $message, int $code = 400, array $extra = []): void {
+    private function respondError(string $message, int $code = 400, array $extra = []): void
+    {
         $this->respondJson(array_merge([
             'status'  => 'error',
             'message' => $message,
         ], $extra), $code);
     }
 
-    private function requireMethod(string $method): void {
+    private function requireMethod(string $method): void
+    {
         $req = $_SERVER['REQUEST_METHOD'] ?? '';
         if (strcasecmp($req, $method) !== 0) {
             $this->respondError('Method Not Allowed', 405, ['allowed' => strtoupper($method)]);
@@ -41,7 +46,8 @@ class UserInfoController {
     /** -------- API endpoints (JSON) -------- */
 
     // GET /?action=list_user_infos
-    public function listUserInfos() {
+    public function listUserInfos()
+    {
         $this->requireMethod('GET');
         $infos = $this->userInfoModel->getAllUserInfos();
         $this->respondJson([
@@ -51,17 +57,19 @@ class UserInfoController {
     }
 
     // GET /?action=show_create_form  -> trả về các user còn trống user_info (nếu bạn còn dùng)
-    public function showCreateForm() {
+    public function showCreateForm()
+    {
         $this->requireMethod('GET');
         $availableUsers = $this->userInfoModel->getAvailableUserIds();
         $this->respondJson([
             'status' => 'ok',
-            'data'   => [ 'availableUsers' => $availableUsers ],
+            'data'   => ['availableUsers' => $availableUsers],
         ]);
     }
 
     // POST /?action=create_user_info
-    public function create() {
+    public function create()
+    {
         $this->requireMethod('POST');
 
         $userId    = $_POST['user_id'] ?? null;
@@ -98,7 +106,8 @@ class UserInfoController {
     }
 
     // GET /?action=show_edit_form&id=123  -> trả về dữ liệu hiện tại (nếu còn dùng)
-    public function showEditForm() {
+    public function showEditForm()
+    {
         $this->requireMethod('GET');
         $userId = $_GET['id'] ?? null;
         if (!$userId) $this->respondError('Thiếu id', 422);
@@ -113,7 +122,8 @@ class UserInfoController {
     }
 
     // POST /?action=update_user_info
-    public function update() {
+    public function update()
+    {
         $this->requireMethod('POST');
 
         $userId    = $_POST['user_id'] ?? null;
@@ -165,7 +175,8 @@ class UserInfoController {
     }
 
     // DELETE /?action=delete_user_info&id=123  (nếu khó gửi DELETE, có thể dùng POST)
-    public function delete() {
+    public function delete()
+    {
         // Không ép method để hỗ trợ GET/POST/DELETE như bạn đang dùng router
         $userId = $_GET['id'] ?? ($_POST['id'] ?? null);
         if (!$userId) $this->respondError('Thiếu id', 422);
@@ -185,7 +196,8 @@ class UserInfoController {
     }
 
     // GET /?action=show_user_info&id=123
-    public function showUserInfo() {
+    public function showUserInfo()
+    {
         $this->requireMethod('GET');
 
         $userId = $_GET['id'] ?? null;
@@ -209,5 +221,24 @@ class UserInfoController {
                 'isFollowing' => $isFollowing,
             ],
         ]);
+    }
+
+    // GET /?action=get_mowis
+    public function getAllDetailUser()
+    {
+        $this->requireMethod('GET');
+
+        try {
+            $users = $this->userModel->getAllDetailUser(); // Gọi hàm mới trong model User
+
+            $this->respondJson([
+                'status' => 'ok',
+                'data'   => $users,
+            ]);
+        } catch (\Throwable $e) {
+            $this->respondError('Không thể lấy danh sách người dùng chi tiết', 500, [
+                'detail' => $e->getMessage()
+            ]);
+        }
     }
 }
