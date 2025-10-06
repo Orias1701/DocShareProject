@@ -1,40 +1,61 @@
 import React, { useEffect, useMemo, useState } from "react";
 
+/**
+ * ModalEditUser (Admin)
+ *
+ * Props:
+ * - open: boolean
+ * - onClose: () => void
+ * - user: {
+ *     user_id, username, email, full_name, role_id, status,
+ *     birth_date, bio, avatar_url, ...
+ *   }
+ * - onUpdateAccount: async ({ user_id, username, email }) => Promise<{status, message}>
+ * - onResetPassword: async ({ user_id, new_password }) => Promise<{status, message}>
+ * - onSetRole: async ({ user_id, role_id }) => Promise<{status, message}>
+ * - onSetStatus: async ({ user_id, status }) => Promise<{status, message}>
+ *
+ * Gợi ý status: "active" | "disabled" | "banned"
+ * Gợi ý role:   "ROLE000" (admin) | "ROLE001" (user)
+ */
+
 const TABS = ["Account", "Security", "Role"];
 
 export default function ModalEditUser({
   open,
   onClose,
   user,
-  onUpdateAccount,  // async ({ user_id, username, email }) => {status, message}
-  onResetPassword,  // async ({ user_id, new_password }) => {status, message}
-  onSetRole,        // async ({ user_id, role_id }) => {status, message}
-  onSetStatus,      // async ({ user_id, status }) => {status, message}
+  onUpdateAccount,
+  onResetPassword,
+  onSetRole,
+  onSetStatus,
 }) {
   const [activeTab, setActiveTab] = useState("Account");
-  const [banner, setBanner] = useState(null); // {type, text}
 
+  // Banner nhỏ hiển thị thông báo (success / error / info)
+  const [banner, setBanner] = useState(null); // {type, text}
   const showBanner = (type, text, ms = 2200) => {
     setBanner({ type, text });
     window.clearTimeout(showBanner._t);
     showBanner._t = window.setTimeout(() => setBanner(null), ms);
   };
 
-  // Account
+  // Account form
   const [accUsername, setAccUsername] = useState("");
   const [accEmail, setAccEmail] = useState("");
   const [savingAccount, setSavingAccount] = useState(false);
 
-  // Security
+  // Security form
   const [newPass, setNewPass] = useState("");
   const [newPass2, setNewPass2] = useState("");
   const [resetting, setResetting] = useState(false);
 
-  // Role/Status
+  // Role form
   const [roleId, setRoleId] = useState("ROLE001");
   const [status, setStatus] = useState("active");
   const [savingRole, setSavingRole] = useState(false);
 
+  // Reset state khi mở/đóng
   useEffect(() => {
     if (!open) {
       setActiveTab("Account");
@@ -47,6 +68,7 @@ export default function ModalEditUser({
       setStatus("active");
       return;
     }
+    // Khi mở, fill từ user
     setAccUsername(user?.username ?? "");
     setAccEmail(user?.email ?? "");
     setRoleId(user?.role_id ?? "ROLE001");
@@ -69,7 +91,7 @@ export default function ModalEditUser({
   const handleSaveAccount = async () => {
     if (!onUpdateAccount || !userId) return;
     if (!canSaveAccount) {
-      showBanner("error", "Vui lòng nhập username ≥ 3 ký tự và email hợp lệ.");
+      showBanner("error", "Vui lòng nhập username >= 3 ký tự và email hợp lệ.");
       return;
     }
     try {
@@ -85,7 +107,7 @@ export default function ModalEditUser({
         showBanner("error", res?.message || "Cập nhật tài khoản thất bại.");
       }
     } catch (e) {
-      showBanner("error", e?.message || "Lỗi khi cập nhật tài khoản.");
+      showBanner("error", e?.message || "Lỗi mạng khi cập nhật tài khoản.");
     } finally {
       setSavingAccount(false);
     }
@@ -94,10 +116,10 @@ export default function ModalEditUser({
   const handleResetPassword = async () => {
     if (!onResetPassword || !userId) return;
     if (!canReset) {
-      showBanner("error", "Mật khẩu phải ≥ 8 ký tự và trùng khớp.");
+      showBanner("error", "Mật khẩu phải >= 8 ký tự và trùng khớp.");
       return;
     }
-    if (!window.confirm("Đặt lại mật khẩu cho tài khoản này?")) return;
+    if (!window.confirm("Bạn chắc chắn muốn đặt lại mật khẩu cho tài khoản này?")) return;
     try {
       setResetting(true);
       const res = await onResetPassword({
@@ -112,7 +134,7 @@ export default function ModalEditUser({
         showBanner("error", res?.message || "Đặt lại mật khẩu thất bại.");
       }
     } catch (e) {
-      showBanner("error", e?.message || "Lỗi khi đặt lại mật khẩu.");
+      showBanner("error", e?.message || "Lỗi mạng khi đặt lại mật khẩu.");
     } finally {
       setResetting(false);
     }
@@ -122,8 +144,8 @@ export default function ModalEditUser({
     if (!userId) return;
     try {
       setSavingRole(true);
+      // Lưu role trước
       let ok = true;
-
       if (onSetRole) {
         const r = await onSetRole({ user_id: userId, role_id: roleId });
         if (r?.status !== "ok") {
@@ -131,6 +153,7 @@ export default function ModalEditUser({
           showBanner("error", r?.message || "Cập nhật role thất bại.");
         }
       }
+      // Lưu status
       if (ok && onSetStatus) {
         const s = await onSetStatus({ user_id: userId, status });
         if (s?.status !== "ok") {
@@ -138,10 +161,9 @@ export default function ModalEditUser({
           showBanner("error", s?.message || "Cập nhật trạng thái thất bại.");
         }
       }
-
       if (ok) showBanner("success", "Đã cập nhật quyền & trạng thái.");
     } catch (e) {
-      showBanner("error", e?.message || "Lỗi khi cập nhật quyền & trạng thái.");
+      showBanner("error", e?.message || "Lỗi mạng khi cập nhật quyền & trạng thái.");
     } finally {
       setSavingRole(false);
     }
@@ -152,6 +174,7 @@ export default function ModalEditUser({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="absolute inset-0 bg-black/60" onClick={onClose} />
+
       <div className="relative z-10 w-full max-w-2xl bg-[#151922] border border-white/10 rounded-xl p-4">
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-lg font-semibold">Edit account (Admin)</h3>
@@ -163,7 +186,7 @@ export default function ModalEditUser({
           </button>
         </div>
 
-        {/* header info */}
+        {/* Header user info */}
         <div className="text-sm text-white/60 mb-3">
           <div><span className="text-white/40">User ID:</span> {user?.user_id}</div>
           <div><span className="text-white/40">Name:</span> {user?.full_name || user?.username}</div>
@@ -171,7 +194,7 @@ export default function ModalEditUser({
           <div><span className="text-white/40">Status:</span> {user?.status || "active"}</div>
         </div>
 
-        {/* banner */}
+        {/* Banner */}
         {banner && (
           <div
             className={
@@ -187,7 +210,7 @@ export default function ModalEditUser({
           </div>
         )}
 
-        {/* tabs */}
+        {/* Tabs */}
         <div className="flex gap-2 mb-4">
           {TABS.map((t) => (
             <button
@@ -205,7 +228,7 @@ export default function ModalEditUser({
           ))}
         </div>
 
-        {/* content */}
+        {/* Tab content */}
         {activeTab === "Account" && (
           <div>
             <label className="block text-sm text-white/80 mb-1">Username</label>

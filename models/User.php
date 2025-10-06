@@ -97,4 +97,10 @@ class User
         $stmt = $this->conn->prepare($sql);
         return $stmt->execute([$id]);
     }
+    public function getRoleById($role_id)
+    {
+        $stmt = $this->conn->prepare("SELECT * FROM roles WHERE role_id = ?");
+        $stmt->execute([$role_id]);
+        return $stmt->fetch(PDO::FETCH_ASSOC);
+    }
 }

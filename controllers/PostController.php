@@ -338,33 +338,75 @@ class PostController
     }
 
     /** Xoá bài viết */
-    public function delete()
+    // controllers/PostController.php (bên trong class PostController)
+    public function delete(): void
     {
-        if (!isset($_SESSION['user_id'])) {
-            $this->respondError('Unauthorized', 401);
+        // if (strtoupper($_SERVER['REQUEST_METHOD'] ?? '') !== 'DELETE') {
+        //     $this->respondError('Method Not Allowed', 405); // KHÔNG return
+        // }
+    
+        if (empty($_SESSION['user_id'])) {
+            $this->respondError('Unauthorized', 401); // KHÔNG return
         }
-
-        $postId = $_GET['id'] ?? ($_POST['id'] ?? null);
-        if (!$postId) $this->respondError("Thiếu id", 422);
-
-        $post = $this->postModel->getPostById($postId);
-        if (!$post) $this->respondError("Bài viết không tồn tại", 404);
-        if ($post['author_id'] !== $_SESSION['user_id']) $this->respondError("Forbidden", 403);
-
-        try {
-            // Xoá file đính kèm nếu có
-            $oldPath = $post['file_url'] ? (__DIR__ . '/../' . ltrim(parse_url($post['file_url'], PHP_URL_PATH), '/')) : null;
-            if ($oldPath && file_exists($oldPath)) {
-                @unlink($oldPath);
+    
+        $postId = $_GET['post_id'] ?? ($_POST['post_id'] ?? null);
+        if (!$postId) {
+            $raw = file_get_contents('php://input');
+            if ($raw) {
+                $json = json_decode($raw, true);
+                if (is_array($json) && !empty($json['id'])) {
+                    $postId = $json['id'];
+                }
             }
-
-            $this->postModel->deletePost($postId, $_SESSION['user_id']);
-
-            $this->respondJson(['status' => 'ok', 'message' => 'Đã xoá', 'id' => (int)$postId]);
+        }
+        if (!$postId) {
+            $this->respondError("Thiếu id", 422); // KHÔNG return
+        }
+    
+        $post = $this->postModel->getPostById($postId);
+        if (!$post) {
+            $this->respondError("Bài viết không tồn tại", 404); // KHÔNG return
+        }
+    
+        $sessionRole = $_SESSION['role_id'] ?? ($_SESSION['user']['role_id'] ?? null);
+        $isAdmin     = ($sessionRole === 'ROLE000');
+        $currentUid  = $_SESSION['user_id'];
+    
+        try {
+            $deleted = $isAdmin
+                ? $this->postModel->adminDeletePost($postId)
+                : $this->postModel->deletePostByOwner($postId, $currentUid);
+    
+            if (!$deleted) {
+                $this->respondError('Forbidden hoặc không có gì để xoá', 403); // KHÔNG return
+            }
+    
+            if (!empty($post['file_url'])) {
+                $path = parse_url($post['file_url'], PHP_URL_PATH);
+                if ($path) {
+                    $uploadsBase = realpath(__DIR__ . '/../uploads');
+                    $relative    = ltrim(preg_replace('#^/uploads#i', '', $path), '/');
+                    $filePath    = realpath($uploadsBase . DIRECTORY_SEPARATOR . $relative);
+                    if ($filePath && strpos($filePath, $uploadsBase) === 0 && is_file($filePath)) {
+                        @unlink($filePath);
+                    }
+                }
+            }
+    
+            $this->respondJson([
+                'status'  => 'ok',
+                'message' => 'Đã xoá',
+                'id'      => $postId,
+                'by'      => $isAdmin ? 'admin' : 'owner'
+            ]); // KHÔNG return
         } catch (Exception $e) {
-            $this->respondError($e->getMessage(), 500);
+            $this->respondError($e->getMessage(), 500); // KHÔNG return
         }
     }
+    
+
+
+
 
     // API: Lấy danh sách post theo user_id
     public function getPostsByUserId($userId = null)

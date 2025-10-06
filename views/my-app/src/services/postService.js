@@ -132,13 +132,15 @@ export const postService = {
     });
     return fetchJson(ACTIONS.update, { method: "POST", body });
   },
+  // src/services/postService.js
   remove(id) {
-    return fetchJson(`${ACTIONS.delete}&id=${encodeURIComponent(id)}`);
+    return fetchJson(`${ACTIONS.delete}&post_id=${encodeURIComponent(id)}`);
   },
   removeViaPost(id) {
-    const body = toFormData({ id });
+    const body = toFormData({ post_id: id });
     return fetchJson(ACTIONS.delete, { method: "POST", body });
   },
+
 
   // ---------- Post ↔ Hashtag ----------
   listHashtagsByPost(post_id) {

@@ -273,6 +273,17 @@ if (isset($_GET['action'])) {
         case 'api_me':
             (new AuthController())->apiMe();
             exit;
+        
+        // public/index.php
+        case 'api_delete_user': {
+            $method = strtoupper($_SERVER['REQUEST_METHOD'] ?? 'GET');
+            if (!in_array($method, ['DELETE','POST'], true)) {
+                respond_json(['status' => 'error', 'message' => 'Method Not Allowed', 'allowed' => 'DELETE, POST'], 405);
+            }
+            $auth->deleteAccount(); // ✅ dùng $auth, không phải $AuthController
+            exit;
+}
+
 
 
         /*************** API POSTS ***************/

@@ -78,10 +78,19 @@ class Album
         return $stmt->execute([$albumName, $description, $urlThumbnail, $id]);
     }
 
-    public function deleteAlbum($id)
-    {
-        $sql = "DELETE FROM albums WHERE album_id = ?";
+    // AlbumModel.php
+    public function deleteAlbumByOwner(string $albumId, string $userId): bool {
+        $sql = "DELETE FROM albums WHERE album_id = ? AND user_id = ?";
         $stmt = $this->conn->prepare($sql);
-        return $stmt->execute([$id]);
+        $stmt->execute([$albumId, $userId]);
+        return $stmt->rowCount() > 0;
     }
+
+    public function adminDeleteAlbum(string $albumId): bool {
+        $stmt = $this->conn->prepare("DELETE FROM albums WHERE album_id = ?");
+        $stmt->execute([$albumId]);
+        return $stmt->rowCount() > 0;
+    }
+
+
 }

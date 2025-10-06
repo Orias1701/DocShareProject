@@ -353,11 +353,11 @@ class Post
                     u.username,
                     ui.user_id ,
                     ui.full_name ,
-                    ui.avatar_url ,
+                    ui.avatar_url 
                 FROM posts AS p
                 LEFT JOIN albums AS a ON p.album_id = a.album_id
                 LEFT JOIN categories AS c ON p.category_id = c.category_id
-                LEFT JOIN users_infos AS ui ON a.user_id = ui.user_id
+                LEFT JOIN user_infos AS ui ON a.user_id = ui.user_id
                 LEFT JOIN users AS u ON a.user_id = u.user_id 
                 ORDER BY p.created_at DESC
             ";
@@ -430,25 +430,27 @@ class Post
     /**
      * DELETE: Xóa bài viết
      */
-    public function deletePost($id, $userId)
+    // Tác giả/chủ album tự xoá bài của mình
+    public function deletePostByOwner(string $postId, string $ownerUserId): bool
     {
-        try {
-            $sql = "DELETE FROM posts 
-                    WHERE post_id = ? 
-                    AND album_id IN (SELECT album_id FROM albums WHERE user_id = ?)";
-            $stmt = $this->pdo->prepare($sql);
-            $success = $stmt->execute([$id, $userId]);
+        $sql = "DELETE FROM posts 
+                WHERE post_id = ?
+                AND album_id IN (SELECT album_id FROM albums WHERE user_id = ?)";
+        $stmt = $this->pdo->prepare($sql);
+        $stmt->execute([$postId, $ownerUserId]);
 
-            if (!$success) {
-                error_log("Failed to delete post: " . print_r($stmt->errorInfo(), true));
-                throw new Exception("Lỗi khi xóa bài viết.");
-            }
-            return true;
-        } catch (Exception $e) {
-            error_log("Error in deletePost: " . $e->getMessage());
-            throw $e;
-        }
+        // Phải kiểm tra rowCount!
+        return $stmt->rowCount() > 0;
     }
+
+    // Admin xoá (không ràng buộc owner)
+    public function adminDeletePost(string $postId): bool
+    {
+        $stmt = $this->pdo->prepare("DELETE FROM posts WHERE post_id = ?");
+        $stmt->execute([$postId]);
+        return $stmt->rowCount() > 0;
+    }
+
 
     public function getPostsByUserId($userId)
     {

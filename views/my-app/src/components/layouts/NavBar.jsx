@@ -149,7 +149,6 @@ function NavBar({ isCollapsed, setIsCollapsed, onNewAlbumClick }) {
               </motion.p>
             )}
             <NavItem icon="fa-solid fa-user-shield" text="Management" path="/user-manager" collapsed={isCollapsed} />
-            <NavItem icon="fa-solid fa-cog" text="Settings" path="/admin/settings" collapsed={isCollapsed} />
           </div>
         )}
       </div>

@@ -21,16 +21,38 @@ class PostReport {
     }
 
     public function getAllReports() {
-        $stmt = $this->pdo->query("
-            SELECT rp.report_id, rp.post_id, rp.reason, rp.created_at, rp.user_id, ui.full_name, p.title as post_title
+        $sql = "
+            SELECT 
+                rp.report_id,
+                rp.post_id,
+                rp.reason,
+                rp.created_at       AS report_created_at,
+                rp.user_id          AS reporter_id,
+                ui.full_name        AS reporter_name,
+                ui.avatar_url       AS reporter_avatar,
+    
+                p.title             AS post_title,
+                p.content           AS post_content,
+                p.created_at        AS post_created_at,
+                p.banner_url         AS post_image,
+                a.album_name,
+                c.category_name,
+    
+                u.user_id           AS author_id,
+                u.username          AS author_username
             FROM post_reports rp
-            LEFT JOIN user_infos ui ON rp.user_id = ui.user_id
-            LEFT JOIN posts p ON rp.post_id = p.post_id
+            LEFT JOIN user_infos ui   ON rp.user_id = ui.user_id       -- người báo cáo
+            LEFT JOIN posts p         ON rp.post_id = p.post_id        -- bài viết bị báo cáo
+            LEFT JOIN albums a        ON p.album_id = a.album_id
+            LEFT JOIN categories c    ON p.category_id = c.category_id
+            LEFT JOIN users u         ON a.user_id = u.user_id         -- tác giả bài
             ORDER BY rp.created_at DESC
-        ");
-        return $stmt->fetchAll();
+        ";
+    
+        $stmt = $this->pdo->query($sql);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
-
+    
     // Kiểm tra user đã report post này chưa
     public function getUserReport($postId, $userId) {
         $stmt = $this->pdo->prepare("

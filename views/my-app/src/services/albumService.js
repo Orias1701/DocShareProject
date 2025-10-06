@@ -41,8 +41,12 @@ export const albumService = {
   },
 
   delete(id) {
-    return fetchJson(ACTIONS.delete, { method: "POST", body: toFormData({ id }) });
+    return fetchJson(ACTIONS.delete, {
+      method: "POST",
+      body: toFormData({ album_id: id }), // ✅ đổi key id → album_id
+    });
   },
+  
 
   // ✅ Trả về MẢNG albums đã bóc từ payload
   async listMyAlbums() {

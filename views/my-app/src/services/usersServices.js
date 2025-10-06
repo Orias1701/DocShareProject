@@ -50,7 +50,16 @@ export const authApi = {
     // Không cần body
     return postJson("api_logout", {});
   },
-
+  deleteUser(user_id) {
+    if (!user_id) throw new Error("user_id is required");
+    return fetchJson("api_delete_user", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ user_id }),
+    });
+  },
+  
+  
   /** GET /?action=api_me
    * Response (khi đã đăng nhập):
    * {

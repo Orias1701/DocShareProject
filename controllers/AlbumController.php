@@ -165,44 +165,33 @@ class AlbumController
      */
     public function delete()
     {
-        $method = strtoupper($_SERVER['REQUEST_METHOD'] ?? 'GET');
-        if (!in_array($method, ['DELETE', 'POST'], true)) {
-            $this->respondError('Method Not Allowed', 405, ['allowed' => 'DELETE, POST']);
-        }
-        $this->requireAuth();
-
-        // Lấy id từ query hoặc body
-        $id = $_GET['id'] ?? null;
-        if (!$id) {
-            $isJson = isset($_SERVER['CONTENT_TYPE']) && stripos($_SERVER['CONTENT_TYPE'], 'application/json') !== false;
-            $body   = $isJson ? $this->readJsonBody() : $_POST;
-            $id     = $body['id'] ?? null;
+        if (empty($_SESSION['user_id'])) {
+            return $this->respondError('Unauthorized', 401);
         }
 
-        if (!$id) {
-            $this->respondError('Thiếu id', 422);
+        $albumId = $_GET['album_id'] ?? ($_POST['album_id'] ?? null);
+        if (!$albumId) {
+            return $this->respondError('Thiếu album_id', 422);
         }
+
+        $role = $_SESSION['role_id'] ?? ($_SESSION['user']['role_id'] ?? null);
+        $isAdmin = ($role === 'ROLE000');
 
         try {
-            $album = $this->albumModel->getAlbumById($id);
-            if (!$album) {
-                $this->respondError('Album không tồn tại', 404);
-            }
-            if ((int)$album['user_id'] !== (int)$_SESSION['user_id']) {
-                $this->respondError('Forbidden', 403);
+            $deleted = $isAdmin
+                ? $this->albumModel->adminDeleteAlbum($albumId)
+                : $this->albumModel->deleteAlbumByOwner($albumId, $_SESSION['user_id']);
+
+            if (!$deleted) {
+                return $this->respondError('Không thể xoá album (có thể không tồn tại hoặc bạn không có quyền).', 403);
             }
 
-            $this->albumModel->deleteAlbum($id);
-
-            $this->respondJson([
-                'status'  => 'ok',
-                'message' => 'Đã xoá',
-                'id'      => (int)$id
-            ]);
-        } catch (Throwable $e) {
-            $this->respondError('Xoá album thất bại', 500, ['detail' => $e->getMessage()]);
+            $this->respondJson(['status' => 'ok', 'message' => 'Đã xoá album', 'id' => $albumId]);
+        } catch (Exception $e) {
+            $this->respondError($e->getMessage(), 500);
         }
     }
+
 
     /**
      * Danh sách album của chính user đang đăng nhập (GET)
