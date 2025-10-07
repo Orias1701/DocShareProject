@@ -229,7 +229,7 @@ class UserInfoController
         $this->requireMethod('GET');
 
         try {
-            $users = $this->userModel->getAllDetailUser(); // Gọi hàm mới trong model User
+            $users = $this->userModel->getAllUsers(); // Gọi hàm mới trong model User
 
             $this->respondJson([
                 'status' => 'ok',

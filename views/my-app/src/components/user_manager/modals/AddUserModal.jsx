@@ -1,181 +1,92 @@
-import React, { useEffect, useMemo, useState } from "react";
+// src/pages/user_manager/modals/AddUserModal.jsx
+import React, { useMemo, useState } from "react";
 
-const TABS = ["Account", "Security", "Role"];
+export default function AddUserModal({ open, onClose, onSave }) {
+  const [fullName, setFullName] = useState("");
+  const [userName, setUserName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [birthDate, setBirthDate] = useState(""); // yyyy-mm-dd
+  const [bio, setBio] = useState("");
+  const [avatarPreview, setAvatarPreview] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [banner, setBanner] = useState(null);
 
-export default function ModalEditUser({
-  open,
-  onClose,
-  user,
-  onUpdateAccount,  // async ({ user_id, username, email }) => {status, message}
-  onResetPassword,  // async ({ user_id, new_password }) => {status, message}
-  onSetRole,        // async ({ user_id, role_id }) => {status, message}
-  onSetStatus,      // async ({ user_id, status }) => {status, message}
-}) {
-  const [activeTab, setActiveTab] = useState("Account");
-  const [banner, setBanner] = useState(null); // {type, text}
-
-  const showBanner = (type, text, ms = 2200) => {
+  const showBanner = (type, text, ms = 2000) => {
     setBanner({ type, text });
     window.clearTimeout(showBanner._t);
     showBanner._t = window.setTimeout(() => setBanner(null), ms);
   };
 
-  // Account
-  const [accUsername, setAccUsername] = useState("");
-  const [accEmail, setAccEmail] = useState("");
-  const [savingAccount, setSavingAccount] = useState(false);
+  const emailOk = useMemo(
+    () => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()),
+    [email]
+  );
+  const canSave = useMemo(
+    () => userName.trim().length >= 3 && emailOk && password.length >= 8,
+    [userName, emailOk, password]
+  );
 
-  // Security
-  const [newPass, setNewPass] = useState("");
-  const [newPass2, setNewPass2] = useState("");
-  const [resetting, setResetting] = useState(false);
-
-  // Role/Status
-  const [roleId, setRoleId] = useState("ROLE001");
-  const [status, setStatus] = useState("active");
-  const [savingRole, setSavingRole] = useState(false);
-
-  useEffect(() => {
-    if (!open) {
-      setActiveTab("Account");
-      setBanner(null);
-      setAccUsername("");
-      setAccEmail("");
-      setNewPass("");
-      setNewPass2("");
-      setRoleId("ROLE001");
-      setStatus("active");
-      return;
-    }
-    setAccUsername(user?.username ?? "");
-    setAccEmail(user?.email ?? "");
-    setRoleId(user?.role_id ?? "ROLE001");
-    setStatus(user?.status ?? "active");
-  }, [open, user]);
-
-  const userId = user?.user_id;
-
-  const canSaveAccount = useMemo(() => {
-    const u = (accUsername || "").trim();
-    const e = (accEmail || "").trim();
-    const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
-    return u.length >= 3 && emailOk;
-  }, [accUsername, accEmail]);
-
-  const canReset = useMemo(() => {
-    return newPass.length >= 8 && newPass === newPass2;
-  }, [newPass, newPass2]);
-
-  const handleSaveAccount = async () => {
-    if (!onUpdateAccount || !userId) return;
-    if (!canSaveAccount) {
-      showBanner("error", "Vui lòng nhập username ≥ 3 ký tự và email hợp lệ.");
-      return;
-    }
-    try {
-      setSavingAccount(true);
-      const res = await onUpdateAccount({
-        user_id: userId,
-        username: accUsername.trim(),
-        email: accEmail.trim(),
-      });
-      if (res?.status === "ok") {
-        showBanner("success", res?.message || "Cập nhật tài khoản thành công.");
-      } else {
-        showBanner("error", res?.message || "Cập nhật tài khoản thất bại.");
-      }
-    } catch (e) {
-      showBanner("error", e?.message || "Lỗi khi cập nhật tài khoản.");
-    } finally {
-      setSavingAccount(false);
-    }
+  const handlePickAvatar = (file) => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => setAvatarPreview(String(e.target.result || ""));
+    reader.readAsDataURL(file);
   };
 
-  const handleResetPassword = async () => {
-    if (!onResetPassword || !userId) return;
-    if (!canReset) {
-      showBanner("error", "Mật khẩu phải ≥ 8 ký tự và trùng khớp.");
-      return;
-    }
-    if (!window.confirm("Đặt lại mật khẩu cho tài khoản này?")) return;
-    try {
-      setResetting(true);
-      const res = await onResetPassword({
-        user_id: userId,
-        new_password: newPass,
-      });
-      if (res?.status === "ok") {
-        showBanner("success", res?.message || "Đã đặt lại mật khẩu.");
-        setNewPass("");
-        setNewPass2("");
-      } else {
-        showBanner("error", res?.message || "Đặt lại mật khẩu thất bại.");
-      }
-    } catch (e) {
-      showBanner("error", e?.message || "Lỗi khi đặt lại mật khẩu.");
-    } finally {
-      setResetting(false);
-    }
+  const resetAll = () => {
+    setFullName(""); setUserName(""); setEmail("");
+    setPassword(""); setBirthDate(""); setBio("");
+    setAvatarPreview("");
   };
 
-  const handleSaveRoleStatus = async () => {
-    if (!userId) return;
+  const handleSubmit = async () => {
+    if (!canSave) return showBanner("error", "Username ≥ 3, email hợp lệ, mật khẩu ≥ 8.");
     try {
-      setSavingRole(true);
-      let ok = true;
-
-      if (onSetRole) {
-        const r = await onSetRole({ user_id: userId, role_id: roleId });
-        if (r?.status !== "ok") {
-          ok = false;
-          showBanner("error", r?.message || "Cập nhật role thất bại.");
-        }
-      }
-      if (ok && onSetStatus) {
-        const s = await onSetStatus({ user_id: userId, status });
-        if (s?.status !== "ok") {
-          ok = false;
-          showBanner("error", s?.message || "Cập nhật trạng thái thất bại.");
-        }
-      }
-
-      if (ok) showBanner("success", "Đã cập nhật quyền & trạng thái.");
+      setSaving(true);
+      await onSave?.({
+        full_name: fullName.trim(),
+        username: userName.trim(),
+        email: email.trim(),
+        password,
+        birth_date: birthDate || null,
+        bio: bio || null,
+        avatar_url: avatarPreview || null,
+      });
     } catch (e) {
-      showBanner("error", e?.message || "Lỗi khi cập nhật quyền & trạng thái.");
+      showBanner("error", e?.message || "Register failed");
     } finally {
-      setSavingRole(false);
+      setSaving(false);
     }
   };
 
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/60" onClick={onClose} />
-      <div className="relative z-10 w-full max-w-2xl bg-[#151922] border border-white/10 rounded-xl p-4">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-lg font-semibold">Edit account (Admin)</h3>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3">
+      <button
+        className="absolute inset-0 bg-black/60"
+        onClick={() => { resetAll(); onClose?.(); }}
+        aria-label="Close"
+      />
+      <div className="relative z-10 w-full max-w-[460px] bg-[#1F2631] text-white rounded-xl border border-white/10 shadow-2xl">
+        {/* Header */}
+        <div className="flex items-center justify-between px-3 py-2.5 border-b border-white/10">
+          <h3 className="text-sm font-semibold">Create user</h3>
           <button
-            className="px-2 py-1 rounded-md border border-white/10 text-white/80 hover:text-white"
-            onClick={onClose}
+            onClick={() => { resetAll(); onClose?.(); }}
+            className="h-7 w-7 flex items-center justify-center rounded-md border border-white/10 text-white/80 hover:text-white"
+            title="Close"
           >
-            Close
+            ×
           </button>
         </div>
 
-        {/* header info */}
-        <div className="text-sm text-white/60 mb-3">
-          <div><span className="text-white/40">User ID:</span> {user?.user_id}</div>
-          <div><span className="text-white/40">Name:</span> {user?.full_name || user?.username}</div>
-          <div><span className="text-white/40">Current role:</span> {user?.role_id}</div>
-          <div><span className="text-white/40">Status:</span> {user?.status || "active"}</div>
-        </div>
-
-        {/* banner */}
+        {/* Banner */}
         {banner && (
           <div
             className={
-              "mb-3 px-3 py-2 rounded-md text-sm border " +
+              "mx-3 mt-2 mb-1 px-2.5 py-1.5 rounded-md text-[12px] border " +
               (banner.type === "success"
                 ? "bg-emerald-900/30 text-emerald-200 border-emerald-700/40"
                 : banner.type === "error"
@@ -187,137 +98,102 @@ export default function ModalEditUser({
           </div>
         )}
 
-        {/* tabs */}
-        <div className="flex gap-2 mb-4">
-          {TABS.map((t) => (
-            <button
-              key={t}
-              onClick={() => setActiveTab(t)}
-              className={
-                "px-3 py-1.5 rounded-md text-sm border " +
-                (activeTab === t
-                  ? "bg-white text-black border-white"
-                  : "bg-transparent text-white/80 border-white/20 hover:text-white")
-              }
-            >
-              {t}
-            </button>
-          ))}
+        {/* Body */}
+        <div className="px-3 py-2 space-y-2">
+          <Field label="Full name">
+            <Input value={fullName} onChange={setFullName} placeholder="Full name" />
+          </Field>
+
+          <Field label="Username">
+            <Input value={userName} onChange={setUserName} placeholder="username" />
+          </Field>
+
+          <Field label="Email">
+            <Input type="email" value={email} onChange={setEmail} placeholder="email@example.com" />
+          </Field>
+
+          <Field label="Password" hint="≥ 8 characters">
+            <Input type="password" value={password} onChange={setPassword} placeholder="••••••••" />
+          </Field>
+
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            <Field label="Birthday">
+              <Input type="date" value={birthDate} onChange={setBirthDate} />
+            </Field>
+            <Field label="Avatar">
+              <div className="flex items-center gap-2">
+                <label className="inline-flex items-center px-2.5 py-1.5 rounded-md border border-white/10 bg-[#0f1420] cursor-pointer text-xs">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => handlePickAvatar(e.target.files?.[0])}
+                  />
+                  Upload
+                </label>
+                {avatarPreview && (
+                  <img
+                    src={avatarPreview}
+                    alt="preview"
+                    className="h-9 w-9 rounded-md object-cover border border-white/10"
+                  />
+                )}
+              </div>
+              <p className="text-[10px] text-white/50 mt-1">Gửi dạng base64 trong <code>avatar_url</code>.</p>
+            </Field>
+          </div>
+
+          <Field label="Biography">
+            <textarea
+              rows={3}
+              className="w-full px-2.5 py-2 rounded-md bg-[#0f1420] border border-white/10 outline-none text-white text-[13px] placeholder:text-white/40"
+              value={bio}
+              onChange={(e) => setBio(e.target.value)}
+              placeholder="Write something about you..."
+            />
+          </Field>
         </div>
 
-        {/* content */}
-        {activeTab === "Account" && (
-          <div>
-            <label className="block text-sm text-white/80 mb-1">Username</label>
-            <input
-              className="w-full mb-3 px-3 py-2 rounded-md bg-[#0f1420] border border-white/10 outline-none text-white"
-              value={accUsername}
-              onChange={(e) => setAccUsername(e.target.value)}
-              placeholder="username"
-            />
-
-            <label className="block text-sm text-white/80 mb-1">Email</label>
-            <input
-              type="email"
-              className="w-full mb-4 px-3 py-2 rounded-md bg-[#0f1420] border border-white/10 outline-none text-white"
-              value={accEmail}
-              onChange={(e) => setAccEmail(e.target.value)}
-              placeholder="email@example.com"
-            />
-
-            <div className="flex items-center justify-end gap-2">
-              <button
-                className="px-3 py-1.5 rounded-md bg-white text-black disabled:opacity-40"
-                onClick={handleSaveAccount}
-                disabled={!canSaveAccount || savingAccount}
-              >
-                {savingAccount ? "Saving..." : "Save"}
-              </button>
-            </div>
-          </div>
-        )}
-
-        {activeTab === "Security" && (
-          <div>
-            <label className="block text-sm text-white/80 mb-1">New password</label>
-            <input
-              type="password"
-              className="w-full mb-3 px-3 py-2 rounded-md bg-[#0f1420] border border-white/10 outline-none text-white"
-              value={newPass}
-              onChange={(e) => setNewPass(e.target.value)}
-              placeholder="≥ 8 ký tự"
-            />
-
-            <label className="block text-sm text-white/80 mb-1">Confirm new password</label>
-            <input
-              type="password"
-              className="w-full mb-4 px-3 py-2 rounded-md bg-[#0f1420] border border-white/10 outline-none text-white"
-              value={newPass2}
-              onChange={(e) => setNewPass2(e.target.value)}
-              placeholder="nhập lại"
-            />
-
-            <div className="flex items-center justify-between text-xs text-white/50 mb-2">
-              <span>Mẹo: dùng mật khẩu mạnh, ít nhất 8 ký tự.</span>
-            </div>
-
-            <div className="flex items-center justify-end gap-2">
-              <button
-                className="px-3 py-1.5 rounded-md border border-white/10 text-white/80"
-                onClick={() => { setNewPass(""); setNewPass2(""); }}
-              >
-                Clear
-              </button>
-              <button
-                className="px-3 py-1.5 rounded-md bg-white text-black disabled:opacity-40"
-                onClick={handleResetPassword}
-                disabled={!canReset || resetting}
-              >
-                {resetting ? "Resetting..." : "Reset password"}
-              </button>
-            </div>
-          </div>
-        )}
-
-        {activeTab === "Role" && (
-          <div>
-            <label className="block text-sm text-white/80 mb-1">Role</label>
-            <select
-              className="w-full mb-3 px-3 py-2 rounded-md bg-[#0f1420] border border-white/10 outline-none text-white"
-              value={roleId}
-              onChange={(e) => setRoleId(e.target.value)}
-            >
-              <option value="ROLE001">ROLE001 — User</option>
-              <option value="ROLE000">ROLE000 — Admin</option>
-            </select>
-
-            <label className="block text-sm text-white/80 mb-1">Status</label>
-            <select
-              className="w-full mb-4 px-3 py-2 rounded-md bg-[#0f1420] border border-white/10 outline-none text-white"
-              value={status}
-              onChange={(e) => setStatus(e.target.value)}
-            >
-              <option value="active">Active</option>
-              <option value="disabled">Disabled</option>
-              <option value="banned">Banned</option>
-            </select>
-
-            <div className="text-xs text-amber-300/90 mb-3">
-              Lưu ý: thay đổi quyền/trạng thái ảnh hưởng đến quyền truy cập hệ thống.
-            </div>
-
-            <div className="flex items-center justify-end gap-2">
-              <button
-                className="px-3 py-1.5 rounded-md bg-white text-black disabled:opacity-40"
-                onClick={handleSaveRoleStatus}
-                disabled={savingRole}
-              >
-                {savingRole ? "Saving..." : "Save changes"}
-              </button>
-            </div>
-          </div>
-        )}
+        {/* Footer */}
+        <div className="flex items-center justify-end gap-2 px-3 py-2 border-t border-white/10">
+          <button
+            className="h-[34px] px-3 rounded-md bg-[#2b3442] text-white/90 hover:bg-[#25303e] text-sm"
+            onClick={() => { resetAll(); onClose?.(); }}
+          >
+            Cancel
+          </button>
+          <button
+            className="h-[34px] px-3 rounded-md bg-[#2563eb] hover:bg-[#1d4ed8] text-white disabled:opacity-50 text-sm"
+            disabled={!canSave || saving}
+            onClick={handleSubmit}
+          >
+            {saving ? "Creating..." : "Create user"}
+          </button>
+        </div>
       </div>
     </div>
+  );
+}
+
+/* ---------- tiny UI helpers (compact) ---------- */
+function Field({ label, hint, children }) {
+  return (
+    <div>
+      <label className="block text-[11px] text-white/70 mb-1">{label}</label>
+      {children}
+      {hint && <p className="text-[10px] text-white/50 mt-1">{hint}</p>}
+    </div>
+  );
+}
+
+function Input({ value, onChange, type = "text", placeholder = "" }) {
+  return (
+    <input
+      type={type}
+      className="h-[36px] w-full px-2.5 rounded-md bg-[#0f1420] border border-white/10 outline-none text-white text-[13px] placeholder:text-white/40"
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder={placeholder}
+    />
   );
 }

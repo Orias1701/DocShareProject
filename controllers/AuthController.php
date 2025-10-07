@@ -248,68 +248,102 @@ class AuthController
         }
     }
     public function deleteAccount(): void
-{
-    // Hỗ trợ DELETE hoặc POST + X-HTTP-Method-Override: DELETE
-    $method = strtoupper($_SERVER['REQUEST_METHOD'] ?? 'GET');
-    $override = strtoupper($_SERVER['HTTP_X_HTTP_METHOD_OVERRIDE'] ?? '');
-    $isDelete = ($method === 'DELETE') || ($method === 'POST' && $override === 'DELETE');
-    if (!$isDelete) {
-        $this->json(['status' => 'error', 'message' => 'Method Not Allowed'], 405);
-    }
-
-    // Phải đăng nhập
-    if (empty($_SESSION['user_id'])) {
-        $this->json(['status' => 'error', 'message' => 'Chưa đăng nhập'], 401);
-    }
-
-    // Lấy role từ session (ưu tiên root, fallback từ $_SESSION['user'])
-    $role = $_SESSION['role_id'] ?? ($_SESSION['user']['role_id'] ?? null);
-    if ($role !== 'ROLE000') {
-        $this->json(['status' => 'error', 'message' => 'Chỉ admin mới có quyền xoá tài khoản'], 403);
-    }
-
-    // Đọc user_id mục tiêu từ JSON body hoặc ?id=...
-    $raw  = file_get_contents('php://input') ?: '';
-    $data = json_decode($raw, true);
-    $targetId = $data['user_id'] ?? ($_GET['id'] ?? '');
-
-    // Nếu không truyền → mặc định xoá chính admin đang đăng nhập
-    if ($targetId === '' || $targetId === null) {
-        $targetId = (string)($_SESSION['user_id'] ?? '');
-    }
-
-    // Nếu vẫn rỗng → báo lỗi
-    if ($targetId === '') {
-        $this->json(['status' => 'error', 'message' => 'Thiếu user_id'], 400);
-    }
-
-    // (Khuyến nghị) Không cho xoá admin khác
-    if (method_exists($this->userModel, 'getRoleById')) {
-        $targetRole = $this->userModel->getRoleById($targetId); // nên trả 'ROLE000'/'ROLE001'
-        if ($targetRole === 'ROLE000' && $targetId !== (string)$_SESSION['user_id']) {
-            $this->json(['status' => 'error', 'message' => 'Không thể xoá tài khoản admin khác'], 403);
+    {
+        // Hỗ trợ DELETE hoặc POST + X-HTTP-Method-Override: DELETE
+        $method = strtoupper($_SERVER['REQUEST_METHOD'] ?? 'GET');
+        $override = strtoupper($_SERVER['HTTP_X_HTTP_METHOD_OVERRIDE'] ?? '');
+        $isDelete = ($method === 'DELETE') || ($method === 'POST' && $override === 'DELETE');
+        if (!$isDelete) {
+            $this->json(['status' => 'error', 'message' => 'Method Not Allowed'], 405);
         }
-    }
 
-    // Thực hiện xoá (CHÚ Ý: deleteUser phải nhận string ID)
-    $deleted = $this->userModel->deleteUser($targetId);
+        // Phải đăng nhập
+        if (empty($_SESSION['user_id'])) {
+            $this->json(['status' => 'error', 'message' => 'Chưa đăng nhập'], 401);
+        }
 
-    if ($deleted) {
-        // Nếu xoá chính mình → huỷ session
-        if ($targetId === (string)$_SESSION['user_id']) {
-            $_SESSION = [];
-            if (ini_get('session.use_cookies')) {
-                $p = session_get_cookie_params();
-                setcookie(session_name(), '', time() - 42000, $p['path'], $p['domain'], $p['secure'], $p['httponly']);
+        // Lấy role từ session (ưu tiên root, fallback từ $_SESSION['user'])
+        $role = $_SESSION['role_id'] ?? ($_SESSION['user']['role_id'] ?? null);
+        if ($role !== 'ROLE000') {
+            $this->json(['status' => 'error', 'message' => 'Chỉ admin mới có quyền xoá tài khoản'], 403);
+        }
+
+        // Đọc user_id mục tiêu từ JSON body hoặc ?id=...
+        $raw  = file_get_contents('php://input') ?: '';
+        $data = json_decode($raw, true);
+        $targetId = $data['user_id'] ?? ($_GET['id'] ?? '');
+
+        // Nếu không truyền → mặc định xoá chính admin đang đăng nhập
+        if ($targetId === '' || $targetId === null) {
+            $targetId = (string)($_SESSION['user_id'] ?? '');
+        }
+
+        // Nếu vẫn rỗng → báo lỗi
+        if ($targetId === '') {
+            $this->json(['status' => 'error', 'message' => 'Thiếu user_id'], 400);
+        }
+
+        // (Khuyến nghị) Không cho xoá admin khác
+        if (method_exists($this->userModel, 'getRoleById')) {
+            $targetRole = $this->userModel->getRoleById($targetId); // nên trả 'ROLE000'/'ROLE001'
+            if ($targetRole === 'ROLE000' && $targetId !== (string)$_SESSION['user_id']) {
+                $this->json(['status' => 'error', 'message' => 'Không thể xoá tài khoản admin khác'], 403);
             }
-            session_destroy();
         }
 
-        $this->json(['status' => 'ok', 'message' => "Đã xoá tài khoản #{$targetId}"], 200);
+        // Thực hiện xoá (CHÚ Ý: deleteUser phải nhận string ID)
+        $deleted = $this->userModel->deleteUser($targetId);
+
+        if ($deleted) {
+            // Nếu xoá chính mình → huỷ session
+            if ($targetId === (string)$_SESSION['user_id']) {
+                $_SESSION = [];
+                if (ini_get('session.use_cookies')) {
+                    $p = session_get_cookie_params();
+                    setcookie(session_name(), '', time() - 42000, $p['path'], $p['domain'], $p['secure'], $p['httponly']);
+                }
+                session_destroy();
+            }
+
+            $this->json(['status' => 'ok', 'message' => "Đã xoá tài khoản #{$targetId}"], 200);
+        }
+
+        $this->json(['status' => 'error', 'message' => 'Xoá tài khoản thất bại, vui lòng thử lại!'], 500);
+    }
+    // ===== Thêm vào trong class AuthController =====
+    public function updateAccount(): void
+    {
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            $this->json(['status' => 'error', 'message' => 'Method Not Allowed'], 405);
+        }
+
+        // Chỉ ADMIN
+        $roleSession = $_SESSION['user']['role_id'] ?? $_SESSION['role_id'] ?? null;
+        if ($roleSession !== 'ROLE000') {
+            $this->json(['status' => 'error', 'message' => 'Chỉ ADMIN mới có quyền cập nhật tài khoản!'], 403);
+        }
+
+        $body = (stripos($_SERVER['CONTENT_TYPE'] ?? '', 'application/json') !== false)
+            ? $this->readJsonBody()
+            : $_POST;
+
+        $user_id     = $body['user_id']      ?? null;
+        $email       = $body['email']        ?? null;
+        $newPassword = $body['new_password'] ?? null;
+        $role_id     = $body['role_id']      ?? null;
+
+        if (!$user_id) {
+            $this->json(['status' => 'error', 'message' => 'Thiếu user_id'], 400);
+        }
+        if ($email === null && $newPassword === null && $role_id === null) {
+            $this->json(['status' => 'error', 'message' => 'Không có dữ liệu để cập nhật'], 400);
+        }
+
+        $res = $this->userModel->adminUpdateAccount($user_id, $email, $newPassword, $role_id);
+
+        $this->json($res, $res['status'] === 'ok' ? 200 : 400);
     }
 
-    $this->json(['status' => 'error', 'message' => 'Xoá tài khoản thất bại, vui lòng thử lại!'], 500);
-}
 
 
 }

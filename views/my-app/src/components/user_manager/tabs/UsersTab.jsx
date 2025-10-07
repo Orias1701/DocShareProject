@@ -6,6 +6,7 @@ import UsersListItem from "../list/UsersListItem";
 import UserProfileCard from "../../leaderboard/UserProfileCard";
 import AddUserModal from "../modals/AddUserModal";
 import ConfirmModal from "../modals/ConfirmModal";
+import ModalEditUser from "../modals/ModalEditUser"; // 3 tab: Account / Security / Role
 
 import userInfoApi from "../../../services/user_infoServices";
 import authApi from "../../../services/usersServices";
@@ -18,11 +19,15 @@ const mapApiUser = (u) => ({
   avatar: u.avatar_url || FALLBACK_AVATAR,
   realName: u.full_name || u.username || "Unknown",
   userName: u.username ? `@${u.username}` : "",
+  username: u.username || "",
   followerCount: Number(u.followers_count ?? 0),
   birthday: u.birth_date || "",
   biography: u.bio || "",
   followingCount: 0,
   totalPosts: Number(u.total_posts ?? 0),
+  role_id: u.role_id || "ROLE001",
+  status: u.status || "active",
+  email: u.email || "",
 });
 
 export default function UsersTab() {
@@ -40,8 +45,17 @@ export default function UsersTab() {
   const [openAdd, setOpenAdd] = React.useState(false);
   const [confirm, setConfirm] = React.useState({ open: false, target: null });
 
-  // 🔔 Banner thông báo (success/error)
-  const [banner, setBanner] = React.useState(null); // { type:'success'|'error'|'info', text: string }
+  // Modal Edit gắn vào nút Edit
+  const [openEdit, setOpenEdit] = React.useState(false);
+  const [editUser, setEditUser] = React.useState(null);
+
+  // Banner
+  const [banner, setBanner] = React.useState(null);
+  const showBanner = (type, text, ms = 2000) => {
+    setBanner({ type, text });
+    window.clearTimeout(showBanner._t);
+    showBanner._t = window.setTimeout(() => setBanner(null), ms);
+  };
 
   const totalPages = Math.max(1, Math.ceil(data.length / PAGE_SIZE));
   const pageData = React.useMemo(() => {
@@ -52,18 +66,20 @@ export default function UsersTab() {
   const selectedUser =
     pageData.find((u) => u.id === selectedId) ?? pageData[0] ?? null;
 
+  // ===== Fetch list qua userInfoApi (đã nối) =====
   const fetchUsers = async () => {
     try {
       setLoading(true);
       setError(null);
       const res = await userInfoApi.listUserInfos();
+      // Kỳ vọng: { status: "ok", data: [...] }
       if (res?.status === "ok" && Array.isArray(res.data)) {
         const mapped = res.data.map(mapApiUser);
         setData(mapped);
         setFetched(true);
-        setSelectedId(mapped[0]?.id);
+        setSelectedId((prev) => prev ?? mapped[0]?.id);
       } else {
-        throw new Error("Invalid user list response");
+        throw new Error(res?.message || "Invalid user list response");
       }
     } catch (e) {
       setError(e?.message || "Failed to load users");
@@ -80,15 +96,90 @@ export default function UsersTab() {
     setPage(1);
   }, [fetched]);
 
-  const handleDeleteRequest = (user) => {
-    setConfirm({ open: true, target: user });
+  const handleDeleteRequest = (user) => setConfirm({ open: true, target: user });
+  // ✅ UPDATE PROFILE qua userInfoApi.updateUserInfo
+  const onUpdateProfile = async ({ user_id, profile }) => {
+    try {
+      const res = await userInfoApi.updateUserInfo({
+        user_id,
+        full_name: profile.full_name ?? "",
+        bio: profile.bio ?? "",
+        birth_date: profile.birth_date ?? "",
+        // Nếu có upload ảnh mới: truyền File/Blob trong profile.avatar
+        avatar: profile.avatar || undefined,
+      });
+
+      if (res?.status === "ok" || res?.status === "success") {
+        await fetchUsers();
+        showBanner("success", res?.message || "Đã cập nhật hồ sơ");
+        return { status: "ok" };
+      }
+      return { status: "error", message: res?.message || "Update profile failed" };
+    } catch (e) {
+      return { status: "error", message: e?.message || "Network error" };
+    }
   };
 
-  // helper hiển thị banner ngắn hạn
-  const showBanner = (type, text, ms = 2000) => {
-    setBanner({ type, text });
-    window.clearTimeout(showBanner._t);
-    showBanner._t = window.setTimeout(() => setBanner(null), ms);
+  // ===== Handlers chuyển cho ModalEditUser (defensive) =====
+  const onUpdateAccount = async ({ user_id, email }) => {
+    try {
+      const res = await authApi.updateAccount({ user_id, email });
+      if (res?.status === "ok") {
+        await fetchUsers();
+        showBanner("success", res?.message || "Đã cập nhật email");
+        return { status: "ok" };
+      }
+      return { status: "error", message: res?.message || "Update account failed" };
+    } catch (e) {
+      return { status: "error", message: e?.message || "Network error" };
+    }
+  };
+
+  const onResetPassword = async ({ user_id, new_password }) => {
+    try {
+      const res = await authApi.updateAccount({ user_id, new_password });
+      if (res?.status === "ok") {
+        showBanner("success", res?.message || "Đã đặt lại mật khẩu");
+        return { status: "ok" };
+      }
+      return { status: "error", message: res?.message || "Reset password failed" };
+    } catch (e) {
+      return { status: "error", message: e?.message || "Network error" };
+    }
+  };
+
+  const onSetRole = async ({ user_id, role_id }) => {
+    try {
+      const res = await authApi.updateAccount({ user_id, role_id });
+      if (res?.status === "ok") {
+        await fetchUsers();
+        showBanner("success", res?.message || "Đã cập nhật quyền");
+        return { status: "ok" };
+      }
+      return { status: "error", message: res?.message || "Set role failed" };
+    } catch (e) {
+      return { status: "error", message: e?.message || "Network error" };
+    }
+  };
+
+  const onSetStatus = async ({ user_id, status }) => {
+    try {
+      if (typeof authApi.setStatus === "function") {
+        const res = await authApi.setStatus({ user_id, status });
+        if (res?.status === "ok" || res?.status === "success") {
+          await fetchUsers();
+          showBanner("success", res?.message || "Đã cập nhật trạng thái");
+          return { status: "ok" };
+        }
+        return { status: "error", message: res?.message || "Set status failed" };
+      }
+      return {
+        status: "error",
+        message: "Endpoint setStatus chưa có trong usersServices.js",
+      };
+    } catch (e) {
+      return { status: "error", message: e?.message || "Network error" };
+    }
   };
 
   return (
@@ -115,7 +206,7 @@ export default function UsersTab() {
           </div>
         </div>
 
-        {/* 🔔 Banner */}
+        {/* Banner */}
         {banner && (
           <div
             className={
@@ -165,7 +256,10 @@ export default function UsersTab() {
               user={u}
               active={u.id === selectedId}
               onClick={() => setSelectedId(u.id)}
-              onEdit={() => alert("Edit user")}
+              onEdit={() => {
+                setEditUser(u); // 👈 gán vào nút Edit
+                setOpenEdit(true);
+              }}
               onRequestDelete={(user) => handleDeleteRequest(user)}
               onAvatarClick={() => navigate(`/profile/${u.user_id || u.id}`)}
             />
@@ -208,37 +302,45 @@ export default function UsersTab() {
       </aside>
 
       {/* modals */}
+      {/* Add: dùng API register sẵn có */}
       <AddUserModal
         open={openAdd}
         onClose={() => setOpenAdd(false)}
         onSave={async (form) => {
           try {
-            const payload = {
-              username: form.userName.trim(),
-              email: form.email.trim(),
+            const res = await authApi.register({
+              username: form.username,
+              email: form.email,
               password: form.password,
-              full_name: form.realName.trim(),
-              birth_date: form.birthDate, // YYYY-MM-DD
-              avatar_url: null,
-              bio: null,
-            };
-            const res = await authApi.register(payload);
+              full_name: form.full_name,
+              birth_date: form.birth_date || null,
+              avatar_url: form.avatar_url || null,
+              bio: form.bio || null,
+            });
             if (res?.status !== "ok") {
               throw new Error(res?.message || "Register failed");
             }
-
-            // Refetch list để thấy user mới
             await fetchUsers();
-
-            // Đóng modal + banner success
             setOpenAdd(false);
             setPage(1);
-            showBanner("success", "Đăng ký thành công.");
+            showBanner("success", "Tạo người dùng thành công.");
           } catch (e) {
             console.error("[UsersTab] register failed:", e);
             showBanner("error", e?.message || "Register failed");
           }
         }}
+      />
+
+      {/* Edit user gắn vào nút Edit */}
+      <ModalEditUser
+        open={openEdit}
+        onClose={() => setOpenEdit(false)}
+        user={editUser}
+        onUpdateAccount={onUpdateAccount}
+        onResetPassword={onResetPassword}
+        onSetRole={onSetRole}
+        onSetStatus={onSetStatus}
+        onUpdateProfile={onUpdateProfile} 
       />
 
       <ConfirmModal

@@ -255,7 +255,7 @@ if (isset($_GET['action'])) {
                 $username,
                 $email,
                 $hashed,
-                "ROLE001",     // role mặc định
+                "ROLE011",     // role mặc định
                 $full_name,
                 $avatar_url,
                 $bio,
@@ -282,7 +282,11 @@ if (isset($_GET['action'])) {
             }
             $auth->deleteAccount(); // ✅ dùng $auth, không phải $AuthController
             exit;
-}
+        }
+        case 'api_update_account':
+            $auth->updateAccount();
+        break;
+            
 
 
 

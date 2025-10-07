@@ -73,7 +73,16 @@ export const authApi = {
   },
   admin(){
     return fetchJson("api_admin");
-  }
+  },
+  updateAccount({ user_id, email, new_password, role_id }) {
+    return postJson("api_update_account", {
+      user_id,
+      // chỉ đẩy field nào muốn đổi; để undefined sẽ không cập nhật
+      ...(email !== undefined ? { email } : {}),
+      ...(new_password !== undefined ? { new_password } : {}),
+      ...(role_id !== undefined ? { role_id } : {}),
+    });
+  },
 };
 
 export default authApi;
