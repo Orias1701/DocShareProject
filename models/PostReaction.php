@@ -1,15 +1,18 @@
 <?php
 require_once __DIR__ . '/../config/Database.php';
 
-class PostReaction {
+class PostReaction
+{
     private $pdo;
 
-    public function __construct() {
+    public function __construct()
+    {
         $this->pdo = Database::getConnection();
     }
 
     /** Lấy reaction hiện tại của user cho post: null | 'like' | 'dislike' */
-    public function getUserReaction($postId, $userId) {
+    public function getUserReaction($postId, $userId)
+    {
         $sql = "SELECT reaction_type
                 FROM post_reactions
                 WHERE post_id = ? AND user_id = ?
@@ -25,7 +28,8 @@ class PostReaction {
      * - XÓA mọi reaction cũ của (post_id,user_id)
      * - CHÈN reaction mới
      */
-    public function create($postId, $userId, $type) {
+    public function create($postId, $userId, $type)
+    {
         $this->pdo->beginTransaction();
         try {
             $del = $this->pdo->prepare("DELETE FROM post_reactions WHERE post_id = ? AND user_id = ?");
@@ -50,7 +54,8 @@ class PostReaction {
      * Nếu chưa có thì coi như create. Để chắc ăn với PK gồm cả reaction_type,
      * ta dùng delete + insert thay vì update trực tiếp.
      */
-    public function update($postId, $userId, $type) {
+    public function update($postId, $userId, $type)
+    {
         $this->pdo->beginTransaction();
         try {
             $del = $this->pdo->prepare("DELETE FROM post_reactions WHERE post_id = ? AND user_id = ?");
@@ -71,7 +76,8 @@ class PostReaction {
     }
 
     /** Bỏ reaction */
-    public function delete($postId, $userId) {
+    public function delete($postId, $userId)
+    {
         $stmt = $this->pdo->prepare("DELETE FROM post_reactions WHERE post_id = ? AND user_id = ?");
         return $stmt->execute([$postId, $userId]);
     }
@@ -80,7 +86,8 @@ class PostReaction {
      * Đếm reaction theo loại; luôn trả đủ key 'like' và 'dislike'
      * Ví dụ: ['like'=>10,'dislike'=>2]
      */
-    public function getReactionCounts($postId) {
+    public function getReactionCounts($postId)
+    {
         $sql = "SELECT reaction_type, COUNT(*) as cnt
                 FROM post_reactions
                 WHERE post_id = ?
@@ -99,7 +106,26 @@ class PostReaction {
     }
 
     /** Alias cho controller: getCounts(...) */
-    public function getCounts($postId) {
+    public function getCounts($postId)
+    {
         return $this->getReactionCounts($postId);
+    }
+
+    public function countReactionsByPost($postId)
+    {
+        $stmt = $this->pdo->prepare("
+            SELECT 
+                SUM(CASE WHEN reaction_type = 'like' THEN 1 ELSE 0 END) AS total_likes,
+                SUM(CASE WHEN reaction_type = 'dislike' THEN 1 ELSE 0 END) AS total_dislikes
+            FROM post_reactions
+            WHERE post_id = ?
+        ");
+        $stmt->execute([$postId]);
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        return [
+            "total_likes" => (int)($result['total_likes'] ?? 0),
+            "total_dislikes" => (int)($result['total_dislikes'] ?? 0)
+        ];
     }
 }

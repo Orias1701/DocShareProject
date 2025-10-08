@@ -273,20 +273,20 @@ if (isset($_GET['action'])) {
         case 'api_me':
             (new AuthController())->apiMe();
             exit;
-        
-        // public/index.php
+
+            // public/index.php
         case 'api_delete_user': {
-            $method = strtoupper($_SERVER['REQUEST_METHOD'] ?? 'GET');
-            if (!in_array($method, ['DELETE','POST'], true)) {
-                respond_json(['status' => 'error', 'message' => 'Method Not Allowed', 'allowed' => 'DELETE, POST'], 405);
+                $method = strtoupper($_SERVER['REQUEST_METHOD'] ?? 'GET');
+                if (!in_array($method, ['DELETE', 'POST'], true)) {
+                    respond_json(['status' => 'error', 'message' => 'Method Not Allowed', 'allowed' => 'DELETE, POST'], 405);
+                }
+                $auth->deleteAccount(); // ✅ dùng $auth, không phải $AuthController
+                exit;
             }
-            $auth->deleteAccount(); // ✅ dùng $auth, không phải $AuthController
-            exit;
-        }
         case 'api_update_account':
             $auth->updateAccount();
-        break;
-            
+            break;
+
 
 
 
@@ -303,8 +303,8 @@ if (isset($_GET['action'])) {
         case 'get_posts_by_album':
             $postController->getPostsByAlbum();
             exit;
-            
-            
+
+
         /*************** POST DETAIL (VIEW) ***************/
         case 'post_detail':
             $postController->showPostDetail();
@@ -328,8 +328,8 @@ if (isset($_GET['action'])) {
             exit;
         case 'posts_by_hashtag':
             $postHashtagController->getPostsByHashtagId($_GET['hashtag_id'] ?? null);
-        exit;
-            
+            exit;
+
         case 'list_posts_by_user':
             $userId = $_GET['user_id'] ?? null;
             $postController->getPostsByUserId($userId);
@@ -346,17 +346,17 @@ if (isset($_GET['action'])) {
             $postController->getPostsFromFollowedUsers($_SESSION['user_id']);
             exit;
         case 'count_posts_all':
-                (new PostController())->countAllPosts();
-                break;
-            
+            (new PostController())->countAllPosts();
+            break;
+
         case 'count_posts_by_user':
-                (new PostController())->countPostsByUser(); // ?user_id=... (hoặc session)
-                break;
-            
+            (new PostController())->countPostsByUser(); // ?user_id=... (hoặc session)
+            break;
+
         case 'count_posts_by_album':
-                (new PostController())->countPostsByAlbum(); // ?album_id=...
-                break;
-            
+            (new PostController())->countPostsByAlbum(); // ?album_id=...
+            break;
+
 
 
 
@@ -392,6 +392,9 @@ if (isset($_GET['action'])) {
             exit;
         case 'delete_category':
             $categoryController->delete();
+            exit;
+        case 'category_post_counts':
+            $categoryController->listCategoryWithPostCounts();
             exit;
 
         /*************** HASHTAG CRUD ***************/
@@ -494,7 +497,7 @@ if (isset($_GET['action'])) {
         case 'delete_post_hashtag':
             $postHashtagController->delete();
             exit;
-        
+
         /*************** ROLE CRUD ***************/
         case 'list_roles':
             $roleController->listRoles();
@@ -522,8 +525,8 @@ if (isset($_GET['action'])) {
 
         case 'count_comments_by_post':
             $commentController->countCommentsByPostId($_GET['post_id'] ?? '');
-        exit;
-            
+            exit;
+
         case 'create_comment':
             // POST only
             $body = wants_json() ? read_json_body() : $_POST;
@@ -545,19 +548,19 @@ if (isset($_GET['action'])) {
 
         /*************** REACTION ***************/
         case 'toggle_reaction_api': {
-            $postId = $_POST['post_id'] ?? $_GET['post_id'] ?? null;
-            $type   = $_POST['reaction_type'] ?? $_GET['reaction_type'] ?? null;
-            $reactionController->toggleReactionApi($postId, $type);
-            exit; // bắt buộc để không render HTML
-        }
-        
+                $postId = $_POST['post_id'] ?? $_GET['post_id'] ?? null;
+                $type   = $_POST['reaction_type'] ?? $_GET['reaction_type'] ?? null;
+                $reactionController->toggleReactionApi($postId, $type);
+                exit; // bắt buộc để không render HTML
+            }
+
         case 'get_reaction_state_api': {
-            $postId = $_GET['post_id'] ?? null;
-            $reactionController->getReactionStateApi($postId);
-            exit; // bắt buộc
-        }
-        
-        
+                $postId = $_GET['post_id'] ?? null;
+                $reactionController->getReactionStateApi($postId);
+                exit; // bắt buộc
+            }
+
+
         case 'toggle_reaction':
             $postId = $_GET['post_id'] ?? null;
             $reactionType = $_GET['reaction_type'] ?? null;
@@ -567,10 +570,21 @@ if (isset($_GET['action'])) {
             }
             $reactionController->toggleReaction($postId, $reactionType);
             exit;
-        
+        /*************** REACTION ***************/
+        case 'count_reactions':
+            $postId = $_GET['post_id'] ?? null;
+            if (!$postId) {
+                http_response_code(400);
+                echo json_encode(["ok" => false, "error" => "post_id là bắt buộc"]);
+                exit;
+            }
+            $reactionController->countReactions($postId);
+            exit;
+
+
 
         /*************** REPORT ***************/
-        // === REPORT API ===
+            // === REPORT API ===
         case 'toggle_report':
             $postId = $_POST['post_id'] ?? null;
             $reason = $_POST['reason'] ?? '';
@@ -594,6 +608,25 @@ if (isset($_GET['action'])) {
 
         case 'list_all_reports':
             $reportController->listAllReports();
+            exit;
+            // 🧮 Đếm số người report 1 bài viết
+        case 'count_reports':
+            $postId = $_GET['post_id'] ?? null;
+            if (!$postId) {
+                http_response_code(400);
+                echo json_encode(["ok" => false, "error" => "post_id là bắt buộc"]);
+                exit;
+            }
+            $reportController->countReportsByPost($postId);
+            exit;
+        case 'reporters_detail':
+            $postId = $_GET['post_id'] ?? null;
+            if (!$postId) {
+                http_response_code(400);
+                echo json_encode(["ok" => false, "error" => "post_id là bắt buộc"]);
+                exit;
+            }
+            $reportController->getReportersDetail($postId);
             exit;
 
 
@@ -625,11 +658,11 @@ if (isset($_GET['action'])) {
         case 'count_followers':
             (new UserFollowController())->countFollowers();
             break;
-            
+
         case 'count_following':
             (new UserFollowController())->countFollowing();
             break;
-            
+
         /*************** BOOKMARK CRUD ***************/
         case 'create_bookmark':
             $bookmarkController->create();
@@ -657,7 +690,6 @@ if (isset($_GET['action'])) {
             header("Location: index.php");
             exit;
     }
-    
 }
 
 /*************************************************

@@ -2,10 +2,12 @@
 // controllers/CategoryController.php
 require_once __DIR__ . '/../models/Category.php';
 
-class CategoryController {
+class CategoryController
+{
     private $categoryModel;
 
-    public function __construct() {
+    public function __construct()
+    {
         $this->categoryModel = new Category();
         // THAY ĐỔI: Set header mặc định cho tất cả các response là JSON
         header('Content-Type: application/json');
@@ -17,19 +19,22 @@ class CategoryController {
     /**
      * Hàm helper để gửi response JSON và thoát
      */
-    private function sendResponse($data, $statusCode = 200) {
+    private function sendResponse($data, $statusCode = 200)
+    {
         http_response_code($statusCode);
         echo json_encode($data);
         exit;
     }
 
-    public function listCategories() {
+    public function listCategories()
+    {
         $categories = $this->categoryModel->getAllCategories();
         $this->sendResponse($categories);
     }
 
     // THAY ĐỔI: Tạo hàm mới để lấy một category
-    public function getCategory() {
+    public function getCategory()
+    {
         if (!isset($_GET['id'])) {
             $this->sendResponse(['error' => 'Category ID is required'], 400);
         }
@@ -42,9 +47,10 @@ class CategoryController {
         }
     }
 
-    public function create() {
+    public function create()
+    {
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-             $this->sendResponse(['error' => 'Method not allowed'], 405);
+            $this->sendResponse(['error' => 'Method not allowed'], 405);
         }
 
         // Lấy dữ liệu từ request body (thay vì chỉ $_POST)
@@ -63,9 +69,10 @@ class CategoryController {
         }
     }
 
-    public function update() {
+    public function update()
+    {
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') { // Trong API thực tế thường dùng PUT
-             $this->sendResponse(['error' => 'Method not allowed'], 405);
+            $this->sendResponse(['error' => 'Method not allowed'], 405);
         }
 
         $data = json_decode(file_get_contents('php://input'), true);
@@ -84,9 +91,10 @@ class CategoryController {
         }
     }
 
-    public function delete() {
+    public function delete()
+    {
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') { // Trong API thực tế thường dùng DELETE
-             $this->sendResponse(['error' => 'Method not allowed'], 405);
+            $this->sendResponse(['error' => 'Method not allowed'], 405);
         }
 
         $data = json_decode(file_get_contents('php://input'), true);
@@ -95,13 +103,28 @@ class CategoryController {
         if (empty($id)) {
             $this->sendResponse(['error' => 'Category ID is required'], 400);
         }
-        
+
         if ($this->categoryModel->deleteCategory($id)) {
             $this->sendResponse(['message' => 'Category deleted successfully']);
         } else {
             $this->sendResponse(['error' => 'Failed to delete category'], 500);
         }
     }
+
+    public function listCategoryWithPostCounts()
+    {
+        header('Content-Type: application/json; charset=utf-8');
+
+        $data = $this->categoryModel->getCategoryPostCounts();
+
+        echo json_encode([
+            "ok" => true,
+            "total" => count($data),
+            "categories" => $data
+        ]);
+        exit;
+    }
+
 
     // Xóa các hàm show form vì frontend sẽ đảm nhiệm
     // public function showCreateForm() { ... }
