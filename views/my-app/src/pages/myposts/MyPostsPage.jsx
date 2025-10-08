@@ -120,16 +120,6 @@ export default function MyPostsPage() {
 
   return (
     <div className="w-full">
-      {/* Tabs (tuỳ chọn) */}
-      <div className="flex justify-end items-center mb-8 gap-6">
-        <button className="text-white font-semibold border-b-2 border-white pb-1" type="button">
-          Posts
-        </button>
-        <button className="text-gray-400 font-semibold pb-1 hover:text-white" type="button">
-          Follower
-        </button>
-      </div>
-
       {/* Hiển thị theo Album */}
       <div className="space-y-12">
         {sections.length === 0 ? (

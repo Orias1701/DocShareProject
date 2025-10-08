@@ -11,6 +11,8 @@ import AlbumCard from "./AlbumCard"; // card tối giản cho album
  *  - headerRight: node hiển thị bên phải tiêu đề (button/filter...)
  *  - wrapClassName / gridClassName: custom class
  *  - CardComponent: component để render 1 album (mặc định: AlbumCard)
+ *  - onDeleted: (albumId) => void — callback khi xóa album thành công
+ *  - forceIsOwner: boolean — nếu true, truyền isOwner={true} xuống AlbumCard
  */
 export default function AlbumSection({
   title,
@@ -20,6 +22,8 @@ export default function AlbumSection({
   wrapClassName = "w-full mb-12",
   gridClassName = "grid grid-cols-1 gap-5 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4",
   CardComponent = AlbumCard,
+  onDeleted,
+  forceIsOwner = false,
 }) {
   const items = Array.isArray(albums) ? albums : [];
 
@@ -37,7 +41,12 @@ export default function AlbumSection({
       ) : (
         <div className={gridClassName}>
           {items.map((alb) => (
-            <CardComponent key={alb.id || alb.album_id} post={alb} />
+            <CardComponent
+              key={alb.id || alb.album_id}
+              post={alb}
+              onDeleted={onDeleted}          // ✅ thêm để callback về MyAlbumPage
+              isOwner={forceIsOwner === true} // ✅ truyền cờ cho menu
+            />
           ))}
         </div>
       )}
@@ -53,4 +62,6 @@ AlbumSection.propTypes = {
   wrapClassName: PropTypes.string,
   gridClassName: PropTypes.string,
   CardComponent: PropTypes.elementType,
+  onDeleted: PropTypes.func,
+  forceIsOwner: PropTypes.bool,
 };

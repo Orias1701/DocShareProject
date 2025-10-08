@@ -1,48 +1,73 @@
 // src/components/albums/NewAlbumForm.jsx
 import React, { useState } from 'react';
-import FileUpload from '../new-post/FileUpload'; // Dùng lại component FileUpload
-import FormField from '../new-post/FormField';   // Dùng lại component FormField
+import FileUpload from '../new-post/FileUpload';
+import FormField from '../new-post/FormField';
 import albumService from '../../services/albumService';
 import Toast from '../../components/common/Toast';
 
+const normalizeCreatedAlbum = (res, fallbackName, fallbackFile) => {
+  // BE có thể trả nhiều dạng khác nhau, ta gom lại an toàn
+  const d = res?.data || res || {};
+  const album_id = d.album_id ?? d.id ?? d.data?.album_id ?? d.data?.id;
+  const album_name = d.album_name ?? d.name ?? fallbackName ?? 'Album';
+  const created_at = d.created_at ?? new Date().toISOString();
+  const url_thumbnail = d.url_thumbnail ?? null;
+
+  return {
+    album_id,
+    id: album_id,
+    album_name,
+    name: album_name,
+    created_at,
+    url_thumbnail,
+    // để MyAlbumPage map ra card dùng luôn
+    _raw: res,
+  };
+};
+
 const NewAlbumForm = ({ onClose, onCreated }) => {
   const [albumName, setAlbumName] = useState('');
-  const [thumbnail, setThumbnail] = useState(null); // BE chưa hỗ trợ, chỉ hiển thị UI
+  const [thumbnail, setThumbnail] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [fieldError, setFieldError] = useState(null);
 
-  // Toast state
   const [toast, setToast] = useState({ open: false, message: '', type: 'success' });
 
   const handleSubmit = async () => {
-  setFieldError(null);
-  if (!albumName.trim()) {
-    setFieldError('Album title là bắt buộc');
-    return;
-  }
+    setFieldError(null);
+    if (!albumName.trim()) {
+      setFieldError('Album title là bắt buộc');
+      return;
+    }
 
-  try {
-    setSubmitting(true);
+    try {
+      setSubmitting(true);
 
-    // ✅ Gọi service bằng object thay vì FormData
-    const res = await albumService.create({
-      album_name: albumName.trim(),
-      description: '',
-      thumbnail,
-    });
+      // ✅ Gọi service bằng object (như bạn đã làm)
+      const res = await albumService.create({
+        album_name: albumName.trim(),
+        description: '',
+        thumbnail, // nếu BE chưa nhận cũng không sao
+      });
 
-    onCreated?.(res);
-    setToast({ open: true, message: 'Tạo album thành công!', type: 'success' });
-  } catch (e) {
-    setToast({ open: true, message: e?.message || 'Tạo album thất bại. Vui lòng thử lại!', type: 'error' });
-    console.error('[create_album] error:', e);
-  } finally {
-    setSubmitting(false);
-  }
-};
+      // Chuẩn hoá dữ liệu album mới
+      const createdAlbum = normalizeCreatedAlbum(res, albumName, thumbnail);
 
+      // Báo cho cha biết để cập nhật UI ngay
+      onCreated?.(createdAlbum);
 
-
+      setToast({ open: true, message: 'Tạo album thành công!', type: 'success' });
+    } catch (e) {
+      setToast({
+        open: true,
+        message: e?.message || 'Tạo album thất bại. Vui lòng thử lại!',
+        type: 'error',
+      });
+      console.error('[create_album] error:', e);
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
     <div className="flex flex-col gap-6">
@@ -56,7 +81,6 @@ const NewAlbumForm = ({ onClose, onCreated }) => {
         error={fieldError}
       />
 
-      {/* Thumbnail hiện chỉ phục vụ UI; BE chưa nhận */}
       <FileUpload
         title="Upload thumbnail"
         subtitle="Or if you prefer"
@@ -80,16 +104,13 @@ const NewAlbumForm = ({ onClose, onCreated }) => {
         </button>
       </div>
 
-      {/* Toast báo kết quả */}
       <Toast
         open={toast.open}
         message={toast.message}
         type={toast.type}
         onClose={() => {
-          // Đóng toast
           setToast((t) => ({ ...t, open: false }));
-          // Nếu là success thì đóng luôn modal
-          if (toast.type === 'success') onClose?.();
+          if (toast.type === 'success') onClose?.(); // đóng modal khi thành công
         }}
       />
     </div>
