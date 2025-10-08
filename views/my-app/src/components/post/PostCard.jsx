@@ -1,4 +1,3 @@
-// src/components/post/PostCard.jsx
 import React, { useMemo } from "react";
 import PropTypes from "prop-types";
 import { Link } from "react-router-dom";
@@ -58,6 +57,7 @@ export default function PostCard({
   initiallyBookmarked,
   onBookmarkChange,
   hideReactions = false,
+  onDeleted, // ✅ nhận callback để xoá UI ngay
 }) {
   if (!post || typeof post !== "object") return null;
 
@@ -156,7 +156,8 @@ export default function PostCard({
           )}
         </div>
 
-        <PostOptionsMenu postId={postId} />
+        {/* 👉 Truyền ownerId và onDeleted xuống menu để kiểm tra quyền & cập nhật UI */}
+        <PostOptionsMenu postId={postId} ownerId={authorId} onDeleted={onDeleted} />
       </div>
 
       {/* Body */}
@@ -214,4 +215,5 @@ PostCard.propTypes = {
   initiallyBookmarked: PropTypes.bool,
   onBookmarkChange: PropTypes.func,
   hideReactions: PropTypes.bool,
+  onDeleted: PropTypes.func, // ✅ thêm prop
 };

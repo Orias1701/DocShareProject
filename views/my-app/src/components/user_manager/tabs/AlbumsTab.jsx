@@ -4,7 +4,10 @@ import { useNavigate } from "react-router-dom";
 
 import AlbumItem from "../../../components/user_manager/list/AlbumItem";
 import AlbumInfoPanel from "../../../components/user_manager/panels/AlbumInfoPanel";
-import ConfirmModal from "../../../components/user_manager/modals/ConfirmModal";
+import ConfirmModal from "../../common/ConfirmModal";
+
+// ❌ Bỏ ModalAddAlbum
+import ModalEditAlbum from "../../../components/user_manager/modals/ModalEditAlbum";
 
 import albumService from "../../../services/albumService";
 
@@ -32,6 +35,10 @@ export default function AlbumsTab() {
 
   const [confirm, setConfirm] = React.useState({ open: false, target: null });
 
+  // ✨ Chỉ còn Edit
+  const [openEdit, setOpenEdit] = React.useState(false);
+  const [editAlbum, setEditAlbum] = React.useState(null);
+
   // 🔔 banner gọn
   const [banner, setBanner] = React.useState(null); // {type:'success'|'error'|'info', text}
   const showBanner = (type, text, ms = 2200) => {
@@ -57,7 +64,7 @@ export default function AlbumsTab() {
       const mapped = (Array.isArray(arr) ? arr : []).map(mapApiAlbum);
       setData(mapped);
       setFetched(true);
-      setSelectedId(mapped[0]?.id);
+      setSelectedId((prev) => prev ?? mapped[0]?.id);
     } catch (e) {
       console.error("[AlbumsTab] fetchAlbums error:", e);
       setError(e?.message || "Failed to load albums");
@@ -97,7 +104,7 @@ export default function AlbumsTab() {
     console.log("[AlbumsTab] 🔸 Deleting album:", albumId);
     const res = await albumService.delete(albumId);
     console.log("[AlbumsTab] ↩ delete response:", res);
-    // Chuẩn hoá check status (tương thích nhiều BE)
+    // Chuẩn hoá check status
     const ok =
       res?.status === "ok" ||
       res?.status === "success" ||
@@ -107,6 +114,32 @@ export default function AlbumsTab() {
       throw new Error(res?.message || "Delete failed");
     }
     return res;
+  };
+
+  // ====== UPDATE (EDIT) ======
+  const handleUpdateAlbum = async ({
+    album_id,
+    album_name,
+    description,
+    thumbnailFile,
+  }) => {
+    try {
+      const res = await albumService.update({
+        album_id,
+        album_name,
+        description,
+        thumbnail: thumbnailFile,
+      });
+      if (res?.status === "ok" || res?.status === "success") {
+        await fetchAlbums();
+        setSelectedId(album_id);
+        showBanner("success", res?.message || "Cập nhật album thành công.");
+        return { status: "ok" };
+      }
+      return { status: "error", message: res?.message || "Update failed" };
+    } catch (e) {
+      return { status: "error", message: e?.message || "Network error" };
+    }
   };
 
   return (
@@ -123,6 +156,7 @@ export default function AlbumsTab() {
             >
               <i className="fa-solid fa-rotate"></i>
             </button>
+            {/* ❌ ĐÃ BỎ NÚT ADD */}
           </div>
         </div>
 
@@ -180,7 +214,10 @@ export default function AlbumsTab() {
               album={a}
               active={a.id === selectedId}
               onClick={() => setSelectedId(a.id)}
-              onEdit={() => alert("Edit album")}
+              onEdit={() => {
+                setEditAlbum(a);
+                setOpenEdit(true);
+              }}
               onDelete={() => setConfirm({ open: true, target: a })}
               onView={() => navigate(`/album/${encodeURIComponent(a.id)}`)}
             />
@@ -219,6 +256,18 @@ export default function AlbumsTab() {
           </div>
         )}
       </aside>
+
+      {/* ❌ Không còn ModalAddAlbum */}
+      <ModalEditAlbum
+        open={openEdit}
+        onClose={() => setOpenEdit(false)}
+        album={editAlbum}
+        onSave={async (payload) => {
+          const r = await handleUpdateAlbum(payload);
+          if (r.status === "ok") setOpenEdit(false);
+          return r;
+        }}
+      />
 
       <ConfirmModal
         open={confirm.open}

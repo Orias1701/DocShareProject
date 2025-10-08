@@ -8,293 +8,244 @@ class AlbumController
 
     public function __construct()
     {
+        if (session_status() === PHP_SESSION_NONE) {
+            session_start();
+        }
         $this->albumModel = new Album();
     }
 
-    /** ===== Helpers ===== */
-    private function respondJson($payload, int $code = 200): void
+    /* ===== Helpers ===== */
+    private function json($data, int $code = 200)
     {
         http_response_code($code);
         header('Content-Type: application/json; charset=utf-8');
-        echo json_encode($payload, JSON_UNESCAPED_UNICODE);
+        echo json_encode($data, JSON_UNESCAPED_UNICODE);
         exit;
     }
 
-    private function respondError(string $msg, int $code = 400, array $extra = []): void
+    private function error($msg, int $code = 400)
     {
-        $this->respondJson(array_merge([
-            'status'  => 'error',
-            'message' => $msg,
-        ], $extra), $code);
+        $this->json(['status' => 'error', 'message' => $msg], $code);
     }
 
-    private function requireAuth(): void
+    private function requireAuth()
     {
-        if (!isset($_SESSION['user_id'])) {
-            $this->respondError('Unauthorized', 401);
+        if (empty($_SESSION['user_id'])) {
+            $this->error('Unauthorized', 401);
         }
     }
 
-    private function requireMethod(string $method): void
+    private function isAdmin(): bool
     {
-        $m = strtoupper($_SERVER['REQUEST_METHOD'] ?? '');
-        if ($m !== strtoupper($method)) {
-            $this->respondError('Method Not Allowed', 405, ['allowed' => strtoupper($method)]);
-        }
+        $role = $_SESSION['role_id'] ?? ($_SESSION['user']['role_id'] ?? null);
+        return $role === 'ROLE000';
     }
 
-    private function readJsonBody(): array
-    {
-        $raw = file_get_contents('php://input');
-        $data = json_decode($raw, true);
-        return is_array($data) ? $data : [];
-    }
-
-    /** ===== JSON API ===== */
-
-    /**
-     * Tạo album (POST)
-     * Body có thể là form-encoded hoặc JSON:
-     * - album_name (bắt buộc)
-     * - description (tuỳ chọn)
-     */
+    /* ===== CREATE ===== */
     public function create()
     {
-        $this->requireMethod('POST');
         $this->requireAuth();
-
         $albumName   = trim($_POST['album_name'] ?? '');
         $description = $_POST['description'] ?? null;
-        $userId      = $_SESSION['user_id'];
+        $urlThumbnail = null;
+        $userId = $_SESSION['user_id'];
 
         if ($albumName === '') {
-            $this->respondError('Thiếu album_name', 422);
+            $this->error('Thiếu tên album', 422);
         }
 
-        $urlThumbnail = null;
+        // Nếu admin muốn tạo cho user khác
+        if ($this->isAdmin() && !empty($_POST['owner_user_id'])) {
+            $userId = $_POST['owner_user_id'];
+        }
 
-        // Upload thumbnail nếu có file
+        // Upload thumbnail nếu có
         if (!empty($_FILES['thumbnail']['tmp_name'])) {
             try {
                 $cloudinary = require __DIR__ . '/../config/cloudinary.php';
-                $upload     = $cloudinary->uploadApi()->upload(
+                $upload = $cloudinary->uploadApi()->upload(
                     $_FILES['thumbnail']['tmp_name'],
                     ['folder' => 'albums']
                 );
                 $urlThumbnail = $upload['secure_url'] ?? null;
-            } catch (\Throwable $e) {
-                $this->respondError('Upload thumbnail thất bại', 500, ['detail' => $e->getMessage()]);
+            } catch (Throwable $e) {
+                $this->error('Upload thumbnail thất bại: ' . $e->getMessage(), 500);
             }
         }
 
         try {
-            $albumId = $this->albumModel->createAlbum($albumName, $description, $urlThumbnail, $userId);
-            $created = $this->albumModel->getAlbumById($albumId);
-            $this->respondJson([
-                'status' => 'ok',
-                'data'   => $created
-            ], 201);
+            $ok = $this->albumModel->createAlbum($albumName, $description, $urlThumbnail, $userId);
+            if (!$ok) {
+                $this->error('Không thể tạo album', 500);
+            }
+            $this->json(['status' => 'ok', 'message' => 'Tạo album thành công']);
         } catch (Throwable $e) {
-            $this->respondError('Tạo album thất bại', 500, ['detail' => $e->getMessage()]);
+            $this->error('Lỗi khi tạo album: ' . $e->getMessage(), 500);
         }
     }
 
-    /**
-     * Cập nhật album (POST multipart/form-data)
-     */
+    /* ===== UPDATE ===== */
     public function update()
     {
         $this->requireAuth();
-        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            $this->respondError('Method Not Allowed', 405, ['allowed' => 'POST']);
-        }
 
-        $albumId     = $_POST['album_id'] ?? null;
-        $albumName   = isset($_POST['album_name']) ? trim($_POST['album_name']) : null;
+        $albumId = $_POST['album_id'] ?? null;
+        $albumName = trim($_POST['album_name'] ?? '');
         $description = $_POST['description'] ?? null;
+        $urlThumbnail = null;
 
         if (!$albumId) {
-            $this->respondError('Thiếu album_id', 422);
+            $this->error('Thiếu album_id', 422);
         }
-        if ($albumName === null || $albumName === '') {
-            $this->respondError('Thiếu album_name', 422);
+        if ($albumName === '') {
+            $this->error('Thiếu tên album', 422);
+        }
+
+        $album = $this->albumModel->getAlbumById($albumId);
+        if (!$album) {
+            $this->error('Album không tồn tại', 404);
+        }
+
+        // Upload thumbnail nếu có
+        if (!empty($_FILES['thumbnail']['tmp_name'])) {
+            try {
+                $cloudinary = require __DIR__ . '/../config/cloudinary.php';
+                $upload = $cloudinary->uploadApi()->upload(
+                    $_FILES['thumbnail']['tmp_name'],
+                    ['folder' => 'albums']
+                );
+                $urlThumbnail = $upload['secure_url'] ?? null;
+            } catch (Throwable $e) {
+                $this->error('Upload thumbnail thất bại: ' . $e->getMessage(), 500);
+            }
+        } else {
+            $urlThumbnail = $album['url_thumbnail'] ?? null;
         }
 
         try {
-            $album = $this->albumModel->getAlbumById($albumId);
-            if (!$album) {
-                $this->respondError('Album không tồn tại', 404);
-            }
-            if ((int)$album['user_id'] !== (int)$_SESSION['user_id']) {
-                $this->respondError('Forbidden', 403);
-            }
-
-            $urlThumbnail = $album['url_thumbnail'] ?? null;
-
-            // Nếu có file mới thì upload lại
-            if (!empty($_FILES['thumbnail']['tmp_name'])) {
-                try {
-                    $cloudinary = require __DIR__ . '/../config/cloudinary.php';
-                    $upload     = $cloudinary->uploadApi()->upload(
-                        $_FILES['thumbnail']['tmp_name'],
-                        ['folder' => 'albums']
-                    );
-                    $urlThumbnail = $upload['secure_url'] ?? $urlThumbnail;
-                } catch (\Throwable $e) {
-                    $this->respondError('Upload thumbnail thất bại', 500, ['detail' => $e->getMessage()]);
+            if ($this->isAdmin()) {
+                $ok = $this->albumModel->adminUpdate($albumId, $albumName, $description, $urlThumbnail);
+            } else {
+                if ($album['user_id'] !== $_SESSION['user_id']) {
+                    $this->error('Bạn không có quyền sửa album này', 403);
                 }
+                $ok = $this->albumModel->updateByOwner(
+                    $albumId,
+                    $_SESSION['user_id'],
+                    $albumName,
+                    $description,
+                    $urlThumbnail
+                );
             }
 
-            $this->albumModel->updateAlbum($albumId, $albumName, $description, $urlThumbnail);
-            $updated = $this->albumModel->getAlbumById($albumId);
+            if (!$ok) {
+                $this->error('Không thể cập nhật album (không thay đổi hoặc không có quyền).', 403);
+            }
 
-            $this->respondJson([
-                'status' => 'ok',
-                'data'   => $updated
-            ]);
+            $updated = $this->albumModel->getAlbumById($albumId);
+            $this->json(['status' => 'ok', 'message' => 'Cập nhật thành công', 'data' => $updated]);
         } catch (Throwable $e) {
-            $this->respondError('Cập nhật album thất bại', 500, ['detail' => $e->getMessage()]);
+            $this->error('Lỗi khi cập nhật album: ' . $e->getMessage(), 500);
         }
     }
 
-
-    /**
-     * Xoá album (DELETE hoặc POST)
-     * Param:
-     * - id (query string hoặc body JSON/form)
-     */
+    /* ===== DELETE ===== */
     public function delete()
     {
-        if (empty($_SESSION['user_id'])) {
-            return $this->respondError('Unauthorized', 401);
-        }
+        $this->requireAuth();
+        $albumId = $_POST['album_id'] ?? ($_GET['album_id'] ?? null);
 
-        $albumId = $_GET['album_id'] ?? ($_POST['album_id'] ?? null);
         if (!$albumId) {
-            return $this->respondError('Thiếu album_id', 422);
+            $this->error('Thiếu album_id', 422);
         }
-
-        $role = $_SESSION['role_id'] ?? ($_SESSION['user']['role_id'] ?? null);
-        $isAdmin = ($role === 'ROLE000');
 
         try {
-            $deleted = $isAdmin
+            $ok = $this->isAdmin()
                 ? $this->albumModel->adminDeleteAlbum($albumId)
                 : $this->albumModel->deleteAlbumByOwner($albumId, $_SESSION['user_id']);
 
-            if (!$deleted) {
-                return $this->respondError('Không thể xoá album (có thể không tồn tại hoặc bạn không có quyền).', 403);
+            if (!$ok) {
+                $this->error('Không thể xoá album (có thể không tồn tại hoặc không có quyền).', 403);
             }
 
-            $this->respondJson(['status' => 'ok', 'message' => 'Đã xoá album', 'id' => $albumId]);
-        } catch (Exception $e) {
-            $this->respondError($e->getMessage(), 500);
+            $this->json(['status' => 'ok', 'message' => 'Đã xoá album thành công']);
+        } catch (Throwable $e) {
+            $this->error('Lỗi khi xoá album: ' . $e->getMessage(), 500);
         }
     }
 
+    /* ===== LẤY DANH SÁCH ===== */
 
-    /**
-     * Danh sách album của chính user đang đăng nhập (GET)
-     */
+    /** Lấy danh sách album của chính user đăng nhập */
     public function listUserAlbums()
     {
-        $this->requireMethod('GET');
         $this->requireAuth();
-
         try {
-            $userId = $_SESSION['user_id'];
-
-            // Nếu Model có hàm getAlbumsByUserId thì dùng:
-            if (method_exists($this->albumModel, 'getAlbumsByUserId')) {
-                $albums = $this->albumModel->getAlbumsByUserId($userId);
-            } else {
-                // fallback: dùng conn như code cũ
-                $stmt = $this->albumModel->conn->prepare("SELECT * FROM albums WHERE user_id = ? ORDER BY created_at DESC");
-                $stmt->execute([$userId]);
-                $albums = $stmt->fetchAll(PDO::FETCH_ASSOC);
-            }
-
-            $this->respondJson([
-                'status' => 'ok',
-                'data'   => $albums
-            ]);
+            $albums = $this->albumModel->getAlbumsByUserId($_SESSION['user_id']);
+            $this->json(['status' => 'ok', 'data' => $albums]);
         } catch (Throwable $e) {
-            $this->respondError('Lấy danh sách album thất bại', 500, ['detail' => $e->getMessage()]);
+            $this->error('Lấy danh sách album thất bại: ' . $e->getMessage(), 500);
         }
     }
 
-    /**
-     * Danh sách tất cả album (GET) — nếu cần phân trang thì bổ sung limit/offset
-     */
+    /** Lấy danh sách tất cả album (chỉ admin) */
     public function listAllAlbums()
     {
-        $this->requireMethod('GET');
-
+        $this->requireAuth();
+        if (!$this->isAdmin()) {
+            $this->error('Chỉ admin được phép xem tất cả album', 403);
+        }
         try {
             $albums = $this->albumModel->getAllAlbums();
-            $this->respondJson([
-                'status' => 'ok',
-                'data'   => $albums
-            ]);
+            $this->json(['status' => 'ok', 'data' => $albums]);
         } catch (Throwable $e) {
-            $this->respondError('Lấy danh sách album thất bại', 500, ['detail' => $e->getMessage()]);
+            $this->error('Không thể lấy danh sách album: ' . $e->getMessage(), 500);
         }
     }
 
-    /**
-     * Danh sách album theo user_id truyền vào (GET ?user_id=)
-     */
+    /** Lấy danh sách album theo user_id truyền vào (chỉ admin hoặc public API) */
     public function listAlbumsByUserId()
     {
-        $this->requireMethod('GET');
-
         $userId = $_GET['user_id'] ?? null;
         if (!$userId) {
-            $this->respondError('Không có user_id!', 422);
+            $this->error('Thiếu user_id', 422);
         }
 
         try {
-            if (method_exists($this->albumModel, 'getAlbumsByUserId')) {
-                $albums = $this->albumModel->getAlbumsByUserId($userId);
-            } else {
-                $stmt = $this->albumModel->conn->prepare("SELECT * FROM albums WHERE user_id = ? ORDER BY created_at DESC");
-                $stmt->execute([$userId]);
-                $albums = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            // Nếu có session và không phải admin, chỉ cho phép xem của chính mình
+            if (!$this->isAdmin() && isset($_SESSION['user_id']) && $_SESSION['user_id'] !== $userId) {
+                $this->error('Bạn không có quyền xem album của user khác', 403);
             }
 
-            $this->respondJson([
-                'status' => 'ok',
-                'data'   => $albums
-            ]);
+            $albums = $this->albumModel->getAlbumsByUserId($userId);
+            $this->json(['status' => 'ok', 'data' => $albums]);
         } catch (Throwable $e) {
-            $this->respondError('Lấy danh sách album theo user thất bại', 500, ['detail' => $e->getMessage()]);
+            $this->error('Lấy danh sách album theo user thất bại: ' . $e->getMessage(), 500);
         }
     }
 
-    /**
-     * (Tuỳ chọn) Lấy chi tiết 1 album (GET ?id=)
-     */
+    /* ===== CHI TIẾT ===== */
     public function detail()
     {
-        $this->requireMethod('GET');
-
+        $this->requireAuth();
         $id = $_GET['id'] ?? null;
-        if (!$id) $this->respondError('Thiếu id', 422);
+        if (!$id) {
+            $this->error('Thiếu id', 422);
+        }
 
         try {
             $album = $this->albumModel->getAlbumById($id);
-            if (!$album) $this->respondError('Album không tồn tại', 404);
+            if (!$album) {
+                $this->error('Album không tồn tại', 404);
+            }
 
-            $this->respondJson([
-                'status' => 'ok',
-                'data'   => $album
-            ]);
+            if (!$this->isAdmin() && $album['user_id'] !== $_SESSION['user_id']) {
+                $this->error('Bạn không có quyền xem album này', 403);
+            }
+
+            $this->json(['status' => 'ok', 'data' => $album]);
         } catch (Throwable $e) {
-            $this->respondError('Lỗi lấy chi tiết album', 500, ['detail' => $e->getMessage()]);
+            $this->error('Lỗi lấy chi tiết album: ' . $e->getMessage(), 500);
         }
     }
-
-    /** ===== Không còn dùng view-based form =====
-     * showCreateForm(), showEditForm() — bỏ, hoặc nếu cần thì trả JSON metadata thay vì include view
-     */
 }

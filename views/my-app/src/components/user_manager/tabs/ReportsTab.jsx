@@ -3,7 +3,7 @@ import React from "react";
 
 import ReportItem from "../../../components/user_manager/list/ReportItem";
 import ReportInfoPanel from "../../../components/user_manager/panels/ReportInfoPanel";
-import ConfirmModal from "../../../components/user_manager/modals/ConfirmModal";
+import ConfirmModal from "../../common/ConfirmModal";
 
 import post_reportService from "../../../services/post_reportServices"; // dùng để list (và resolve nếu có)
 import postService from "../../../services/postService"; // dùng để lấy post, download, delete

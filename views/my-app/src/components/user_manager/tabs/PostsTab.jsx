@@ -4,7 +4,8 @@ import { useNavigate } from "react-router-dom";
 
 import PostItem from "../../../components/user_manager/list/PostItem";
 import PostInfoPanel from "../../../components/user_manager/panels/PostInfoPanel";
-import ConfirmModal from "../../../components/user_manager/modals/ConfirmModal";
+import ConfirmModal from "../../common/ConfirmModal";
+import ModalEditPost from "../../../components/user_manager/modals/ModalEditPost"; // 👈 THÊM
 
 import postService from "../../../services/postService"; // ✅ nhất quán tên import
 
@@ -47,6 +48,10 @@ export default function PostsTab() {
   const PAGE_SIZE = 10;
 
   const [confirm, setConfirm] = React.useState({ open: false, target: null });
+
+  // Modal Edit
+  const [openEdit, setOpenEdit] = React.useState(false);
+  const [editPost, setEditPost] = React.useState(null);
 
   // 🔔 banner gọn
   const [banner, setBanner] = React.useState(null); // {type:'success'|'error'|'info', text}
@@ -92,33 +97,31 @@ export default function PostsTab() {
   React.useEffect(() => setPage(1), [fetched]);
 
   // ====== THỰC THI XOÁ ======
-  // ====== THỰC THI XOÁ ======
-const doDelete = async (postId) => {
-  console.log("[PostsTab] 🔸 Bắt đầu xoá post", postId);
+  const doDelete = async (postId) => {
+    console.log("[PostsTab] 🔸 Bắt đầu xoá post", postId);
 
-  let res;
-  try {
-    console.log("[PostsTab] → gọi POST form-data removeViaPost(post_id)");
-    res = await postService.removeViaPost(postId);
-    console.log("[PostsTab] ← removeViaPost response:", res);
-  } catch (e) {
-    console.error("[PostsTab] removeViaPost THROW:", e);
-  }
-
-  if (!res || (res?.status !== "ok" && res?.status !== "success")) {
+    let res;
     try {
-      console.log("[PostsTab] → fallback GET remove(post_id) (query)");
-      res = await postService.remove(postId);
-      console.log("[PostsTab] ← remove response:", res);
-    } catch (e2) {
-      console.error("[PostsTab] remove THROW:", e2);
-      throw e2; // ném cho caller xử lý
+      console.log("[PostsTab] → gọi POST form-data removeViaPost(post_id)");
+      res = await postService.removeViaPost(postId);
+      console.log("[PostsTab] ← removeViaPost response:", res);
+    } catch (e) {
+      console.error("[PostsTab] removeViaPost THROW:", e);
     }
-  }
 
-  return res;
-};
+    if (!res || (res?.status !== "ok" && res?.status !== "success")) {
+      try {
+        console.log("[PostsTab] → fallback GET remove(post_id) (query)");
+        res = await postService.remove(postId);
+        console.log("[PostsTab] ← remove response:", res);
+      } catch (e2) {
+        console.error("[PostsTab] remove THROW:", e2);
+        throw e2; // ném cho caller xử lý
+      }
+    }
 
+    return res;
+  };
 
   // ====== CẬP NHẬT UI SAU XOÁ (không reload) ======
   const removeFromLocal = (postId) => {
@@ -138,6 +141,19 @@ const doDelete = async (postId) => {
       setPage((p) => Math.min(p, newTotalPages));
       return next;
     });
+  };
+
+  // ====== SUBMIT EDIT (UI only) ======
+  const handleSubmitEdit = async (payload) => {
+    // payload gồm: post_id, title, album_id, category_id, hashtags, summary, description,
+    // mode ("PDF"|"WORD/HTML"), content_html, pdfFile?, bannerFile?
+    // 👉 Ở đây chỉ demo UI: hiển thị banner + đóng modal + refresh list
+    console.log("[PostsTab] submit edit payload:", payload);
+    showBanner("success", "Đã lưu thay đổi (demo UI).");
+    setOpenEdit(false);
+    setEditPost(null);
+    // Nếu muốn gọi API thực, thay block trên bằng service update và sau đó:
+    // await fetchPosts();
   };
 
   return (
@@ -211,7 +227,10 @@ const doDelete = async (postId) => {
               <PostItem
                 post={p}
                 compact
-                onEdit={() => alert("Edit post")}
+                onEdit={() => {
+                  setEditPost(p.raw);      // 👈 truyền nguyên bản ghi từ API vào modal
+                  setOpenEdit(true);
+                }}
                 onDelete={() => setConfirm({ open: true, target: p })}
                 onAuthorClick={() => navigate(`/profile/${p.authorId}`)}
               />
@@ -253,33 +272,44 @@ const doDelete = async (postId) => {
       </aside>
 
       <ConfirmModal
-  open={confirm.open}
-  message={`Are you sure you want to delete ${confirm.target?.title || "this post"}?`}
-  onClose={() => setConfirm({ open: false, target: null })}
-  onConfirm={async () => {
-    const targetId = confirm.target?.id;
-    try {
-      console.log("[PostsTab] ✅ Confirm delete, targetId=", targetId);
-      const res = await doDelete(targetId);
+        open={confirm.open}
+        message={`Are you sure you want to delete ${confirm.target?.title || "this post"}?`}
+        onClose={() => setConfirm({ open: false, target: null })}
+        onConfirm={async () => {
+          const targetId = confirm.target?.id;
+          try {
+            console.log("[PostsTab] ✅ Confirm delete, targetId=", targetId);
+            const res = await doDelete(targetId);
 
-      if (res?.status === "ok" || res?.status === "success") {
-        console.log("[PostsTab] 🟢 Xoá thành công trên server. res=", res);
-        removeFromLocal(targetId);
-        showBanner("success", "Đã xoá bài viết.");
-      } else {
-        console.warn("[PostsTab] 🟠 Server trả status lỗi:", res);
-        throw new Error(res?.message || "Delete failed");
-      }
-    } catch (e) {
-      // 401/403/422/... từ BE: e.message sẽ chứa msg của BE nếu fetchJson parse được
-      console.error("[PostsTab] 🔴 Xoá thất bại:", e);
-      showBanner("error", e?.message || "Delete failed");
-    } finally {
-      setConfirm({ open: false, target: null });
-    }
-  }}
-/>
+            if (res?.status === "ok" || res?.status === "success") {
+              console.log("[PostsTab] 🟢 Xoá thành công trên server. res=", res);
+              removeFromLocal(targetId);
+              showBanner("success", "Đã xoá bài viết.");
+            } else {
+              console.warn("[PostsTab] 🟠 Server trả status lỗi:", res);
+              throw new Error(res?.message || "Delete failed");
+            }
+          } catch (e) {
+            console.error("[PostsTab] 🔴 Xoá thất bại:", e);
+            showBanner("error", e?.message || "Delete failed");
+          } finally {
+            setConfirm({ open: false, target: null });
+          }
+        }}
+      />
 
+      {/* 👇 Modal Edit Post (UI only) */}
+      <ModalEditPost
+        open={openEdit}
+        onClose={() => {
+          setOpenEdit(false);
+          setEditPost(null);
+        }}
+        post={editPost || {}}
+        albums={[]}       // TODO: truyền danh sách albums nếu có API
+        categories={[]}   // TODO: truyền danh sách categories nếu có API
+        onSubmit={handleSubmitEdit}
+      />
     </div>
   );
 }

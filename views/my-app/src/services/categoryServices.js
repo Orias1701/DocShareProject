@@ -1,10 +1,6 @@
 // src/services/categoryServices.js
 import fetchJson from "./fetchJson";
 
-/**
- * Map action names theo router/index.php
- * Nếu bạn đặt tên khác ở index.php, đổi các string dưới đây cho khớp.
- */
 const ACTIONS = {
   list: "list_categories",
   detail: "category_detail",
@@ -13,7 +9,6 @@ const ACTIONS = {
   delete: "delete_category",
 };
 
-// Helpers
 function postJson(action, payload) {
   return fetchJson(action, {
     method: "POST",
@@ -23,35 +18,46 @@ function postJson(action, payload) {
 }
 
 export const categoryServices = {
-  /** GET /?action=list_categories */
   list() {
     return fetchJson(ACTIONS.list);
   },
 
-  /** GET /?action=category_detail&id=... */
   detail(id) {
     return fetchJson(`${ACTIONS.detail}&id=${encodeURIComponent(id)}`);
   },
 
-  /** POST /?action=create_category
-   *  Body JSON: { category_name: string }
-   */
   create({ category_name }) {
-    return postJson(ACTIONS.create, { category_name });
+    return postJson(ACTIONS.create, { category_name }).then((res) => {
+      // fetchJson có thể trả {status:"ok",...} hoặc chỉ {data...}
+      if (res && typeof res === "object" && !("status" in res)) {
+        return { status: "ok", data: res };
+      }
+      return res;
+    });
   },
 
-  /** POST|PUT /?action=update_category
-   *  Body JSON: { category_id, category_name }
-   */
   update({ category_id, category_name }) {
-    return postJson(ACTIONS.update, { category_id, category_name });
+    return postJson(ACTIONS.update, {
+      category_id,
+      id: category_id, // tương thích BE nhận "id"
+      category_name,
+    }).then((res) => {
+      // ✅ luôn đảm bảo có status
+      if (res && typeof res === "object" && !("status" in res)) {
+        return { status: "ok", data: res };
+      }
+      return res;
+    });
   },
 
-  /** DELETE/POST /?action=delete_category
-   *  Ở đây dùng POST JSON: { id }
-   */
   delete(id) {
-    return postJson(ACTIONS.delete, { id });
+    return postJson(ACTIONS.delete, { id }).then((res) => {
+      // Một số BE trả true/1/{} → chuẩn hoá thành ok
+      if (res === true || res === 1 || (res && typeof res === "object" && !("status" in res))) {
+        return { status: "ok", data: res };
+      }
+      return res;
+    });
   },
 };
 

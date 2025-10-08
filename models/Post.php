@@ -616,7 +616,7 @@ class Post
         /** 
          * Đếm số bài viết trong một album 
          */
-        public function countPostsByAlbumId($albumId)
+    public function countPostsByAlbumId($albumId)
         {
             try {
                 $sql = "SELECT COUNT(*) FROM posts WHERE album_id = ?";
@@ -628,6 +628,58 @@ class Post
                 return 0;
             }
     }
+    public function adminUpdatePost($id, $title, $content, $description, $summary, $albumId, $categoryId, $bannerUrl, $fileUrl = null, $fileType = null)
+    {
+        try {
+            $processedContent = $content;
+
+            // Nếu có file PDF, không ghi đè content
+            if ($fileUrl && $fileType) {
+                if ($fileType !== 'application/pdf') {
+                    throw new Exception("Chỉ hỗ trợ file PDF khi cập nhật.");
+                }
+            } else {
+                $processedContent = $this->processBase64ImagesInContent($content);
+            }
+
+            $sql = "UPDATE posts 
+                    SET 
+                        title = ?, 
+                        content = ?, 
+                        description = ?, 
+                        summary = ?, 
+                        album_id = ?, 
+                        category_id = ?, 
+                        banner_url = ?, 
+                        file_url = ?, 
+                        file_type = ?
+                    WHERE post_id = ?";
+
+            $stmt = $this->pdo->prepare($sql);
+            $success = $stmt->execute([
+                $title,
+                $processedContent,
+                $description,
+                $summary,
+                $albumId,
+                $categoryId,
+                $bannerUrl,
+                $fileUrl,
+                $fileType,
+                $id
+            ]);
+
+            if (!$success) {
+                error_log("Failed to admin-update post: " . print_r($stmt->errorInfo(), true));
+                throw new Exception("Lỗi khi cập nhật bài viết (admin).");
+            }
+            return true;
+        } catch (Exception $e) {
+            error_log("Error in adminUpdatePost: " . $e->getMessage());
+            throw $e;
+        }
+    }
+
     
     // public function getHashtagsByUserId($userId)
     // {

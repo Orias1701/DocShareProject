@@ -1,10 +1,10 @@
-// src/pages/user_manager/tabs/CategoriesTab.jsx
 import React from "react";
 
 import CategoryItem from "../../../components/user_manager/list/CategoryItem";
 import CategoryInfoPanel from "../../../components/user_manager/panels/CategoryInfoPanel";
 import AddCategoryModal from "../../../components/user_manager/modals/AddCategoryModal";
-import ConfirmModal from "../../../components/user_manager/modals/ConfirmModal";
+import ConfirmModal from "../../common/ConfirmModal";
+import ModalEditCategory from "../modals/ModalEditCategories";
 
 import categoryServices from "../../../services/categoryServices";
 
@@ -27,6 +27,10 @@ export default function CategoriesTab() {
   const [openAdd, setOpenAdd] = React.useState(false);
   const [confirm, setConfirm] = React.useState({ open: false, target: null });
 
+  // 👇 Modal Edit
+  const [openEdit, setOpenEdit] = React.useState(false);
+  const [editCategory, setEditCategory] = React.useState(null);
+
   const totalPages = Math.max(1, Math.ceil(data.length / PAGE_SIZE));
   const pageData = React.useMemo(() => {
     const start = (page - 1) * PAGE_SIZE;
@@ -45,7 +49,7 @@ export default function CategoriesTab() {
         const mapped = arr.map(mapApiCategory);
         setData(mapped);
         setFetched(true);
-        setSelectedId(mapped[0]?.id);
+        setSelectedId((prev) => prev ?? mapped[0]?.id);
       } else {
         throw new Error("Invalid category list response");
       }
@@ -58,7 +62,7 @@ export default function CategoriesTab() {
 
   React.useEffect(() => {
     if (!fetched && !loading) fetchCategories();
-  }, []);
+  }, []); // once
 
   React.useEffect(() => setPage(1), [fetched]);
 
@@ -80,7 +84,7 @@ export default function CategoriesTab() {
               className="px-3 py-1.5 rounded-md bg-white text-black"
               onClick={() => setOpenAdd(true)}
             >
-              <i className="fa-regular fa-square-plus mr-1" /> Add
+              <i className="fa-regular fa-square-plus mr-1" />
             </button>
           </div>
         </div>
@@ -115,7 +119,10 @@ export default function CategoriesTab() {
             <CategoryItem
               key={c.id}
               cat={c}
-              onEdit={() => alert("Edit category")}
+              onEdit={() => {
+                setEditCategory(c);     // 👈 mở modal edit
+                setOpenEdit(true);
+              }}
               onDelete={() => setConfirm({ open: true, target: c })}
             />
           ))}
@@ -154,6 +161,7 @@ export default function CategoriesTab() {
         )}
       </aside>
 
+      {/* Add */}
       <AddCategoryModal
         open={openAdd}
         onClose={() => setOpenAdd(false)}
@@ -163,6 +171,7 @@ export default function CategoriesTab() {
             await fetchCategories();
           } catch (e) {
             console.error(e);
+            // fallback thêm tạm vào UI nếu BE lỗi
             setData((prev) => [{ id: `LOCAL_${Date.now()}`, name, posts: 0 }, ...prev]);
           } finally {
             setOpenAdd(false);
@@ -170,6 +179,20 @@ export default function CategoriesTab() {
         }}
       />
 
+      {/* Edit */}
+      <ModalEditCategory
+        open={openEdit}
+        onClose={() => setOpenEdit(false)}
+        category={editCategory}
+        onSave={async ({ category_id, category_name }) => {
+          // ⬅️ QUAN TRỌNG: TRẢ VỀ KẾT QUẢ CHO MODAL
+          const res = await categoryServices.update({ category_id, category_name });
+          await fetchCategories();
+          return res || { status: "ok" };
+        }}
+      />
+
+      {/* Delete */}
       <ConfirmModal
         open={confirm.open}
         message={`Are you sure you want to delete ${confirm.target?.name || "this category"}?`}

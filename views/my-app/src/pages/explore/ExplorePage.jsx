@@ -1,4 +1,3 @@
-// src/pages/explore/ExplorePage.jsx
 import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import PostSection from "../../components/post/PostSection";
@@ -96,6 +95,14 @@ export default function ExplorePage() {
     setFollowing((prev) => updateList(prev));
   };
 
+  // ✅ Khi xoá ở card: gỡ khỏi cả 3 danh sách
+  const handleDeleted = (deletedId) => {
+    const isSame = (p) => String(p.post_id ?? p.id) === String(deletedId);
+    setPopular((prev) => prev.filter((p) => !isSame(p)));
+    setLatest((prev) => prev.filter((p) => !isSame(p)));
+    setFollowing((prev) => prev.filter((p) => !isSame(p)));
+  };
+
   if (loading) return <p className="text-gray-400">Đang tải explore…</p>;
 
   return (
@@ -106,6 +113,7 @@ export default function ExplorePage() {
           posts={popular}
           hideReactions={false}
           onBookmarkChange={handleBookmarkChange}
+          onDeleted={handleDeleted}   // ✅
         />
       )}
 
@@ -114,8 +122,9 @@ export default function ExplorePage() {
           <h2 className="text-2xl font-bold text-white mb-4">🏷️ Hashtag đang nổi</h2>
           <div className="flex flex-wrap gap-2">
             {trendingTags.map((t) => {
-              const slug = encodeURIComponent(String(t.name || t.hashtag_name || "")
-                .replace(/^#/, ""));
+              const slug = encodeURIComponent(
+                String(t.name || t.hashtag_name || "").replace(/^#/, "")
+              );
               const label = t.name || t.hashtag_name || "";
               return (
                 <Link
@@ -138,6 +147,7 @@ export default function ExplorePage() {
           posts={latest}
           hideReactions
           onBookmarkChange={handleBookmarkChange}
+          onDeleted={handleDeleted}   // ✅
         />
       )}
 
@@ -146,6 +156,7 @@ export default function ExplorePage() {
           title="👥 Từ người bạn theo dõi"
           posts={following}
           onBookmarkChange={handleBookmarkChange}
+          onDeleted={handleDeleted}   // ✅
         />
       )}
 
@@ -184,20 +195,19 @@ export default function ExplorePage() {
         <section>
           <h2 className="text-2xl font-bold text-white mb-3">✨ Vì bạn hay xem</h2>
           <div className="flex flex-wrap gap-2">
-          {trendingTags.map((t) => {
-            const label = t.name || t.hashtag_name || "";
-            const slug = encodeURIComponent(label.replace(/^#/, ""));
-            return (
-              <Link
-                key={t.id || t.hashtag_id || label}
-                to={`/hashtag/${slug}`}
-                className="px-3 py-1 rounded-lg bg-white/10 text-white hover:bg-white/20"
-              >
-                {label}
-              </Link>
-            );
-          })}
-
+            {trendingTags.map((t) => {
+              const label = t.name || t.hashtag_name || "";
+              const slug = encodeURIComponent(label.replace(/^#/, ""));
+              return (
+                <Link
+                  key={t.id || t.hashtag_id || label}
+                  to={`/hashtag/${slug}`}
+                  className="px-3 py-1 rounded-lg bg-white/10 text-white hover:bg-white/20"
+                >
+                  {label}
+                </Link>
+              );
+            })}
           </div>
         </section>
       )}

@@ -68,14 +68,34 @@ class Album
         return $stmt->execute([$newId, $albumName, $description, $urlThumbnail, $userId]);
     }
 
+    public function updateByOwner(
+        string $albumId,
+        string $ownerUserId,
+        string $albumName,
+        ?string $description,
+        ?string $urlThumbnail
+    ): bool {
+        $sql = "UPDATE albums
+                SET album_name = ?, description = ?, url_thumbnail = ?
+                WHERE album_id = ? AND user_id = ?";
+        $stm = $this->conn->prepare($sql);
+        $stm->execute([$albumName, $description, $urlThumbnail, $albumId, $ownerUserId]);
+        return $stm->rowCount() > 0;
+    }
 
-
-
-    public function updateAlbum($id, $albumName, $urlThumbnail, $description)
-    {
-        $sql = "UPDATE albums SET album_name = ?, description = ? WHERE album_id = ?";
-        $stmt = $this->conn->prepare($sql);
-        return $stmt->execute([$albumName, $description, $urlThumbnail, $id]);
+    /* ===== UPDATE (ADMIN) =====
+       Admin sửa không ràng buộc user_id. */
+    public function adminUpdate(
+        string $albumId,
+        string $albumName,
+        ?string $description,
+        ?string $urlThumbnail
+    ): bool {
+        $sql = "UPDATE albums
+                SET album_name = ?, description = ?, url_thumbnail = ?
+                WHERE album_id = ?";
+        $stm = $this->conn->prepare($sql);
+        return $stm->execute([$albumName, $description, $urlThumbnail, $albumId]);
     }
 
     // AlbumModel.php

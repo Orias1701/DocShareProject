@@ -1,4 +1,3 @@
-// src/pages/myposts/MyPostsPage.jsx
 import React, { useEffect, useState } from "react";
 import PostSection from "../../components/post/PostSection";
 import postService from "../../services/postService";
@@ -31,7 +30,6 @@ export default function MyPostsPage() {
       views: p.view_count || 0,
     },
     album_name: p.album_name,
-    // 🔑 thêm cờ bookmark
     is_bookmarked: !!p.is_bookmarked,
   });
 
@@ -57,7 +55,6 @@ export default function MyPostsPage() {
           if (!groups.has(key)) groups.set(key, { title, posts: [] });
           groups.get(key).posts.push({
             ...mapToCard(p),
-            // nếu BE chưa trả cờ, tự gắn theo bookmarkedSet
             is_bookmarked:
               typeof p.is_bookmarked === "boolean"
                 ? p.is_bookmarked
@@ -97,6 +94,19 @@ export default function MyPostsPage() {
         ),
       }))
     );
+  };
+
+  // ✅ Khi xoá ở card: gỡ khỏi group tương ứng; nếu group rỗng thì bỏ group
+  const handleDeleted = (deletedId) => {
+    setSections((prevSecs) => {
+      const next = prevSecs
+        .map((sec) => ({
+          ...sec,
+          posts: sec.posts.filter((p) => String(p.post_id ?? p.id) !== String(deletedId)),
+        }))
+        .filter((sec) => sec.posts.length > 0);
+      return next;
+    });
   };
 
   if (loading) return <div className="text-white p-4">Đang tải dữ liệu...</div>;
@@ -142,6 +152,7 @@ export default function MyPostsPage() {
                 </span>
               }
               onBookmarkChange={handleBookmarkChange}
+              onDeleted={handleDeleted} 
             />
           ))
         )}

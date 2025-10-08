@@ -81,14 +81,14 @@ export default function PostItem({
           aria-label="View"
         >
           <i className="fa-regular fa-eye text-[11px]" />
-          <span className="hidden sm:inline">View</span>
+          {/* <span className="hidden sm:inline">View</span> */}
         </Link>
       );
     }
     return (
       <button className={viewBtnDisabled} disabled title="No content">
         <i className="fa-regular fa-eye text-[11px]" />
-        <span className="hidden sm:inline">View</span>
+        {/* <span className="hidden sm:inline">View</span> */}
       </button>
     );
   };

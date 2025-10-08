@@ -1,4 +1,3 @@
-// src/components/post/PostSection.jsx
 import React from "react";
 import PropTypes from "prop-types";
 import PostCard from "./PostCard"; // đổi path nếu bạn đặt PostCard ở nơi khác
@@ -14,6 +13,9 @@ import PostCard from "./PostCard"; // đổi path nếu bạn đặt PostCard �
  *  - headerRight: node (button/filter...) hiển thị bên phải tiêu đề
  *  - wrapClassName, gridClassName: tuỳ biến className nếu cần
  *  - onBookmarkChange: (next:boolean, postId:string|number) => void
+ *  - onDeleted: (postId:string|number) => void  // 🔔 gọi khi xoá thành công
+ *  - hideReactions: ẩn khu vực reaction
+ *  - CardComponent: tuỳ chọn thay thế component card (mặc định PostCard)
  */
 export default function PostSection({
   title,
@@ -25,7 +27,9 @@ export default function PostSection({
   wrapClassName = "w-full mb-12",
   gridClassName = "grid grid-cols-1 gap-5 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4",
   onBookmarkChange,
-  hideReactions = false,   // 👈 thêm dòng này
+  onDeleted,
+  hideReactions = false,
+  CardComponent = PostCard,
 }) {
   const items = Array.isArray(posts) ? posts : [];
 
@@ -43,13 +47,14 @@ export default function PostSection({
       ) : (
         <div className={gridClassName}>
           {items.map((post) => (
-            <PostCard
+            <CardComponent
               key={post.id || post.post_id}
               post={post}
               showAlbum={showAlbum}
               maxTags={maxTags}
               onBookmarkChange={onBookmarkChange}
-              hideReactions={hideReactions}  // ✅ bây giờ sẽ có giá trị
+              onDeleted={onDeleted}          // ✅ chuyển tiếp để xoá UI ngay
+              hideReactions={hideReactions}
             />
           ))}
         </div>
@@ -57,7 +62,6 @@ export default function PostSection({
     </section>
   );
 }
-
 
 PostSection.propTypes = {
   title: PropTypes.string.isRequired,
@@ -68,7 +72,8 @@ PostSection.propTypes = {
   headerRight: PropTypes.node,
   wrapClassName: PropTypes.string,
   gridClassName: PropTypes.string,
-  onBookmarkChange: PropTypes.func, // ✅ khai báo prop types
-  hideReactions: PropTypes.bool, 
-  CardComponent: PropTypes.elementType, // 👈 thêm dòng này
+  onBookmarkChange: PropTypes.func,
+  onDeleted: PropTypes.func,        // ✅ khai báo prop
+  hideReactions: PropTypes.bool,
+  CardComponent: PropTypes.elementType,
 };

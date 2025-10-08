@@ -263,16 +263,27 @@ class PostController
         $postId = $_POST['post_id'] ?? null;
         if (!$postId) $this->respondError("Thiếu post_id", 422);
 
+        // Lấy bài viết hiện tại
         $post = $this->postModel->getPostById($postId);
         if (!$post) $this->respondError("Bài viết không tồn tại", 404);
-        if ($post['author_id'] !== $_SESSION['user_id']) $this->respondError("Forbidden", 403);
 
+        // Quyền: owner hoặc admin mới được sửa
+        $roleId  = $_SESSION['role_id'] ?? ($_SESSION['user']['role_id'] ?? null);
+        $isOwner = ($post['author_id'] === $_SESSION['user_id']);
+        $isAdmin = ($roleId === 'ROLE000');
+        if (!$isOwner && !$isAdmin) {
+            $this->respondError("Forbidden", 403);
+        }
+
+        // Nhận dữ liệu đầu vào
         $title       = $_POST['title']       ?? '';
         $content     = $_POST['content']     ?? '';
         $description = $_POST['description'] ?? '';
         $summary     = $_POST['summary']     ?? '';
         $albumId     = $_POST['album_id']    ?? '';
         $categoryId  = $_POST['category_id'] ?? '';
+
+        // Mặc định giữ nguyên từ bài cũ
         $bannerUrl   = $post['banner_url'];
         $fileUrl     = $post['file_url'];
         $fileType    = $post['file_type'];
@@ -281,24 +292,30 @@ class PostController
         $baseUrl    = 'http://' . $_SERVER['HTTP_HOST'] . '/';
 
         try {
-            // Banner mới (optional)
+            /** ------- Banner mới (optional) ------- */
             if (!empty($_FILES['banner']['tmp_name'])) {
-                $upload = $cloudinary->uploadApi()->upload($_FILES['banner']['tmp_name'], ['folder' => 'post_banners']);
+                $upload   = $cloudinary->uploadApi()->upload($_FILES['banner']['tmp_name'], ['folder' => 'post_banners']);
                 $bannerUrl = $upload['secure_url'];
             }
 
-            // File PDF mới (optional)
+            /** ------- File PDF mới (optional) ------- */
             if (!empty($_FILES['content_file']['tmp_name'])) {
                 $uploadedFile     = $_FILES['content_file'];
                 $uploadedFileType = $uploadedFile['type'];
                 $uploadedFileExt  = strtolower(pathinfo($uploadedFile['name'], PATHINFO_EXTENSION));
                 $maxFileSize      = 10 * 1024 * 1024;
 
-                if ($uploadedFileExt !== 'pdf') throw new Exception("Chỉ hỗ trợ PDF.");
-                if ($uploadedFile['size'] > $maxFileSize) throw new Exception("File quá lớn (>10MB).");
-                if ($uploadedFile['error'] !== UPLOAD_ERR_OK) throw new Exception("Lỗi upload file");
+                if ($uploadedFileExt !== 'pdf') {
+                    throw new Exception("Chỉ hỗ trợ PDF.");
+                }
+                if ($uploadedFile['size'] > $maxFileSize) {
+                    throw new Exception("File quá lớn (>10MB).");
+                }
+                if ($uploadedFile['error'] !== UPLOAD_ERR_OK) {
+                    throw new Exception("Lỗi upload file");
+                }
 
-                // Xoá file cũ nếu có
+                // Xoá file cũ nếu có (file local)
                 $oldPath = $post['file_url'] ? (__DIR__ . '/../' . ltrim(parse_url($post['file_url'], PHP_URL_PATH), '/')) : null;
                 if ($oldPath && file_exists($oldPath)) {
                     @unlink($oldPath);
@@ -309,33 +326,52 @@ class PostController
                 if (!is_dir($uploadDir)) mkdir($uploadDir, 0755, true);
                 $targetPath = $uploadDir . $fileName;
 
-                if (move_uploaded_file($uploadedFile['tmp_name'], $targetPath)) {
-                    $fileUrl  = $baseUrl . 'uploads/posts/' . $fileName;
-                    $fileType = $uploadedFileType;
-                } else {
+                if (!move_uploaded_file($uploadedFile['tmp_name'], $targetPath)) {
                     throw new Exception("Không thể lưu file upload.");
                 }
+
+                $fileUrl  = $baseUrl . 'uploads/posts/' . $fileName;
+                $fileType = $uploadedFileType;
             }
 
-            $this->postModel->updatePost(
-                $postId,
-                $title,
-                $content,
-                $description,
-                $summary,
-                $albumId,
-                $categoryId,
-                $bannerUrl,
-                $_SESSION['user_id'],
-                $fileUrl,
-                $fileType
-            );
+            /** ------- Gọi Model theo quyền ------- */
+            if ($isAdmin && !$isOwner) {
+                // Admin sửa bài của người khác → KHÔNG ràng buộc owner
+                $this->postModel->adminUpdatePost(
+                    $postId,
+                    $title,
+                    $content,
+                    $description,
+                    $summary,
+                    $albumId ?: $post['album_id'],        // nếu không gửi thì giữ nguyên
+                    $categoryId ?: $post['category_id'],  // nếu không gửi thì giữ nguyên
+                    $bannerUrl,
+                    $fileUrl,
+                    $fileType
+                );
+            } else {
+                // Owner tự sửa bài mình → dùng hàm ràng buộc owner
+                $this->postModel->updatePost(
+                    $postId,
+                    $title,
+                    $content,
+                    $description,
+                    $summary,
+                    $albumId,
+                    $categoryId,
+                    $bannerUrl,
+                    $_SESSION['user_id'],  // ràng buộc owner tại câu SQL
+                    $fileUrl,
+                    $fileType
+                );
+            }
 
             $this->respondJson(['status' => 'ok', 'message' => 'Cập nhật thành công']);
         } catch (Exception $e) {
             $this->respondError($e->getMessage(), 500);
         }
     }
+
 
     /** Xoá bài viết */
     // controllers/PostController.php (bên trong class PostController)

@@ -5,7 +5,7 @@ import { useNavigate } from "react-router-dom";
 import UsersListItem from "../list/UsersListItem";
 import UserProfileCard from "../../leaderboard/UserProfileCard";
 import AddUserModal from "../modals/AddUserModal";
-import ConfirmModal from "../modals/ConfirmModal";
+import ConfirmModal from "../../common/ConfirmModal";
 import ModalEditUser from "../modals/ModalEditUser"; // 3 tab: Account / Security / Role
 
 import userInfoApi from "../../../services/user_infoServices";
