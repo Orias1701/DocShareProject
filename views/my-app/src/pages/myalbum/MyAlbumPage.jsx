@@ -2,13 +2,13 @@
 import React, { useEffect, useState } from "react";
 import AlbumSection from "../../components/album/AlbumSection";
 import albumService from "../../services/albumService";
-import NewAlbumForm from "../../components/common/NewAlbumForm"; // nếu form của bạn ở /components/albums thì đổi path cho đúng
+import NewAlbumForm from "../../components/common/NewAlbumForm";
 
 export default function MyAlbumPage() {
   const [albums, setAlbums] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [openCreate, setOpenCreate] = useState(false);
+  const [openCreate, setOpenCreate] = useState(false); // 👈 mở/đóng modal tạo
 
   const mapAlbumToCard = (a = {}) => ({
     id: a.album_id || a.id,
@@ -20,10 +20,8 @@ export default function MyAlbumPage() {
     uploadTime: a.created_at || "",
     banner: a.url_thumbnail || null,
     link: `/albums/${a.album_id || a.id}`,
-    user_id: a.user_id, // để phòng khi cần ownerId phía dưới
   });
 
-  // fetch danh sách của chính mình
   useEffect(() => {
     (async () => {
       setLoading(true);
@@ -39,16 +37,9 @@ export default function MyAlbumPage() {
     })();
   }, []);
 
-  // ✅ Khi tạo xong: thêm album vào đầu danh sách
+  // ✅ Khi tạo xong: thêm album vào đầu danh sách (không cần reload)
   const handleCreated = (createdAlbum) => {
     setAlbums((prev) => [mapAlbumToCard(createdAlbum), ...prev]);
-  };
-
-  // ✅ Khi xóa xong: gỡ album khỏi UI ngay
-  const handleDeleted = (albumId) => {
-    setAlbums((prev) =>
-      prev.filter((a) => a.id !== albumId && a.album_id !== albumId)
-    );
   };
 
   if (loading) return <div className="text-white p-4">Đang tải dữ liệu...</div>;
@@ -62,15 +53,16 @@ export default function MyAlbumPage() {
 
   return (
     <div className="w-full">
+      {/* Header + nút tạo album */}
+    
+
       <AlbumSection
         title="Your albums"
         albums={albums}
         emptyText="Bạn chưa có album nào."
-        onDeleted={handleDeleted}     // 👈 truyền callback xóa
-        forceIsOwner                  // 👈 tất cả album ở đây là của chính mình
       />
 
-      {/* Modal tạo album */}
+      {/* Modal tạo album (native, không cần lib ngoài) */}
       {openCreate && (
         <div className="fixed inset-0 z-[1000] flex items-center justify-center">
           <div
@@ -78,10 +70,14 @@ export default function MyAlbumPage() {
             onClick={() => setOpenCreate(false)}
           />
           <div className="relative z-10 w-full max-w-lg mx-4 p-6 rounded-2xl border border-gray-700 bg-[#111827]">
+
+
+            {/* Form tạo mới */}
             <NewAlbumForm
               onClose={() => setOpenCreate(false)}
               onCreated={(album) => {
-                handleCreated(album);
+                handleCreated(album); // cập nhật UI ngay
+                // NewAlbumForm sẽ tự đóng modal qua onClose khi Toast success đóng
               }}
             />
           </div>

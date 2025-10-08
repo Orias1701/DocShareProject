@@ -5,6 +5,7 @@ const ACTIONS = {
   toggle: "toggle_report",       // POST: post_id, reason
   listByPost: "list_reports",    // GET: post_id -> {ok, data}
   listAll: "list_all_reports",   // GET -> {ok, data}
+  countReports: "count_reports" // GET -> {ok, data}
 };
 
 // Gửi POST dạng FormData
@@ -43,6 +44,10 @@ export const post_reportService = {
 
   listAll() {
     return normalizeApiResponse(fetchJson(ACTIONS.listAll));
+  },
+  countReports(postId) {
+    if (!postId) throw new Error("postId is required");
+    return normalizeApiResponse(fetchJson(`${ACTIONS.countReports}&post_id=${encodeURIComponent(postId)}`));
   },
 };
 

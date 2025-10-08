@@ -57,18 +57,26 @@ class Category
         return $stmt->execute([$id]);
     }
 
-    public function getCategoryPostCounts()
+    public function getCategoryPostCounts($category_id = null)
     {
-        $stmt = $this->conn->query("
-            SELECT 
-                c.category_id,
-                c.category_name,
-                COUNT(p.post_id) AS total_posts
+        $sql = "
+            SELECT c.category_id, c.category_name, COUNT(p.post_id) AS post_count
             FROM categories c
-            LEFT JOIN posts p ON c.category_id = p.category_id
-            GROUP BY c.category_id, c.category_name
-            ORDER BY total_posts DESC
-        ");
+            LEFT JOIN posts p ON p.category_id = c.category_id
+        ";
+
+        // Nếu có truyền category_id thì thêm điều kiện WHERE
+        $params = [];
+        if ($category_id) {
+            $sql .= " WHERE c.category_id = :category_id";
+            $params[':category_id'] = $category_id;
+        }
+
+        $sql .= " GROUP BY c.category_id, c.category_name ORDER BY c.category_name ASC";
+
+        $stmt = $this->conn->prepare($sql);
+        $stmt->execute($params);
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
+
 }

@@ -61,12 +61,14 @@ export const albumService = {
     const res = await fetchJson(`${ACTIONS.listByUser}&user_id=${encodeURIComponent(user_id)}`);
     return pickArray(res);
   },
-  async getAlbumDetail(album_id) {
-    const res = await fetchJson(`${ACTIONS.detail}&album_id=${encodeURIComponent(album_id)}`);
-    // trả về object album
+  async getAlbumDetail({ album_id }) {
+    const res = await fetchJson(
+      `${ACTIONS.detail}&album_id=${encodeURIComponent(album_id)}`
+    );
     return res?.data || res || null;
-  },
-
+  }
+  
+  
   
 };
 

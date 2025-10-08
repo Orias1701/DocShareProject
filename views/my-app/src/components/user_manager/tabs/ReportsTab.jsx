@@ -5,8 +5,10 @@ import ReportItem from "../../../components/user_manager/list/ReportItem";
 import ReportInfoPanel from "../../../components/user_manager/panels/ReportInfoPanel";
 import ConfirmModal from "../../common/ConfirmModal";
 
-import post_reportService from "../../../services/post_reportServices"; // dùng để list (và resolve nếu có)
-import postService from "../../../services/postService"; // dùng để lấy post, download, delete
+// Lưu ý: nếu file service của bạn là post_reportService.js (không có chữ 's' cuối),
+// hãy đổi import này lại cho đúng đường dẫn thực tế của dự án bạn.
+import post_reportService from "../../../services/post_reportServices";
+import postService from "../../../services/postService";
 
 const mapApiReport = (r) => ({
   id: r.report_id,
@@ -24,14 +26,15 @@ export default function ReportsTab() {
   const [error, setError] = React.useState(null);
   const [fetched, setFetched] = React.useState(false);
 
-  const [selectedId, setSelectedId] = React.useState();
+  // ✅ Không auto-select: mặc định chưa chọn gì
+  const [selectedId, setSelectedId] = React.useState(null);
 
   const [page, setPage] = React.useState(1);
   const PAGE_SIZE = 10;
 
   const [confirm, setConfirm] = React.useState({ open: false, target: null });
 
-  // 🔔 banner gọn
+  // 🔔 banner nhỏ gọn
   const [banner, setBanner] = React.useState(null); // {type:'success'|'error'|'info', text}
   const showBanner = (type, text, ms = 2200) => {
     setBanner({ type, text });
@@ -50,8 +53,11 @@ export default function ReportsTab() {
     return data.slice(start, start + PAGE_SIZE);
   }, [data, page]);
 
-  const currentReport =
-    data.find((r) => r.id === selectedId) ?? pageData[0] ?? null;
+  // ✅ item đang chọn: TÌM theo selectedId, KHÔNG fallback phần tử đầu
+  const currentReport = React.useMemo(
+    () => data.find((r) => r.id === selectedId) || null,
+    [data, selectedId]
+  );
 
   // ====== FETCH LIST ======
   const fetchReports = async () => {
@@ -63,7 +69,9 @@ export default function ReportsTab() {
         const mapped = res.data.map(mapApiReport);
         setData(mapped);
         setFetched(true);
-        setSelectedId((prev) => prev ?? mapped[0]?.id);
+
+        // ❌ KHÔNG còn auto-chọn phần tử đầu tiên
+        // setSelectedId(mapped[0]?.id);
       } else {
         throw new Error(res?.error || "Invalid report list response");
       }
@@ -81,33 +89,32 @@ export default function ReportsTab() {
   React.useEffect(() => setPage(1), [fetched]);
 
   // ====== FETCH POST COMPACT KHI ĐỔI SELECTION ======
-  const fetchSelectedPost = React.useCallback(async () => {
-    if (!currentReport?.post_id) {
-      setSelectedPost(null);
-      return;
-    }
-    try {
-      setLoadingPost(true);
-      const post = await postService.getByIdCompact(currentReport.post_id);
-      setSelectedPost(post || null);
-    } catch (_e) {
-      setSelectedPost(null);
-    } finally {
-      setLoadingPost(false);
-    }
-  }, [currentReport?.post_id]);
-
   React.useEffect(() => {
-    fetchSelectedPost();
-  }, [fetchSelectedPost]);
+    const run = async () => {
+      if (!currentReport?.post_id) {
+        setSelectedPost(null);
+        return;
+      }
+      try {
+        setLoadingPost(true);
+        const post = await postService.getByIdCompact(currentReport.post_id);
+        setSelectedPost(post || null);
+      } catch (_e) {
+        setSelectedPost(null);
+      } finally {
+        setLoadingPost(false);
+      }
+    };
+    run();
+  }, [currentReport?.post_id]);
 
   // ====== CẬP NHẬT UI SAU XOÁ (không reload) ======
   const removeFromLocal = (reportId) => {
     setData((prev) => {
       const next = prev.filter((x) => x.id !== reportId);
 
-      // cập nhật selection nếu đang trỏ vào report vừa xoá
-      setSelectedId((prevSel) => (prevSel === reportId ? next[0]?.id : prevSel));
+      // nếu đang trỏ vào report vừa xoá → bỏ chọn
+      setSelectedId((prevSel) => (prevSel === reportId ? null : prevSel));
 
       // điều chỉnh page nếu trang hiện tại rỗng
       const newTotalPages = Math.max(1, Math.ceil(next.length / PAGE_SIZE));
@@ -235,17 +242,29 @@ export default function ReportsTab() {
         )}
 
         <div className="space-y-3">
-          {pageData.map((r) => (
-            <ReportItem
-              key={r.id}
-              report={r}
-              compact
-              active={r.id === selectedId}
-              onClick={() => setSelectedId(r.id)} // chọn giống AlbumsTab
-              onEdit={() => alert("Edit report")}
-              onDelete={() => setConfirm({ open: true, target: r })}
-            />
-          ))}
+          {pageData.map((r) => {
+            const active = r.id === selectedId;
+            return (
+              <div
+                key={r.id}
+                role="button"
+                tabIndex={0}
+                onClick={() => setSelectedId(r.id)}       // 👈 bấm để chọn
+                onKeyDown={(e) => e.key === "Enter" && setSelectedId(r.id)}
+                className={`rounded-xl transition ring-0 ${
+                  active ? "ring-1 ring-white/40" : ""
+                }`}
+              >
+                <ReportItem
+                  report={r}
+                  compact
+                  active={active}
+                  onEdit={() => alert("Edit report")}
+                  onDelete={() => setConfirm({ open: true, target: r })}
+                />
+              </div>
+            );
+          })}
         </div>
 
         {totalPages > 1 && (
@@ -272,7 +291,7 @@ export default function ReportsTab() {
       </div>
 
       <aside className="space-y-3">
-        {currentReport ? (
+        {selectedId ? (
           <ReportInfoPanel
             report={currentReport}
             post={selectedPost}
@@ -292,7 +311,7 @@ export default function ReportsTab() {
           />
         ) : (
           <div className="bg-[#1C2028] p-6 rounded-xl border border-[#2d2d33] text-white/70">
-            Nothing to show here.
+            Chọn một báo cáo để xem chi tiết.
           </div>
         )}
       </aside>

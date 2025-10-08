@@ -115,7 +115,15 @@ class CategoryController
     {
         header('Content-Type: application/json; charset=utf-8');
 
-        $data = $this->categoryModel->getCategoryPostCounts();
+        // Lấy category_id từ query string (nếu có)
+        $category_id = $_GET['category_id'] ?? null;
+
+        // Gọi model, truyền id nếu có
+        if ($category_id) {
+            $data = $this->categoryModel->getCategoryPostCounts($category_id);
+        } else {
+            $data = $this->categoryModel->getCategoryPostCounts(); // lấy tất cả
+        }
 
         echo json_encode([
             "ok" => true,
@@ -124,6 +132,7 @@ class CategoryController
         ]);
         exit;
     }
+
 
 
     // Xóa các hàm show form vì frontend sẽ đảm nhiệm

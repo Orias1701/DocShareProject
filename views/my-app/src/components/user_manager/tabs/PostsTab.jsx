@@ -1,13 +1,13 @@
 // src/pages/user_manager/tabs/PostsTab.jsx
-import React from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 
 import PostItem from "../../../components/user_manager/list/PostItem";
-import PostInfoPanel from "../../../components/user_manager/panels/PostInfoPanel";
 import ConfirmModal from "../../common/ConfirmModal";
-import ModalEditPost from "../../../components/user_manager/modals/ModalEditPost"; // 👈 THÊM
+import ModalEditPost from "../../../components/user_manager/modals/ModalEditPost";
+import PostInfoPanel from "../../../components/user_manager/panels/PostInfoPanel";
 
-import postService from "../../../services/postService"; // ✅ nhất quán tên import
+import postService from "../../../services/postService";
 
 const FALLBACK_AVATAR = "https://i.pravatar.cc/100?img=12";
 const slugHash = (name) =>
@@ -38,23 +38,22 @@ const mapApiPost = (p) => {
 export default function PostsTab() {
   const navigate = useNavigate();
 
-  const [data, setData] = React.useState([]);
-  const [loading, setLoading] = React.useState(false);
-  const [error, setError] = React.useState(null);
-  const [fetched, setFetched] = React.useState(false);
+  const [data, setData] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [fetched, setFetched] = useState(false);
 
-  const [selectedId, setSelectedId] = React.useState();
-  const [page, setPage] = React.useState(1);
+  const [selectedId, setSelectedId] = useState();
+  const [panelLoading, setPanelLoading] = useState(false);
+  const [page, setPage] = useState(1);
   const PAGE_SIZE = 10;
 
-  const [confirm, setConfirm] = React.useState({ open: false, target: null });
-
-  // Modal Edit
-  const [openEdit, setOpenEdit] = React.useState(false);
-  const [editPost, setEditPost] = React.useState(null);
+  const [confirm, setConfirm] = useState({ open: false, target: null });
+  const [openEdit, setOpenEdit] = useState(false);
+  const [editPost, setEditPost] = useState(null);
 
   // 🔔 banner gọn
-  const [banner, setBanner] = React.useState(null); // {type:'success'|'error'|'info', text}
+  const [banner, setBanner] = useState(null);
   const showBanner = (type, text, ms = 2000) => {
     setBanner({ type, text });
     window.clearTimeout(showBanner._t);
@@ -62,7 +61,7 @@ export default function PostsTab() {
   };
 
   const totalPages = Math.max(1, Math.ceil(data.length / PAGE_SIZE));
-  const pageData = React.useMemo(() => {
+  const pageData = useMemo(() => {
     const start = (page - 1) * PAGE_SIZE;
     return data.slice(start, start + PAGE_SIZE);
   }, [data, page]);
@@ -90,53 +89,30 @@ export default function PostsTab() {
     }
   };
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (!fetched && !loading) fetchPosts();
   }, []); // once
 
-  React.useEffect(() => setPage(1), [fetched]);
+  useEffect(() => setPage(1), [fetched]);
 
   // ====== THỰC THI XOÁ ======
   const doDelete = async (postId) => {
-    console.log("[PostsTab] 🔸 Bắt đầu xoá post", postId);
-
     let res;
     try {
-      console.log("[PostsTab] → gọi POST form-data removeViaPost(post_id)");
       res = await postService.removeViaPost(postId);
-      console.log("[PostsTab] ← removeViaPost response:", res);
-    } catch (e) {
-      console.error("[PostsTab] removeViaPost THROW:", e);
+    } catch {
+      res = await postService.remove(postId);
     }
-
-    if (!res || (res?.status !== "ok" && res?.status !== "success")) {
-      try {
-        console.log("[PostsTab] → fallback GET remove(post_id) (query)");
-        res = await postService.remove(postId);
-        console.log("[PostsTab] ← remove response:", res);
-      } catch (e2) {
-        console.error("[PostsTab] remove THROW:", e2);
-        throw e2; // ném cho caller xử lý
-      }
-    }
-
     return res;
   };
 
-  // ====== CẬP NHẬT UI SAU XOÁ (không reload) ======
+  // ====== CẬP NHẬT UI SAU XOÁ ======
   const removeFromLocal = (postId) => {
     setData((prev) => {
       const next = prev.filter((x) => x.id !== postId);
-
-      // sửa selected nếu đang trỏ vào post vừa xoá
-      setSelectedId((prevSel) => {
-        if (prevSel === postId) {
-          return next[0]?.id;
-        }
-        return prevSel;
-      });
-
-      // điều chỉnh page nếu trang hiện tại rỗng
+      setSelectedId((prevSel) =>
+        prevSel === postId ? next[0]?.id : prevSel
+      );
       const newTotalPages = Math.max(1, Math.ceil(next.length / PAGE_SIZE));
       setPage((p) => Math.min(p, newTotalPages));
       return next;
@@ -145,19 +121,24 @@ export default function PostsTab() {
 
   // ====== SUBMIT EDIT (UI only) ======
   const handleSubmitEdit = async (payload) => {
-    // payload gồm: post_id, title, album_id, category_id, hashtags, summary, description,
-    // mode ("PDF"|"WORD/HTML"), content_html, pdfFile?, bannerFile?
-    // 👉 Ở đây chỉ demo UI: hiển thị banner + đóng modal + refresh list
     console.log("[PostsTab] submit edit payload:", payload);
     showBanner("success", "Đã lưu thay đổi (demo UI).");
     setOpenEdit(false);
     setEditPost(null);
-    // Nếu muốn gọi API thực, thay block trên bằng service update và sau đó:
-    // await fetchPosts();
   };
+
+  // Hiệu ứng loading nhỏ khi chuyển post
+  useEffect(() => {
+    if (selectedId) {
+      setPanelLoading(true);
+      const t = setTimeout(() => setPanelLoading(false), 600);
+      return () => clearTimeout(t);
+    }
+  }, [selectedId]);
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {/* ====== DANH SÁCH BÀI VIẾT ====== */}
       <div className="lg:col-span-2 space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold">Post List</h2>
@@ -177,7 +158,7 @@ export default function PostsTab() {
         {banner && (
           <div
             className={
-              "px-3 py-2 rounded-md text-sm border " +
+              "px-3 py-2 rounded-md text-sm border transition-all " +
               (banner.type === "success"
                 ? "bg-emerald-900/30 text-emerald-200 border-emerald-700/40"
                 : banner.type === "error"
@@ -190,9 +171,12 @@ export default function PostsTab() {
         )}
 
         {loading && !fetched && (
-          <div className="space-y-3">
+          <div className="space-y-3 animate-pulse">
             {Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="h-14 rounded-xl bg-white/5 border border-white/10 animate-pulse" />
+              <div
+                key={i}
+                className="h-14 rounded-xl bg-white/5 border border-white/10"
+              />
             ))}
           </div>
         )}
@@ -201,7 +185,10 @@ export default function PostsTab() {
           <div className="text-red-300 bg-red-900/20 border border-red-500/30 rounded-xl p-4">
             Failed to load posts: {error}
             <div className="mt-3">
-              <button onClick={fetchPosts} className="px-3 py-1.5 rounded-md bg-white text-black">
+              <button
+                onClick={fetchPosts}
+                className="px-3 py-1.5 rounded-md bg-white text-black"
+              >
                 Retry
               </button>
             </div>
@@ -222,13 +209,17 @@ export default function PostsTab() {
               onKeyDown={(e) => e.key === "Enter" && setSelectedId(p.id)}
               role="button"
               tabIndex={0}
-              className={`rounded-xl transition ring-0 ${p.id === selectedId ? "ring-1 ring-white/40" : ""}`}
+              className={`rounded-xl transition ring-0 cursor-pointer ${
+                p.id === selectedId
+                  ? "ring-1 ring-white/40 bg-white/5"
+                  : "hover:bg-white/5"
+              }`}
             >
               <PostItem
                 post={p}
                 compact
                 onEdit={() => {
-                  setEditPost(p.raw);      // 👈 truyền nguyên bản ghi từ API vào modal
+                  setEditPost(p.raw);
                   setOpenEdit(true);
                 }}
                 onDelete={() => setConfirm({ open: true, target: p })}
@@ -261,9 +252,14 @@ export default function PostsTab() {
         )}
       </div>
 
-      <aside>
-        {currentPost ? (
-          <PostInfoPanel post={currentPost} />
+      {/* ====== PANEL CHI TIẾT BÊN PHẢI ====== */}
+      <aside className="relative">
+        {panelLoading ? (
+          <div className="absolute inset-0 flex items-center justify-center bg-[#1C2028] rounded-xl border border-[#2d2d33] text-white/60 animate-pulse">
+            <i className="fa-solid fa-spinner fa-spin mr-2"></i> Loading...
+          </div>
+        ) : currentPost ? (
+          <PostInfoPanel postId={currentPost.id} />
         ) : (
           <div className="bg-[#1C2028] p-6 rounded-xl border border-[#2d2d33] text-white/70">
             Nothing to show here.
@@ -271,26 +267,24 @@ export default function PostsTab() {
         )}
       </aside>
 
+      {/* ====== MODAL XÁC NHẬN XOÁ ====== */}
       <ConfirmModal
         open={confirm.open}
-        message={`Are you sure you want to delete ${confirm.target?.title || "this post"}?`}
+        message={`Are you sure you want to delete ${
+          confirm.target?.title || "this post"
+        }?`}
         onClose={() => setConfirm({ open: false, target: null })}
         onConfirm={async () => {
           const targetId = confirm.target?.id;
           try {
-            console.log("[PostsTab] ✅ Confirm delete, targetId=", targetId);
             const res = await doDelete(targetId);
-
             if (res?.status === "ok" || res?.status === "success") {
-              console.log("[PostsTab] 🟢 Xoá thành công trên server. res=", res);
               removeFromLocal(targetId);
               showBanner("success", "Đã xoá bài viết.");
             } else {
-              console.warn("[PostsTab] 🟠 Server trả status lỗi:", res);
               throw new Error(res?.message || "Delete failed");
             }
           } catch (e) {
-            console.error("[PostsTab] 🔴 Xoá thất bại:", e);
             showBanner("error", e?.message || "Delete failed");
           } finally {
             setConfirm({ open: false, target: null });
@@ -298,7 +292,7 @@ export default function PostsTab() {
         }}
       />
 
-      {/* 👇 Modal Edit Post (UI only) */}
+      {/* ====== MODAL EDIT BÀI VIẾT ====== */}
       <ModalEditPost
         open={openEdit}
         onClose={() => {
@@ -306,8 +300,8 @@ export default function PostsTab() {
           setEditPost(null);
         }}
         post={editPost || {}}
-        albums={[]}       // TODO: truyền danh sách albums nếu có API
-        categories={[]}   // TODO: truyền danh sách categories nếu có API
+        albums={[]} // TODO: truyền danh sách albums nếu cần
+        categories={[]} // TODO: truyền danh sách categories nếu cần
         onSubmit={handleSubmitEdit}
       />
     </div>

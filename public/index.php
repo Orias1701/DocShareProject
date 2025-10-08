@@ -334,6 +334,9 @@ if (isset($_GET['action'])) {
             $userId = $_GET['user_id'] ?? null;
             $postController->getPostsByUserId($userId);
             exit;
+        case 'get_album_detail':
+            $albumController->albumDetail();
+            exit;
         case 'list_posts_by_following':
             if (!isset($_SESSION['user_id'])) {
                 http_response_code(401);
@@ -394,7 +397,11 @@ if (isset($_GET['action'])) {
             $categoryController->delete();
             exit;
         case 'category_post_counts':
-            $categoryController->listCategoryWithPostCounts();
+                // ✅ Lấy category_id (nếu có) từ query string
+            $category_id = $_GET['category_id'] ?? null;
+                
+            // ✅ Gọi controller, truyền id
+            $categoryController->listCategoryWithPostCounts($category_id);
             exit;
 
         /*************** HASHTAG CRUD ***************/

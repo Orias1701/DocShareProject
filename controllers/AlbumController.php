@@ -225,10 +225,10 @@ class AlbumController
     }
 
     /* ===== CHI TIẾT ===== */
-    public function detail()
+    public function albumDetail()
     {
         $this->requireAuth();
-        $id = $_GET['id'] ?? null;
+        $id = $_GET['album_id'] ?? null;
         if (!$id) {
             $this->error('Thiếu id', 422);
         }

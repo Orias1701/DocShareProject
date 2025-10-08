@@ -4,6 +4,7 @@ import fetchJson from "./fetchJson";
 const ACTIONS = {
   toggle: "toggle_reaction_api",        // POST: post_id, reaction_type ('like'|'dislike')
   getState: "get_reaction_state_api",   // GET : post_id -> { ok, myReaction, counts }
+  count: "count_reactions",     // GET : post_id -> { ok, likes, dislikes }
 };
 
 // Gửi POST dạng FormData
@@ -65,6 +66,12 @@ export const post_reactionService = {
   },
   dislike(postId) {
     return this.toggle(postId, "dislike");
+  },
+  count(postId) {
+    if (!postId) throw new Error("postId is required");
+    return normalizeApiResponse(
+      fetchJson(`${ACTIONS.count}&post_id=${encodeURIComponent(postId)}`)
+    );
   },
 };
 

@@ -1,11 +1,10 @@
+// src/pages/user_manager/tabs/CategoriesTab.jsx
 import React from "react";
-
 import CategoryItem from "../../../components/user_manager/list/CategoryItem";
 import CategoryInfoPanel from "../../../components/user_manager/panels/CategoryInfoPanel";
 import AddCategoryModal from "../../../components/user_manager/modals/AddCategoryModal";
 import ConfirmModal from "../../common/ConfirmModal";
 import ModalEditCategory from "../modals/ModalEditCategories";
-
 import categoryServices from "../../../services/categoryServices";
 
 const mapApiCategory = (c) => ({
@@ -20,14 +19,12 @@ export default function CategoriesTab() {
   const [error, setError] = React.useState(null);
   const [fetched, setFetched] = React.useState(false);
 
-  const [selectedId, setSelectedId] = React.useState();
+  const [selectedId, setSelectedId] = React.useState(null);
   const [page, setPage] = React.useState(1);
   const PAGE_SIZE = 10;
 
   const [openAdd, setOpenAdd] = React.useState(false);
   const [confirm, setConfirm] = React.useState({ open: false, target: null });
-
-  // 👇 Modal Edit
   const [openEdit, setOpenEdit] = React.useState(false);
   const [editCategory, setEditCategory] = React.useState(null);
 
@@ -36,9 +33,6 @@ export default function CategoriesTab() {
     const start = (page - 1) * PAGE_SIZE;
     return data.slice(start, start + PAGE_SIZE);
   }, [data, page]);
-
-  const currentCategory =
-    pageData.find((c) => c.id === selectedId) ?? pageData[0] ?? null;
 
   const fetchCategories = async () => {
     try {
@@ -49,7 +43,7 @@ export default function CategoriesTab() {
         const mapped = arr.map(mapApiCategory);
         setData(mapped);
         setFetched(true);
-        setSelectedId((prev) => prev ?? mapped[0]?.id);
+        setSelectedId((prev) => prev ?? mapped[0]?.id ?? null);
       } else {
         throw new Error("Invalid category list response");
       }
@@ -62,15 +56,19 @@ export default function CategoriesTab() {
 
   React.useEffect(() => {
     if (!fetched && !loading) fetchCategories();
-  }, []); // once
+  }, []);
 
   React.useEffect(() => setPage(1), [fetched]);
 
+  const currentCategory =
+    data.find((c) => c.id === selectedId) ?? pageData[0] ?? null;
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {/* ===== LEFT: LIST ===== */}
       <div className="lg:col-span-2 space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Category List</h2>
+          <h2 className="text-lg font-semibold text-white">Category List</h2>
           <div className="flex items-center gap-2">
             <button
               className="px-3 py-1.5 rounded-md border border-white/20 text-white/90 hover:text-white"
@@ -83,6 +81,7 @@ export default function CategoriesTab() {
             <button
               className="px-3 py-1.5 rounded-md bg-white text-black"
               onClick={() => setOpenAdd(true)}
+              title="Add new category"
             >
               <i className="fa-regular fa-square-plus mr-1" />
             </button>
@@ -92,7 +91,10 @@ export default function CategoriesTab() {
         {loading && !fetched && (
           <div className="space-y-3">
             {Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="h-14 rounded-xl bg-white/5 border border-white/10 animate-pulse" />
+              <div
+                key={i}
+                className="h-14 rounded-xl bg-white/5 border border-white/10 animate-pulse"
+              />
             ))}
           </div>
         )}
@@ -101,7 +103,10 @@ export default function CategoriesTab() {
           <div className="text-red-300 bg-red-900/20 border border-red-500/30 rounded-xl p-4">
             Failed to load categories: {error}
             <div className="mt-3">
-              <button onClick={fetchCategories} className="px-3 py-1.5 rounded-md bg-white text-black">
+              <button
+                onClick={fetchCategories}
+                className="px-3 py-1.5 rounded-md bg-white text-black"
+              >
                 Retry
               </button>
             </div>
@@ -116,15 +121,22 @@ export default function CategoriesTab() {
 
         <div className="space-y-3">
           {pageData.map((c) => (
-            <CategoryItem
+            <div
               key={c.id}
-              cat={c}
-              onEdit={() => {
-                setEditCategory(c);     // 👈 mở modal edit
-                setOpenEdit(true);
-              }}
-              onDelete={() => setConfirm({ open: true, target: c })}
-            />
+              className={`cursor-pointer rounded-xl transition ${
+                c.id === selectedId ? "ring-1 ring-white/40" : ""
+              }`}
+              onClick={() => setSelectedId(c.id)}
+            >
+              <CategoryItem
+                cat={c}
+                onEdit={() => {
+                  setEditCategory(c);
+                  setOpenEdit(true);
+                }}
+                onDelete={() => setConfirm({ open: true, target: c })}
+              />
+            </div>
           ))}
         </div>
 
@@ -151,9 +163,10 @@ export default function CategoriesTab() {
         )}
       </div>
 
+      {/* ===== RIGHT: INFO PANEL ===== */}
       <aside>
         {currentCategory ? (
-          <CategoryInfoPanel category={currentCategory} />
+          <CategoryInfoPanel categoryId={selectedId} />
         ) : (
           <div className="bg-[#1C2028] p-6 rounded-xl border border-[#2d2d33] text-white/70">
             Nothing to show here.
@@ -171,8 +184,10 @@ export default function CategoriesTab() {
             await fetchCategories();
           } catch (e) {
             console.error(e);
-            // fallback thêm tạm vào UI nếu BE lỗi
-            setData((prev) => [{ id: `LOCAL_${Date.now()}`, name, posts: 0 }, ...prev]);
+            setData((prev) => [
+              { id: `LOCAL_${Date.now()}`, name, posts: 0 },
+              ...prev,
+            ]);
           } finally {
             setOpenAdd(false);
           }
@@ -185,7 +200,6 @@ export default function CategoriesTab() {
         onClose={() => setOpenEdit(false)}
         category={editCategory}
         onSave={async ({ category_id, category_name }) => {
-          // ⬅️ QUAN TRỌNG: TRẢ VỀ KẾT QUẢ CHO MODAL
           const res = await categoryServices.update({ category_id, category_name });
           await fetchCategories();
           return res || { status: "ok" };
@@ -195,7 +209,9 @@ export default function CategoriesTab() {
       {/* Delete */}
       <ConfirmModal
         open={confirm.open}
-        message={`Are you sure you want to delete ${confirm.target?.name || "this category"}?`}
+        message={`Are you sure you want to delete ${
+          confirm.target?.name || "this category"
+        }?`}
         onClose={() => setConfirm({ open: false, target: null })}
         onConfirm={async () => {
           try {
