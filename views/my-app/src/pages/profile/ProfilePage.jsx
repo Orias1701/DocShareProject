@@ -16,14 +16,14 @@ function normalizePostForProfile(p) {
     p?.banner_url && p.banner_url.trim() !== ""
       ? p.banner_url
       : isPdf
-      ? "https://via.placeholder.com/112x112?text=PDF"
-      : "https://via.placeholder.com/112x112?text=Image";
+      ? "https://play-lh.googleusercontent.com/WC5Fpn66aDQ5rzLB5Y5GVqthxC6z03T8eFY3xcqaVx2qIFZvqBmImiPSeul9qWSYnGw=w240-h480-rw" //PDF
+      : "https://upload.wikimedia.org/wikipedia/commons/8/8d/Microsoft_Word_2013-2019_logo.svg"; //WORD
 
   return {
     id: p?.post_id || p?.id,
     author: {
       realName: p?.author_name || "Ẩn danh",
-      avatar: p?.avatar_url || "https://i.pravatar.cc/40?img=1",
+      avatar: p?.avatar_url || "https://cdn2.fptshop.com.vn/small/avatar_trang_1_cd729c335b.jpg",
     },
     postDate: p?.created_at || "",
     mangles: [
@@ -158,7 +158,7 @@ function ProfilePage() {
     );
   }
 
-  const avatarUrl = userData?.avatar_url || "https://i.pravatar.cc/150?img=1";
+  const avatarUrl = userData?.avatar_url || "https://cdn2.fptshop.com.vn/small/avatar_trang_1_cd729c335b.jpg";
   const fullName = userData?.full_name || "Anonymous";
   const userName = userData?.username || "no-username";
   const birthday = userData?.birth_date || "N/A";

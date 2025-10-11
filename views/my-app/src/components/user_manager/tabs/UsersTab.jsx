@@ -11,7 +11,7 @@ import ModalEditUser from "../modals/ModalEditUser"; // 3 tab: Account / Securit
 import userInfoApi from "../../../services/user_infoServices";
 import authApi from "../../../services/usersServices";
 
-const FALLBACK_AVATAR = "https://i.pravatar.cc/100?img=12";
+const FALLBACK_AVATAR = "https://cdn2.fptshop.com.vn/small/avatar_trang_1_cd729c335b.jpg";
 
 const mapApiUser = (u) => ({
   id: u.user_id,

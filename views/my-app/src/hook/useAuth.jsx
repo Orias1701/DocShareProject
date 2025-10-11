@@ -30,10 +30,21 @@ export function AuthProvider({ children }) {
 
       const data = await res.json().catch(() => ({}));
       if (data?.status === "ok" && data.user) {
-        setUser(data.user);
+        const raw = data.user;
+        const normalized = {
+          ...raw,
+          avatar_url:
+            raw.avatar_url ||
+            raw.avatar ||
+            raw.profile_image ||
+            "https://cdn2.fptshop.com.vn/small/avatar_trang_1_cd729c335b.jpg",
+          full_name: raw.full_name || raw.name || raw.username || "User name",
+        };
+        setUser(normalized);
       } else {
         setUser(null);
       }
+      
     } catch (e) {
       console.error("Auth refresh failed:", e);
       setUser(null);

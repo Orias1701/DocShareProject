@@ -89,12 +89,8 @@ const NewPostPage = () => {
             .catch((e) => (setOptErrors((p) => ({ ...p, hashtags: e.message })), [])),
         ]);
 
-        // ✅ Chuẩn hoá categories từ {category_id, category_name} -> {id, name}
         const normCats = (Array.isArray(cats) ? cats : [])
-          .map((c) => ({
-            id: c.id ?? c.category_id,
-            name: c.name ?? c.category_name,
-          }))
+          .map((c) => ({ id: c.id ?? c.category_id, name: c.name ?? c.category_name }))
           .filter((x) => x.id && x.name);
         setCategories(normCats);
 
@@ -114,6 +110,15 @@ const NewPostPage = () => {
     loadAll();
   }, []);
 
+  // Clear state không dùng khi đổi mode
+  useEffect(() => {
+    setErrors({});
+    if (mode === "pdf") {
+      setEditorHtml((h) => h);
+    } else {
+      setMainFile(null);
+    }
+  }, [mode]);
 
   // === validate theo mode
   const validate = () => {
@@ -206,7 +211,7 @@ const NewPostPage = () => {
   }, [loadingOpts.albums, optErrors.albums, albums]);
 
   return (
-    <div className="bg-[#1621] p-8 rounded-lg border border-[#2d2d33]">
+    <div className="bg-[#0D1117] p-8 rounded-lg border border-[#2d2d33]">
       {/* Toggle PDF / WORD */}
       <div className="mb-4 flex gap-3">
         <button
@@ -225,6 +230,7 @@ const NewPostPage = () => {
         </button>
       </div>
 
+      {/* Layout 2 cột; riêng WORD bỏ preview, chỉ giữ thông tin cần thiết */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-10 gap-y-8">
         {/* === LEFT === */}
         <div className="flex flex-col gap-8">
@@ -236,15 +242,26 @@ const NewPostPage = () => {
             error={errors.title}
           />
 
-          <FormField
-            label="Category"
-            type="select"
-            value={newPost.category}
-            onChange={(e) => handleChange("category", e.target.value)}
-            error={errors.category}
-          >
-            {catOptions}
-          </FormField>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            <FormField
+              label="Category"
+              type="select"
+              value={newPost.category}
+              onChange={(e) => handleChange("category", e.target.value)}
+              error={errors.category}
+            >
+              {catOptions}
+            </FormField>
+
+            <FormField
+              label="Album"
+              type="select"
+              value={newPost.album}
+              onChange={(e) => handleChange("album", e.target.value)}
+            >
+              {albOptions}
+            </FormField>
+          </div>
 
           {mode === "pdf" ? (
             <>
@@ -297,16 +314,12 @@ const NewPostPage = () => {
             </>
           ) : (
             <>
+              {/* WORD mode: chỉ hiển thị editor + thumbnail; KHÔNG có preview */}
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-2">
                   Write content (additional)
                 </label>
-                <RichTextEditor
-                  value={editorHtml}
-                  onChange={(html) => {
-                    setEditorHtml(html);
-                  }}
-                />
+                <RichTextEditor value={editorHtml} onChange={setEditorHtml} />
                 {errors.editor && <p className="text-sm text-red-400 mt-2">{errors.editor}</p>}
               </div>
 
@@ -331,15 +344,6 @@ const NewPostPage = () => {
 
         {/* === RIGHT === */}
         <div className="flex flex-col gap-8">
-          <FormField
-            label="Album"
-            type="select"
-            value={newPost.album}
-            onChange={(e) => handleChange("album", e.target.value)}
-          >
-            {albOptions}
-          </FormField>
-
           {/* Hashtags */}
           <FormField
             label="Hashtags"
@@ -358,22 +362,29 @@ const NewPostPage = () => {
               ))}
           </FormField>
 
-          <div className="flex-grow flex flex-col h-full">
-            <label className="block text-sm font-medium text-gray-300 mb-2">
-              File Preview
-            </label>
-            {mode === "pdf" ? (
+          {mode === "pdf" ? (
+            // PDF: giữ FilePreview
+            <div className="flex-grow flex flex-col h-full">
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                File Preview
+              </label>
               <FilePreview file={mainFile} />
-            ) : (
-              <>
-                {/* SỬA: truyền đúng prop htmlContent để preview khớp với nội dung Word */}
-                <FilePreview file={null} htmlContent={editorHtml} />
-                <div className="flex-1 rounded-xl border border-white/10 bg-[#0D1117] p-4 text-sm text-white/70 mt-2">
-                  Nội dung WORD sẽ được lưu dưới dạng HTML và hiển thị tại trang chi tiết bài viết.
-                </div>
-              </>
-            )}
-          </div>
+            </div>
+          ) : (
+            // WORD: thay bằng card thông tin gọn
+            <div className="flex-grow rounded-xl border border-white/10 bg-[#0D1117] p-4 text-sm text-white/80">
+              <div className="font-semibold mb-2">Preview disabled in WORD mode</div>
+              <p className="mb-2">
+                Khi soạn ở chế độ <b>WORD</b>, nội dung sẽ được lưu dưới dạng HTML và hiển thị ở
+                trang chi tiết bài viết sau khi bạn đăng.
+              </p>
+              <ul className="list-disc pl-5 space-y-1 text-white/70">
+                <li>Hỗ trợ: tiêu đề (H1–H3), in đậm/nghiêng/gạch chân, danh sách, khối code.</li>
+                <li>Dùng thanh công cụ phía trên để định dạng văn bản.</li>
+                <li>Nếu cần xem trước, bạn có thể chuyển sang PDF và tải file để xem bằng Preview.</li>
+              </ul>
+            </div>
+          )}
         </div>
       </div>
 
@@ -381,7 +392,7 @@ const NewPostPage = () => {
       <div className="flex justify-end mt-8">
         <button
           onClick={handleSubmit}
-          disabled={submitting}
+          disabled={submitting || loadingOpts.categories || loadingOpts.albums}
           className="bg-gray-200 hover:bg-white disabled:opacity-60 text-black font-bold py-2 px-8 rounded-lg transition-colors"
         >
           {submitting ? "Submitting..." : "Submit"}

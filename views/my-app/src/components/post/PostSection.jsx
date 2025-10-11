@@ -1,6 +1,6 @@
 import React from "react";
 import PropTypes from "prop-types";
-import PostCard from "./PostCard"; // đổi path nếu bạn đặt PostCard ở nơi khác
+import PostCard from "./PostCard";
 
 /**
  * PostSection — Section lưới card dùng chung (MyPosts, Following, Bookmarks).
@@ -13,7 +13,8 @@ import PostCard from "./PostCard"; // đổi path nếu bạn đặt PostCard �
  *  - headerRight: node (button/filter...) hiển thị bên phải tiêu đề
  *  - wrapClassName, gridClassName: tuỳ biến className nếu cần
  *  - onBookmarkChange: (next:boolean, postId:string|number) => void
- *  - onDeleted: (postId:string|number) => void  // 🔔 gọi khi xoá thành công
+ *  - onDeleted: (postId:string|number) => void
+ *  - onEdited: (updatedPostPartial) => void    // 🔔 gọi khi sửa thành công
  *  - hideReactions: ẩn khu vực reaction
  *  - CardComponent: tuỳ chọn thay thế component card (mặc định PostCard)
  */
@@ -28,6 +29,7 @@ export default function PostSection({
   gridClassName = "grid grid-cols-1 gap-5 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4",
   onBookmarkChange,
   onDeleted,
+  onEdited,                 // ⬅️ nhận callback
   hideReactions = false,
   CardComponent = PostCard,
 }) {
@@ -53,7 +55,8 @@ export default function PostSection({
               showAlbum={showAlbum}
               maxTags={maxTags}
               onBookmarkChange={onBookmarkChange}
-              onDeleted={onDeleted}          // ✅ chuyển tiếp để xoá UI ngay
+              onDeleted={onDeleted}
+              onEdited={onEdited}          // ⬅️ chuyển tiếp để UI cập nhật sau khi sửa
               hideReactions={hideReactions}
             />
           ))}
@@ -73,7 +76,8 @@ PostSection.propTypes = {
   wrapClassName: PropTypes.string,
   gridClassName: PropTypes.string,
   onBookmarkChange: PropTypes.func,
-  onDeleted: PropTypes.func,        // ✅ khai báo prop
+  onDeleted: PropTypes.func,
+  onEdited: PropTypes.func,         // ⬅️ khai báo prop
   hideReactions: PropTypes.bool,
   CardComponent: PropTypes.elementType,
 };

@@ -2,8 +2,8 @@ import React from "react";
 import { Link } from "react-router-dom";
 
 const FALLBACK_IMG =
-  "https://i.pinimg.com/736x/18/bd/a5/18bda5a4616cd195fe49a9a32dbab836.jpg";
-const FALLBACK_AVATAR = "https://i.pravatar.cc/100?img=12";
+  "https://play-lh.googleusercontent.com/YkKvpRk6awQCkSi2oVDRBH7BAWpp0QBUWV9Pf-BVDTvJqwH8q3naROPyZET99DvO1HWq=w240-h480-rw";
+const FALLBACK_AVATAR = "https://cdn2.fptshop.com.vn/small/avatar_trang_1_cd729c335b.jpg";
 
 // Lấy <img src="..."> đầu tiên từ content HTML
 function extractFirstImage(html) {

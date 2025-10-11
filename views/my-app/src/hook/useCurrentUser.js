@@ -44,7 +44,7 @@ export default function useCurrentUser() {
               avatar:
                 infoUser?.avatar_url ||
                 infoUser?.avatar ||
-                "https://i.pravatar.cc/150?img=1",
+                "https://cdn2.fptshop.com.vn/small/avatar_trang_1_cd729c335b.jpg",
               name:
                 infoUser?.full_name ||
                 infoUser?.real_name ||

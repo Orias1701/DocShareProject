@@ -21,7 +21,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
  *          payload (admin):
  *             { ...owner, album_name_new?, category_name_new? }
  */
-export default function ModalEditPost({
+export default function ModalEditPostMeta({
   open,
   onClose,
   post,

@@ -1,14 +1,13 @@
-// src/pages/myposts/MyAlbumPage.jsx
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import AlbumSection from "../../components/album/AlbumSection";
 import albumService from "../../services/albumService";
-import NewAlbumForm from "../../components/common/NewAlbumForm";
+import NewAlbumForm from "../../components/common/NewAlbumForm"; // ✅ Sửa path
 
 export default function MyAlbumPage() {
   const [albums, setAlbums] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [openCreate, setOpenCreate] = useState(false); // 👈 mở/đóng modal tạo
+  const [openCreate, setOpenCreate] = useState(false); // mở/đóng modal tạo
 
   const mapAlbumToCard = (a = {}) => ({
     id: a.album_id || a.id,
@@ -22,24 +21,32 @@ export default function MyAlbumPage() {
     link: `/albums/${a.album_id || a.id}`,
   });
 
-  useEffect(() => {
-    (async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const rows = await albumService.listMyAlbums();
-        setAlbums((rows || []).map(mapAlbumToCard));
-      } catch (e) {
-        setError(e?.message || "Không thể tải danh sách album.");
-      } finally {
-        setLoading(false);
-      }
-    })();
+  const fetchAlbums = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const rows = await albumService.listMyAlbums();
+      setAlbums((rows || []).map(mapAlbumToCard));
+    } catch (e) {
+      setError(e?.message || "Không thể tải danh sách album.");
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  // ✅ Khi tạo xong: thêm album vào đầu danh sách (không cần reload)
-  const handleCreated = (createdAlbum) => {
-    setAlbums((prev) => [mapAlbumToCard(createdAlbum), ...prev]);
+  useEffect(() => {
+    fetchAlbums();
+  }, [fetchAlbums]);
+
+  // ✅ Khi tạo xong: thêm vào đầu danh sách nếu có id; nếu không có id → refetch
+  const handleCreated = async (createdAlbum) => {
+    const hasId = Boolean(createdAlbum?.album_id || createdAlbum?.id);
+    if (hasId) {
+      setAlbums((prev) => [mapAlbumToCard(createdAlbum), ...prev]);
+      return;
+    }
+    // Trường hợp BE chưa trả id rõ ràng → reload list để chắc chắn
+    await fetchAlbums();
   };
 
   if (loading) return <div className="text-white p-4">Đang tải dữ liệu...</div>;
@@ -53,16 +60,16 @@ export default function MyAlbumPage() {
 
   return (
     <div className="w-full">
-      {/* Header + nút tạo album */}
-    
+      {/* Header (không cần nút nếu bạn đã có ở navbar) */}
+      <h1 className="text-lg font-semibold text-white mb-4">Your albums</h1>
 
       <AlbumSection
-        title="Your albums"
+        title=""
         albums={albums}
         emptyText="Bạn chưa có album nào."
       />
 
-      {/* Modal tạo album (native, không cần lib ngoài) */}
+      {/* Modal tạo album */}
       {openCreate && (
         <div className="fixed inset-0 z-[1000] flex items-center justify-center">
           <div
@@ -70,14 +77,10 @@ export default function MyAlbumPage() {
             onClick={() => setOpenCreate(false)}
           />
           <div className="relative z-10 w-full max-w-lg mx-4 p-6 rounded-2xl border border-gray-700 bg-[#111827]">
-
-
-            {/* Form tạo mới */}
             <NewAlbumForm
               onClose={() => setOpenCreate(false)}
               onCreated={(album) => {
-                handleCreated(album); // cập nhật UI ngay
-                // NewAlbumForm sẽ tự đóng modal qua onClose khi Toast success đóng
+                handleCreated(album); // cập nhật UI ngay hoặc refetch
               }}
             />
           </div>

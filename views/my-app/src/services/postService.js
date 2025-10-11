@@ -118,20 +118,44 @@ export const postService = {
     });
     return fetchJson(ACTIONS.create, { method: "POST", body });
   },
-  update(params) {
-    const body = toFormData({
-      post_id: params.post_id,
-      title: params.title,
-      content: params.content,
-      description: params.description,
-      summary: params.summary,
-      album_id: params.album_id,
-      category_id: params.category_id,
-      ...(params.banner ? { banner: params.banner } : {}),
-      ...(params.content_file ? { content_file: params.content_file } : {}),
-    });
-    return fetchJson(ACTIONS.update, { method: "POST", body });
-  },
+ // src/services/postService.js
+update(params) {
+  const fd = new FormData();
+
+  // helper: append nếu field có trong params (kể cả chuỗi rỗng, để BE hiểu là muốn clear)
+  const has = (k) => Object.prototype.hasOwnProperty.call(params, k);
+  const app = (k) => { if (has(k)) fd.append(k, params[k]); };
+
+  // BẮT BUỘC
+  app("post_id");
+
+  // ----- Nhóm meta (ownerUpdatePost/adminUpdatePost) -----
+  // Cho phép set URL banner trực tiếp, hoặc gửi file banner mới (key 'banner')
+  app("title");
+  app("banner_url");
+  if (has("bannerFile") && params.bannerFile) fd.append("banner", params.bannerFile);
+  if (has("banner") && params.banner) fd.append("banner", params.banner); // tương thích caller cũ
+
+  // chuyển album/category
+  app("album_id_new");
+  app("category_id_new");
+
+  // admin-only: đổi tên album/category hiện tại
+  app("album_name_new");
+  app("category_name_new");
+
+  // ----- Nhóm chỉnh nội dung “đầy đủ” (Controller update cũ) -----
+  app("content");
+  app("description");
+  app("summary");
+  app("album_id");      // flow cũ
+  app("category_id");   // flow cũ
+  if (has("content_file") && params.content_file) fd.append("content_file", params.content_file);
+
+  // Đi chung một route 'update_post'
+  return fetchJson(ACTIONS.update, { method: "POST", body: fd });
+},
+
   // src/services/postService.js
   remove(id) {
     return fetchJson(`${ACTIONS.delete}&post_id=${encodeURIComponent(id)}`);

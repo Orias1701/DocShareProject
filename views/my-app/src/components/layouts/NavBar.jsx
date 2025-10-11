@@ -5,6 +5,9 @@ import "../../assets/font-awesome-6.6.0-pro-full-main/css/all.css";
 import useCurrentUser from "../../hook/useCurrentUser";
 import authApi from "../../services/usersServices"; // service admin
 
+const FALLBACK_AVATAR =
+  "https://cdn2.fptshop.com.vn/small/avatar_trang_1_cd729c335b.jpg";
+
 function NavBar({ isCollapsed, setIsCollapsed, onNewAlbumClick }) {
   const { user, loading } = useCurrentUser();
   const [isAdmin, setIsAdmin] = useState(false);
@@ -27,7 +30,7 @@ function NavBar({ isCollapsed, setIsCollapsed, onNewAlbumClick }) {
     checkAdmin();
   }, [user]);
 
-  const displayAvatar = user?.__display?.avatar || "https://i.pravatar.cc/40?img=1";
+  const displayAvatar = user?.__display?.avatar || FALLBACK_AVATAR;
   const displayName = user?.__display?.name || "User name";
 
   // Action buttons
@@ -174,7 +177,12 @@ function NavSection({ section, collapsed, loading }) {
       </AnimatePresence>
       {section.items.map(({ icon, avatar, text, path }) =>
         avatar ? (
-          <UserNavItem key={text} avatar={avatar} text={loading ? "Loading..." : text} collapsed={collapsed} />
+          <UserNavItem
+            key={text}
+            avatar={avatar}
+            text={loading ? "Loading..." : text}
+            collapsed={collapsed}
+          />
         ) : (
           <NavItem key={text} icon={icon} text={text} path={path} collapsed={collapsed} />
         )
@@ -184,9 +192,19 @@ function NavSection({ section, collapsed, loading }) {
 }
 
 function UserNavItem({ avatar, text, collapsed }) {
+  const src = avatar || FALLBACK_AVATAR;
   return (
     <div className="flex items-center gap-4 py-2 px-2 rounded-md overflow-hidden text-gray-300 bg-white/5">
-      <img src={avatar} alt="User Avatar" className="w-8 h-8 rounded-full flex-shrink-0" />
+      <img
+        src={src}
+        alt="User Avatar"
+        className="w-8 h-8 rounded-full flex-shrink-0 object-cover"
+        onError={(e) => {
+          if (e.currentTarget.src !== FALLBACK_AVATAR) {
+            e.currentTarget.src = FALLBACK_AVATAR;
+          }
+        }}
+      />
       <AnimatePresence>
         {!collapsed && (
           <motion.span
@@ -204,8 +222,10 @@ function UserNavItem({ avatar, text, collapsed }) {
 }
 
 function NavItem({ icon, text, path, collapsed }) {
-  const base = "flex items-center gap-4 py-2 px-2 rounded-md overflow-hidden text-gray-300 hover:text-white hover:bg-white/5";
-  const active = "flex items-center gap-4 py-2 px-2 rounded-md overflow-hidden text-gray-300 hover:text-white bg-white/10";
+  const base =
+    "flex items-center gap-4 py-2 px-2 rounded-md overflow-hidden text-gray-300 hover:text-white hover:bg-white/5";
+  const active =
+    "flex items-center gap-4 py-2 px-2 rounded-md overflow-hidden text-gray-300 hover:text-white bg-white/10";
 
   return (
     <NavLink to={path} className={({ isActive }) => (isActive ? active : base)}>
@@ -235,7 +255,12 @@ function ActionButton({ icon, text, path, collapsed }) {
       <i className={`${icon} flex-shrink-0`} aria-hidden="true" />
       <AnimatePresence>
         {!collapsed && (
-          <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1, transition: { delay: 0.08 } }} exit={{ opacity: 0 }} className="whitespace-nowrap">
+          <motion.span
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1, transition: { delay: 0.08 } }}
+            exit={{ opacity: 0 }}
+            className="whitespace-nowrap"
+          >
             {text}
           </motion.span>
         )}

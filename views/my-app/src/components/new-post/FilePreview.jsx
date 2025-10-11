@@ -1,20 +1,9 @@
-// src/components/new-post/FilePreview.jsx
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 
 /**
  * FilePreview
- * - Nếu có htmlContent (từ editor hoặc docx conversion): render HTML (giống vùng soạn thảo)
- * - Nếu có file:
- *    - image -> hiển thị ảnh
- *    - pdf -> embed
- *    - docx -> chuyển thành HTML bằng mammoth (browser) rồi hiển thị
- * - Nếu chưa có gì: hiển thị placeholder
- *
- * Props:
- *  - file: File | null
- *  - htmlContent: optional HTML string (priority cao hơn file)
- *  - html: alias cho htmlContent (để backward-compat)
- *  - onDocxHtml: function(html) => callback khi docx đã convert xong (để cha có thể lưu HTML)
+ * - Nếu có htmlContent: render HTML (ưu tiên)
+ * - Nếu có file: image/pdf/docx
  */
 const FilePreview = ({ file, htmlContent, html, onDocxHtml }) => {
   const [previewUrl, setPreviewUrl] = useState(null);
@@ -22,15 +11,22 @@ const FilePreview = ({ file, htmlContent, html, onDocxHtml }) => {
   const [loadingDocx, setLoadingDocx] = useState(false);
   const [docxError, setDocxError] = useState(null);
 
-  const effectiveHtml = htmlContent ?? html ?? null;
+  const effectiveHtml = htmlContent ?? html ?? docxHtml ?? null;
 
-  // tạo/revoke object URL cho file (ảnh/pdf)
+  const renderKey = useMemo(() => {
+    if (!effectiveHtml) return "nohtml";
+    const len = effectiveHtml.length;
+    const head = effectiveHtml.charCodeAt(0) || 0;
+    const tail = effectiveHtml.charCodeAt(len - 1) || 0;
+    return `html-${len}-${head}-${tail}`;
+  }, [effectiveHtml]);
+
   useEffect(() => {
     if (!file) {
       setPreviewUrl(null);
       return;
     }
-    if (file && (file.type.startsWith("image/") || file.type === "application/pdf")) {
+    if (file.type?.startsWith?.("image/") || file.type === "application/pdf") {
       const url = URL.createObjectURL(file);
       setPreviewUrl(url);
       return () => {
@@ -41,7 +37,6 @@ const FilePreview = ({ file, htmlContent, html, onDocxHtml }) => {
     setPreviewUrl(null);
   }, [file]);
 
-  // convert DOCX -> HTML using mammoth (browser)
   useEffect(() => {
     let cancelled = false;
     setDocxHtml(null);
@@ -87,46 +82,89 @@ const FilePreview = ({ file, htmlContent, html, onDocxHtml }) => {
     };
   }, [file, onDocxHtml]);
 
+  useEffect(() => {
+    if (htmlContent ?? html) {
+      if (docxHtml) setDocxHtml(null);
+      if (docxError) setDocxError(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [htmlContent, html]);
+
   const renderPreview = () => {
-    // priority 1: explicit htmlContent/html (from editor)
     if (effectiveHtml) {
       return (
-        <div
-          className="prose prose-invert text-left max-w-none w-full h-auto"
-          dangerouslySetInnerHTML={{ __html: effectiveHtml }}
-        />
+        <>
+          <style>{`
+            .preview-html { line-height: 1.7; font-size: 0.95rem; }
+            .preview-html h1, .preview-html h2, .preview-html h3 { margin: 0.6em 0 0.4em; font-weight: 700; }
+            .preview-html h1 { font-size: 1.6rem; }
+            .preview-html h2 { font-size: 1.35rem; }
+            .preview-html h3 { font-size: 1.15rem; }
+            .preview-html p { margin: 0.5em 0; }
+            .preview-html a { text-decoration: underline; }
+            .preview-html img { max-width: 100%; height: auto; border-radius: 0.25rem; }
+
+            .preview-html ul, .preview-html ol { margin: 0.5em 0 0.5em 1.25em; }
+            .preview-html li { margin: 0.25em 0; }
+
+            .preview-html blockquote {
+              border-left: 4px solid rgba(255,255,255,0.15);
+              padding-left: 0.75rem;
+              margin: 0.75rem 0;
+              color: rgba(255,255,255,0.8);
+              font-style: italic;
+            }
+
+            .preview-html code {
+              font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+              background: rgba(255,255,255,0.06);
+              padding: 0.15rem 0.35rem;
+              border-radius: 0.25rem;
+            }
+            .preview-html pre {
+              background: rgba(255,255,255,0.06);
+              padding: 0.75rem 0.9rem;
+              border-radius: 0.5rem;
+              overflow-x: auto;
+              margin: 0.75rem 0;
+            }
+            .preview-html pre code { background: transparent; padding: 0; }
+
+            .preview-html .ql-align-center { text-align: center; }
+            .preview-html .ql-align-right { text-align: right; }
+            .preview-html .ql-align-justify { text-align: justify; }
+
+            .preview-html .ql-size-small { font-size: 0.85em; }
+            .preview-html .ql-size-large { font-size: 1.25em; }
+            .preview-html .ql-size-huge { font-size: 1.5em; }
+
+            ${Array.from({length: 9}).map((_,i)=>`.preview-html .ql-indent-${i+1}{ margin-left: ${(i+1)*1.5}rem; }`).join("\n")}
+
+            .preview-html .ql-code-block {
+              font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+              background: rgba(255,255,255,0.06);
+              padding: 0.6rem 0.75rem;
+              border-radius: 0.5rem;
+              white-space: pre-wrap;
+            }
+          `}</style>
+
+          <div
+            key={renderKey}
+            className="preview-html prose prose-invert max-w-none w-full"
+            dangerouslySetInnerHTML={{ __html: effectiveHtml }}
+          />
+        </>
       );
     }
 
-    // priority 2: docxHtml (converted)
-    if (docxHtml) {
-      return (
-        <div
-          className="prose prose-invert text-left max-w-none w-full h-auto"
-          dangerouslySetInnerHTML={{ __html: docxHtml }}
-        />
-      );
-    }
+    if (loadingDocx) return <p className="text-gray-400">Đang convert file Word sang HTML...</p>;
+    if (docxError) return <p className="text-red-400">{docxError}</p>;
 
-    if (loadingDocx) {
-      return <p className="text-gray-400">Đang convert file Word sang HTML...</p>;
-    }
-    if (docxError) {
-      return <p className="text-red-400">{docxError}</p>;
-    }
-
-    if (!file || !previewUrl) {
-      return <p className="text-gray-500">File uploaded will be shown here</p>;
-    }
+    if (!file || !previewUrl) return <p className="text-gray-500">File uploaded will be shown here</p>;
 
     if (file.type.startsWith("image/")) {
-      return (
-        <img
-          src={previewUrl}
-          alt="File preview"
-          className="max-w-full max-h-full object-contain rounded-lg"
-        />
-      );
+      return <img src={previewUrl} alt="File preview" className="max-w-full max-h-full object-contain rounded-lg" />;
     }
 
     if (file.type === "application/pdf") {

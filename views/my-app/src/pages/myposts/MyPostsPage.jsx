@@ -14,11 +14,11 @@ export default function MyPostsPage() {
     post_id: p.post_id,
     title: p.title || "Untitled",
     authorName: p.author_name || "Tôi",
-    authorAvatar: p.avatar_url || p.author_avatar || "/images/default-avatar.png",
+    authorAvatar: p.avatar_url || p.author_avatar || "https://cdn2.fptshop.com.vn/small/avatar_trang_1_cd729c335b.jpg",
     author: {
       id: p.user_id,
       name: p.author_name || "Tôi",
-      avatar: p.avatar_url || p.author_avatar || "/images/default-avatar.png",
+      avatar: p.avatar_url || p.author_avatar || "https://cdn2.fptshop.com.vn/small/avatar_trang_1_cd729c335b.jpg",
     },
     uploadTime: p.created_at,
     banner: p.banner_url || null,
@@ -29,8 +29,13 @@ export default function MyPostsPage() {
       comments: p.comment_count || 0,
       views: p.view_count || 0,
     },
+    album_id: p.album_id,
     album_name: p.album_name,
+    category_id: p.category_id,
+    category_name: p.category_name,
     is_bookmarked: !!p.is_bookmarked,
+    user_id: p.user_id,
+    created_at: p.created_at,
   });
 
   useEffect(() => {
@@ -39,8 +44,8 @@ export default function MyPostsPage() {
       setError(null);
       try {
         const [rows, myBms] = await Promise.all([
-          postService.listMyPosts(),   // danh sách bài viết
-          bookmarkService.list(),      // danh sách bookmark của tôi
+          postService.listMyPosts(),
+          bookmarkService.list(),
         ]);
 
         const bookmarkedSet = new Set(
@@ -109,6 +114,59 @@ export default function MyPostsPage() {
     });
   };
 
+  // ✅ Khi EDIT: merge + move giữa các album nếu đổi album
+  const handleEdited = (u) => {
+    setSections((prev) => {
+      const pid = String(u.post_id);
+      const next = prev.map((sec) => ({ ...sec, posts: [...sec.posts] }));
+      let oldSecIdx = -1, oldPostIdx = -1, oldPost = null, oldAlbumKey = null;
+
+      next.forEach((sec, si) => {
+        const idx = sec.posts.findIndex((pp) => String(pp.post_id ?? pp.id) === pid);
+        if (idx !== -1) {
+          oldSecIdx = si;
+          oldPostIdx = idx;
+          oldPost = sec.posts[idx];
+          oldAlbumKey = oldPost.album_id || "__no_album__";
+        }
+      });
+      if (!oldPost) return prev;
+
+      const merged = {
+        ...oldPost,
+        ...u,
+        id: u.post_id,
+        post_id: u.post_id,
+        album_id: u.album_id ?? oldPost.album_id,
+        album_name: u.album_name ?? oldPost.album_name,
+      };
+
+      const newAlbumKey = merged.album_id || "__no_album__";
+      if (String(newAlbumKey) === String(oldAlbumKey)) {
+        next[oldSecIdx].posts[oldPostIdx] = merged;
+        return next;
+      }
+
+      // remove from old group
+      next[oldSecIdx].posts.splice(oldPostIdx, 1);
+      if (next[oldSecIdx].posts.length === 0) next.splice(oldSecIdx, 1);
+
+      // add to new group (create if not exists)
+      const newTitle = merged.album_name || "Chưa có album";
+      let target = next.find((s) => s.title === newTitle);
+      if (!target) {
+        target = { title: newTitle, posts: [] };
+        next.push(target);
+      }
+      target.posts.push(merged);
+      target.posts.sort(
+        (a, b) =>
+          new Date(b.uploadTime || b.created_at || 0) - new Date(a.uploadTime || a.created_at || 0)
+      );
+      return next;
+    });
+  };
+
   if (loading) return <div className="text-white p-4">Đang tải dữ liệu...</div>;
   if (error) {
     return (
@@ -142,7 +200,8 @@ export default function MyPostsPage() {
                 </span>
               }
               onBookmarkChange={handleBookmarkChange}
-              onDeleted={handleDeleted} 
+              onDeleted={handleDeleted}
+              onEdited={handleEdited}   // ⬅️ rất quan trọng
             />
           ))
         )}

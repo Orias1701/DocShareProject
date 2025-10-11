@@ -1,17 +1,19 @@
-// src/components/albums/NewAlbumForm.jsx
-import React, { useState } from 'react';
-import FileUpload from '../new-post/FileUpload';
-import FormField from '../new-post/FormField';
-import albumService from '../../services/albumService';
-import Toast from '../../components/common/Toast';
+import React, { useState } from "react";
+import FileUpload from "../new-post/FileUpload";
+import FormField from "../new-post/FormField";
+import albumService from "../../services/albumService";
+import Toast from "../common/Toast";
 
-const normalizeCreatedAlbum = (res, fallbackName, fallbackFile) => {
-  // BE có thể trả nhiều dạng khác nhau, ta gom lại an toàn
-  const d = res?.data || res || {};
-  const album_id = d.album_id ?? d.id ?? d.data?.album_id ?? d.data?.id;
-  const album_name = d.album_name ?? d.name ?? fallbackName ?? 'Album';
-  const created_at = d.created_at ?? new Date().toISOString();
-  const url_thumbnail = d.url_thumbnail ?? null;
+// Chuẩn hoá dữ liệu album BE trả về (nhiều kiểu shape khác nhau)
+const normalizeCreatedAlbum = (res, fallbackName) => {
+  const d = res?.data ?? res ?? {};
+  const payload = d.album || d.data || d;
+
+  const album_id = payload?.album_id ?? payload?.id;
+  const album_name =
+    payload?.album_name ?? payload?.name ?? fallbackName ?? "Album";
+  const created_at = payload?.created_at ?? new Date().toISOString();
+  const url_thumbnail = payload?.url_thumbnail ?? null;
 
   return {
     album_id,
@@ -20,50 +22,56 @@ const normalizeCreatedAlbum = (res, fallbackName, fallbackFile) => {
     name: album_name,
     created_at,
     url_thumbnail,
-    // để MyAlbumPage map ra card dùng luôn
     _raw: res,
   };
 };
 
 const NewAlbumForm = ({ onClose, onCreated }) => {
-  const [albumName, setAlbumName] = useState('');
+  const [albumName, setAlbumName] = useState("");
   const [thumbnail, setThumbnail] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [fieldError, setFieldError] = useState(null);
 
-  const [toast, setToast] = useState({ open: false, message: '', type: 'success' });
+  const [toast, setToast] = useState({
+    open: false,
+    message: "",
+    type: "success",
+  });
 
   const handleSubmit = async () => {
     setFieldError(null);
     if (!albumName.trim()) {
-      setFieldError('Album title là bắt buộc');
+      setFieldError("Album title là bắt buộc");
       return;
     }
 
     try {
       setSubmitting(true);
 
-      // ✅ Gọi service bằng object (như bạn đã làm)
       const res = await albumService.create({
         album_name: albumName.trim(),
-        description: '',
-        thumbnail, // nếu BE chưa nhận cũng không sao
+        description: "",
+        thumbnail, // nếu BE chưa hỗ trợ cũng không sao
       });
 
-      // Chuẩn hoá dữ liệu album mới
-      const createdAlbum = normalizeCreatedAlbum(res, albumName, thumbnail);
+      const createdAlbum = normalizeCreatedAlbum(res, albumName);
 
-      // Báo cho cha biết để cập nhật UI ngay
+      // ✅ Báo về cha để cập nhật list & đóng modal ngay
       onCreated?.(createdAlbum);
+      onClose?.();
 
-      setToast({ open: true, message: 'Tạo album thành công!', type: 'success' });
+      setToast({
+        open: true,
+        message: "Tạo album thành công!",
+        type: "success",
+      });
     } catch (e) {
       setToast({
         open: true,
-        message: e?.message || 'Tạo album thất bại. Vui lòng thử lại!',
-        type: 'error',
+        message: e?.message || "Tạo album thất bại. Vui lòng thử lại!",
+        type: "error",
       });
-      console.error('[create_album] error:', e);
+      console.error("[create_album] error:", e);
     } finally {
       setSubmitting(false);
     }
@@ -89,9 +97,7 @@ const NewAlbumForm = ({ onClose, onCreated }) => {
         onFileSelect={setThumbnail}
       />
       {thumbnail && (
-        <p className="text-xs text-gray-400 -mt-4">
-          Đã chọn: {thumbnail.name} (hiện chưa gửi lên server)
-        </p>
+        <p className="text-xs text-gray-400 -mt-4">Đã chọn: {thumbnail.name}</p>
       )}
 
       <div className="flex justify-end mt-2">
@@ -100,7 +106,7 @@ const NewAlbumForm = ({ onClose, onCreated }) => {
           disabled={submitting}
           className="bg-gray-200 hover:bg-white disabled:opacity-60 text-black font-bold py-2 px-8 rounded-lg transition-colors"
         >
-          {submitting ? 'Submitting...' : 'Submit'}
+          {submitting ? "Submitting..." : "Submit"}
         </button>
       </div>
 
@@ -108,10 +114,7 @@ const NewAlbumForm = ({ onClose, onCreated }) => {
         open={toast.open}
         message={toast.message}
         type={toast.type}
-        onClose={() => {
-          setToast((t) => ({ ...t, open: false }));
-          if (toast.type === 'success') onClose?.(); // đóng modal khi thành công
-        }}
+        onClose={() => setToast((t) => ({ ...t, open: false }))}
       />
     </div>
   );

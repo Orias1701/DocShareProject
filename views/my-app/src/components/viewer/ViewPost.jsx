@@ -23,7 +23,6 @@ export default function ViewPost({ postId, currentUserId, backHref, onBack }) {
         setLoading(true);
         const res = await postService.getByIdCompact(postId);
         const p = res?.data?.post || res?.data || null;
-
         setPost(p || null);
         setHashtags(res?.data?.hashtags || []);
 
@@ -54,8 +53,7 @@ export default function ViewPost({ postId, currentUserId, backHref, onBack }) {
   }, [postId, showComments]);
 
   if (loading) return <div className="p-6 text-gray-400">Đang tải post…</div>;
-  if (!post)
-    return <div className="p-6 text-red-400">Không tìm thấy dữ liệu post.</div>;
+  if (!post) return <div className="p-6 text-red-400">Không tìm thấy dữ liệu post.</div>;
 
   const {
     title,
@@ -86,22 +84,78 @@ export default function ViewPost({ postId, currentUserId, backHref, onBack }) {
 
   const main = (
     <div className={`${css.card} min-h-[420px]`}>
-      {/* Action bar */}
-      <div className="p-4 flex items-center gap-2">
-        {/* Mở bản gốc nếu có file_url */}
-        {file_url ? (
-          <a
-            href={file_url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="px-3 py-1.5 text-sm rounded bg-white/10 hover:bg-white/20"
-            title="Mở bản gốc"
-          >
-            Mở bản gốc
-          </a>
-        ) : null}
+      {/* Style riêng cho vùng hiển thị nội dung WORD */}
+      <style>{`
+        /* Khung "trang giấy" */
+        .viewer-page {
+          background: #0f172a;           /* tối nhẹ khác nền */
+          border: 1px solid #2d2d33;
+          border-radius: 12px;
+          padding: 28px;
+          max-width: 720px;              /* độ rộng đọc tốt ~A4 */
+          margin-left: auto;
+          margin-right: auto;
+        }
+        /* Typography cơ bản, mặc định canh trái */
+        .viewer-content { 
+          color: #e5e7eb;
+          text-align: left;
+          line-height: 1.8;
+          font-size: 1rem;
+        }
+        .viewer-content h1, .viewer-content h2, .viewer-content h3 {
+          font-weight: 700;
+          line-height: 1.25;
+          margin: 0.8em 0 0.4em;
+        }
+        .viewer-content h1 { font-size: 1.75rem; }
+        .viewer-content h2 { font-size: 1.4rem; }
+        .viewer-content h3 { font-size: 1.2rem; }
 
-        {/* Quay lại */}
+        .viewer-content p { margin: 0.7em 0; }
+        .viewer-content a { color: #93c5fd; text-decoration: underline; }
+        .viewer-content img { max-width: 100%; height: auto; border-radius: 6px; }
+        .viewer-content ul, .viewer-content ol { margin: 0.6em 0 0.6em 1.25em; }
+        .viewer-content li { margin: 0.25em 0; }
+
+        .viewer-content blockquote {
+          border-left: 4px solid rgba(255,255,255,0.15);
+          padding-left: 0.9rem;
+          margin: 0.9rem 0;
+          color: #d1d5db;
+          font-style: italic;
+        }
+        .viewer-content code {
+          font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+          background: rgba(255,255,255,0.08);
+          padding: 0.15rem 0.35rem;
+          border-radius: 0.3rem;
+        }
+        .viewer-content pre {
+          background: rgba(255,255,255,0.08);
+          padding: 0.9rem 1rem;
+          border-radius: 0.6rem;
+          overflow-x: auto;
+          margin: 0.9rem 0;
+        }
+        .viewer-content pre code { background: transparent; padding: 0; }
+
+        /* Map các class của Quill để canh lề đúng */
+        .viewer-content .ql-align-center { text-align: center; }
+        .viewer-content .ql-align-right { text-align: right; }
+        .viewer-content .ql-align-justify { text-align: justify; }
+
+        /* Size của Quill */
+        .viewer-content .ql-size-small { font-size: 0.9em; }
+        .viewer-content .ql-size-large { font-size: 1.25em; }
+        .viewer-content .ql-size-huge  { font-size: 1.5em; }
+
+        /* Thụt đầu dòng của Quill */
+        ${Array.from({length: 9}).map((_,i)=>`.viewer-content .ql-indent-${i+1}{ margin-left: ${(i+1)*1.5}rem; }`).join("\n")}
+      `}</style>
+
+      {/* Header actions */}
+      <div className="p-4 flex items-center gap-2">
         {backHref ? (
           <a
             href={typeof backHref === "string" ? backHref : "#"}
@@ -125,7 +179,6 @@ export default function ViewPost({ postId, currentUserId, backHref, onBack }) {
           </button>
         )}
 
-        {/* Menu (Report / Tải) – chỉ giữ trong menu */}
         <div className="ml-auto">
           <PostOptionsMenu
             postId={effectivePostId}
@@ -154,10 +207,15 @@ export default function ViewPost({ postId, currentUserId, backHref, onBack }) {
           />
         )
       ) : content ? (
-        <div
-          className="p-4 prose prose-invert max-w-none"
-          dangerouslySetInnerHTML={{ __html: content }}
-        />
+        <div className="px-4 pb-6">
+          {/* khung trang + nội dung */}
+          <div className="viewer-page">
+            <div
+              className="viewer-content prose prose-invert max-w-none"
+              dangerouslySetInnerHTML={{ __html: content }}
+            />
+          </div>
+        </div>
       ) : (
         <div className="w-full h-[420px] grid place-items-center text-gray-400">
           Chưa có dữ liệu

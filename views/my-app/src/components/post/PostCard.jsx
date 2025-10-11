@@ -6,11 +6,10 @@ import ReactionThumbs from "./ReactionThumbs";
 import PostOptionsMenu from "./PostOptionsMenu";
 
 const FALLBACK_URL =
-  "https://i.pinimg.com/736x/18/bd/a5/18bda5a4616cd195fe49a9a32dbab836.jpg";
+  "https://play-lh.googleusercontent.com/YkKvpRk6awQCkSi2oVDRBH7BAWpp0QBUWV9Pf-BVDTvJqwH8q3naROPyZET99DvO1HWq=w240-h480-rw";
 const FALLBACK_AVATAR =
   "https://i.pinimg.com/736x/c7/cd/4d/c7cd4dde24c8fcfeeddc73899a45c4b0.jpg";
 
-/** Chuẩn hoá hashtag */
 function normalizeHashtags(hx) {
   const toDisplay = (s) => {
     const t = String(s || "").trim();
@@ -32,16 +31,12 @@ function normalizeHashtags(hx) {
   }
   if (typeof hx === "string") {
     return Array.from(
-      new Set(
-        hx
-          .split(/[,\s]+/).map((s) => toDisplay(s)).filter(Boolean)
-      )
+      new Set(hx.split(/[,\s]+/).map((s) => toDisplay(s)).filter(Boolean))
     );
   }
   return [];
 }
 
-/** Check ảnh */
 function isImageUrl(url, type) {
   const u = String(url || "");
   if (!u) return false;
@@ -57,7 +52,8 @@ export default function PostCard({
   initiallyBookmarked,
   onBookmarkChange,
   hideReactions = false,
-  onDeleted, // ✅ nhận callback để xoá UI ngay
+  onDeleted,
+  onEdited,           // ⬅️ thêm
 }) {
   if (!post || typeof post !== "object") return null;
 
@@ -156,8 +152,13 @@ export default function PostCard({
           )}
         </div>
 
-        {/* 👉 Truyền ownerId và onDeleted xuống menu để kiểm tra quyền & cập nhật UI */}
-        <PostOptionsMenu postId={postId} ownerId={authorId} onDeleted={onDeleted} />
+        <PostOptionsMenu
+          postId={postId}
+          ownerId={authorId}
+          postRaw={post}
+          onDeleted={onDeleted}
+          onEdited={onEdited}   // ⬅️ truyền lên để parent cập nhật state
+        />
       </div>
 
       {/* Body */}
@@ -215,5 +216,6 @@ PostCard.propTypes = {
   initiallyBookmarked: PropTypes.bool,
   onBookmarkChange: PropTypes.func,
   hideReactions: PropTypes.bool,
-  onDeleted: PropTypes.func, // ✅ thêm prop
+  onDeleted: PropTypes.func,
+  onEdited: PropTypes.func,    // ⬅️
 };

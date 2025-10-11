@@ -8,7 +8,7 @@ import useAuth from "../../hook/useAuth"; // ✅ chú ý: hooks/useAuth
 import post_commentServices from "../../services/post_commentServices";
 
 const FALLBACK_IMG =
-  "https://i.pinimg.com/736x/18/bd/a5/18bda5a4616cd195fe49a9a32dbab836.jpg";
+  "https://cdn2.fptshop.com.vn/small/avatar_trang_1_cd729c335b.jpg";
 
 export default function PostCardProfile({ post = {} }) {
   // Lấy user hiện đang đăng nhập để truyền xuống CommentsPanel

@@ -95,12 +95,25 @@ export default function ExplorePage() {
     setFollowing((prev) => updateList(prev));
   };
 
-  // ✅ Khi xoá ở card: gỡ khỏi cả 3 danh sách
   const handleDeleted = (deletedId) => {
     const isSame = (p) => String(p.post_id ?? p.id) === String(deletedId);
     setPopular((prev) => prev.filter((p) => !isSame(p)));
     setLatest((prev) => prev.filter((p) => !isSame(p)));
     setFollowing((prev) => prev.filter((p) => !isSame(p)));
+  };
+
+  // ✅ Khi EDIT: merge lại trường mới (Explore không nhóm theo album)
+  const handleEdited = (u) => {
+    const pid = String(u.post_id);
+    const apply = (list) =>
+      list.map((p) =>
+        String(p.post_id ?? p.id) === pid
+          ? { ...p, ...u, id: u.post_id, post_id: u.post_id }
+          : p
+      );
+    setPopular((prev) => apply(prev));
+    setLatest((prev) => apply(prev));
+    setFollowing((prev) => apply(prev));
   };
 
   if (loading) return <p className="text-gray-400">Đang tải explore…</p>;
@@ -113,33 +126,11 @@ export default function ExplorePage() {
           posts={popular}
           hideReactions={false}
           onBookmarkChange={handleBookmarkChange}
-          onDeleted={handleDeleted}   // ✅
+          onDeleted={handleDeleted}
+          onEdited={handleEdited}   // ⬅️ thêm
         />
       )}
 
-      {trendingTags?.length > 0 && (
-        <section>
-          <h2 className="text-2xl font-bold text-white mb-4">🏷️ Hashtag đang nổi</h2>
-          <div className="flex flex-wrap gap-2">
-            {trendingTags.map((t) => {
-              const slug = encodeURIComponent(
-                String(t.name || t.hashtag_name || "").replace(/^#/, "")
-              );
-              const label = t.name || t.hashtag_name || "";
-              return (
-                <Link
-                  key={t.id || t.hashtag_id || label}
-                  to={`/hashtag/${slug}`}
-                  className="px-3 py-1 rounded-lg bg-white/10 text-white hover:bg-white/20"
-                  title="Xem bài theo hashtag"
-                >
-                  {label}
-                </Link>
-              );
-            })}
-          </div>
-        </section>
-      )}
 
       {latest?.length > 0 && (
         <PostSection
@@ -147,7 +138,8 @@ export default function ExplorePage() {
           posts={latest}
           hideReactions
           onBookmarkChange={handleBookmarkChange}
-          onDeleted={handleDeleted}   // ✅
+          onDeleted={handleDeleted}
+          onEdited={handleEdited}   // ⬅️ thêm
         />
       )}
 
@@ -156,7 +148,8 @@ export default function ExplorePage() {
           title="👥 Từ người bạn theo dõi"
           posts={following}
           onBookmarkChange={handleBookmarkChange}
-          onDeleted={handleDeleted}   // ✅
+          onDeleted={handleDeleted}
+          onEdited={handleEdited}   // ⬅️ thêm
         />
       )}
 

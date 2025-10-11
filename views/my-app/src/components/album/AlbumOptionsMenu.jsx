@@ -1,3 +1,4 @@
+// src/components/albums/AlbumOptionsMenu.jsx
 import React, { useEffect, useRef, useState } from "react";
 import ConfirmModal from "../common/ConfirmModal";
 import ModalEditAlbum from "../user_manager/modals/ModalEditAlbum";
@@ -101,7 +102,8 @@ export default function AlbumOptionsMenu({
 
         let owner = ownerId ?? null;
         if (owner == null && typeof albumService.getAlbumDetail === "function") {
-          const detail = await albumService.getAlbumDetail(albumId).catch(() => null);
+          // ✅ gọi đúng chữ ký service: nhận object { album_id }
+          const detail = await albumService.getAlbumDetail({ album_id: albumId }).catch(() => null);
           owner =
             detail?.user_id ??
             detail?.data?.user_id ??
@@ -152,31 +154,29 @@ export default function AlbumOptionsMenu({
   };
 
   // ===== MỞ EDIT =====
-  // ===== MỞ EDIT =====
-const handleOpenEdit = () => {
-  setOpen(false);
+  const handleOpenEdit = () => {
+    setOpen(false);
 
-  // nếu đã có dữ liệu albumObj thì dùng luôn, không cần fetch
-  if (albumObj) {
-    setEditAlbum(albumObj);
-    setOpenEdit(true);
-    return;
-  }
+    // nếu đã có dữ liệu albumObj thì dùng luôn, không cần fetch
+    if (albumObj) {
+      setEditAlbum(albumObj);
+      setOpenEdit(true);
+      return;
+    }
 
-  // fallback: tải chi tiết theo album_id (đúng URL backend)
-  albumService
-    .getAlbumDetail({ album_id: albumId })   // ✅ SỬA Ở ĐÂY: gọi đúng tham số
-    .then((detail) => {
-      if (detail) {
-        setEditAlbum(detail);
-        setOpenEdit(true);
-      } else {
-        showToast("error", "Không thể tải chi tiết album.");
-      }
-    })
-    .catch(() => showToast("error", "Không thể tải chi tiết album."));
-};
-
+    // fallback: tải chi tiết theo album_id (đúng tham số service)
+    albumService
+      .getAlbumDetail({ album_id: albumId })
+      .then((detail) => {
+        if (detail) {
+          setEditAlbum(detail);
+          setOpenEdit(true);
+        } else {
+          showToast("error", "Không thể tải chi tiết album.");
+        }
+      })
+      .catch(() => showToast("error", "Không thể tải chi tiết album."));
+  };
 
   // ===== LƯU EDIT =====
   const handleSaveEdit = async ({ album_id, album_name, description, thumbnailFile }) => {
@@ -194,7 +194,9 @@ const handleOpenEdit = () => {
           album_id,
           album_name,
           description,
-          url_thumbnail: thumbnailFile ? URL.createObjectURL(thumbnailFile) : albumObj?.url_thumbnail,
+          url_thumbnail: thumbnailFile
+            ? URL.createObjectURL(thumbnailFile)
+            : albumObj?.url_thumbnail,
         });
         return { status: "ok", message: "Cập nhật album thành công." };
       }

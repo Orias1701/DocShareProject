@@ -8,7 +8,7 @@ import user_followServices from "../../services/user_followServices";
 import postService from "../../services/postService";
 
 const tabs = ["Criterion 1", "Criterion 2", "Criterion 3", "Criterion 4"];
-const FALLBACK_AVATAR = "https://via.placeholder.com/96?text=User";
+const FALLBACK_AVATAR = "https://cdn2.fptshop.com.vn/small/avatar_trang_1_cd729c335b.jpg";
 
 export default function LeaderboardPage() {
   const [activeTab, setActiveTab] = useState(tabs[0]);

@@ -8,8 +8,10 @@ import ModalEditPost from "../../../components/user_manager/modals/ModalEditPost
 import PostInfoPanel from "../../../components/user_manager/panels/PostInfoPanel";
 
 import postService from "../../../services/postService";
+import albumService from "../../../services/albumService";
+import categoryServices from "../../../services/categoryServices";
 
-const FALLBACK_AVATAR = "https://i.pravatar.cc/100?img=12";
+const FALLBACK_AVATAR = "https://cdn2.fptshop.com.vn/small/avatar_trang_1_cd729c335b.jpg";
 const slugHash = (name) =>
   name ? `#${name.toString().trim().replace(/\s+/g, "")}` : undefined;
 
@@ -20,7 +22,7 @@ const mapApiPost = (p) => {
     "unknown";
   return {
     id: p.post_id,
-    authorId: p.user_id,
+    authorId: p.user_id,          // ← user_id của author
     authorName,
     authorAvatar: p.avatar_url || FALLBACK_AVATAR,
     title: p.title || p.summary || (p.description ?? "Untitled"),
@@ -34,6 +36,15 @@ const mapApiPost = (p) => {
     raw: p,
   };
 };
+
+function getCurrentUserId() {
+  return (
+    window?.APP?.currentUser?.user_id ||
+    window?.SESSION?.user_id ||
+    window?.CURRENT_USER?.user_id ||
+    null
+  );
+}
 
 export default function PostsTab() {
   const navigate = useNavigate();
@@ -60,6 +71,13 @@ export default function PostsTab() {
     showBanner._t = window.setTimeout(() => setBanner(null), ms);
   };
 
+  // Dữ liệu cho modal
+  const [albums, setAlbums] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const isAdmin =
+    (window?.APP?.currentUser?.role_id || window?.SESSION?.role_id) ===
+    "ROLE000";
+
   const totalPages = Math.max(1, Math.ceil(data.length / PAGE_SIZE));
   const pageData = useMemo(() => {
     const start = (page - 1) * PAGE_SIZE;
@@ -78,7 +96,7 @@ export default function PostsTab() {
         const mapped = res.data.map(mapApiPost);
         setData(mapped);
         setFetched(true);
-        setSelectedId(mapped[0]?.id);
+        setSelectedId((prev) => prev ?? mapped[0]?.id);
       } else {
         throw new Error(res?.message || "Invalid post list response");
       }
@@ -89,13 +107,66 @@ export default function PostsTab() {
     }
   };
 
+  // Tải albums/categories cho đúng OWNER của post đang sửa
+  const fetchAlbumsCategories = async () => {
+    try {
+      // ưu tiên owner của post đang sửa
+      const userIdTarget =
+        editPost?.user_id || editPost?.author_id || editPost?.raw?.user_id || getCurrentUserId();
+
+      let albArr = [];
+      if (userIdTarget) {
+        albArr = await albumService.listAlbumsByUserId(userIdTarget);
+      } else {
+        // fallback nhẹ – thử lấy album của chính mình
+        albArr = await albumService.listMyAlbums();
+        if (!Array.isArray(albArr) || albArr.length === 0) {
+          // dự phòng cuối cùng: all albums (không khuyến nghị)
+          albArr = await albumService.listAllAlbums();
+        }
+      }
+
+      const normAlbums = (albArr || []).map((a) => ({
+        album_id: a.album_id ?? a.id,
+        album_name: a.album_name ?? a.name,
+      }));
+
+      // categories
+      const catRes = await categoryServices.list();
+      const catArr = Array.isArray(catRes?.data)
+        ? catRes.data
+        : Array.isArray(catRes)
+        ? catRes
+        : [];
+      const normCategories = catArr.map((c) => ({
+        category_id: c.category_id ?? c.id,
+        category_name: c.category_name ?? c.name,
+      }));
+
+      setAlbums(normAlbums);
+      setCategories(normCategories);
+    } catch {
+      setAlbums([]);
+      setCategories([]);
+    }
+  };
+
   useEffect(() => {
     if (!fetched && !loading) fetchPosts();
   }, []); // once
 
   useEffect(() => setPage(1), [fetched]);
 
-  // ====== THỰC THI XOÁ ======
+  // Khi mở modal edit, load albums/categories theo owner của post
+  useEffect(() => {
+    if (openEdit && (albums.length === 0 || categories.length === 0)) {
+      fetchAlbumsCategories();
+    }
+    // phụ thuộc vào post đang sửa để đổi owner → reload list
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openEdit, editPost]);
+
+  // ====== XOÁ ======
   const doDelete = async (postId) => {
     let res;
     try {
@@ -110,24 +181,33 @@ export default function PostsTab() {
   const removeFromLocal = (postId) => {
     setData((prev) => {
       const next = prev.filter((x) => x.id !== postId);
-      setSelectedId((prevSel) =>
-        prevSel === postId ? next[0]?.id : prevSel
-      );
+      setSelectedId((prevSel) => (prevSel === postId ? next[0]?.id : prevSel));
       const newTotalPages = Math.max(1, Math.ceil(next.length / PAGE_SIZE));
       setPage((p) => Math.min(p, newTotalPages));
       return next;
     });
   };
 
-  // ====== SUBMIT EDIT (UI only) ======
+  // ====== SUBMIT EDIT (goi postService.update) ======
   const handleSubmitEdit = async (payload) => {
-    console.log("[PostsTab] submit edit payload:", payload);
-    showBanner("success", "Đã lưu thay đổi (demo UI).");
-    setOpenEdit(false);
-    setEditPost(null);
+    try {
+      const res = await postService.update(payload);
+      if (res?.status === "ok" || res?.status === "success") {
+        showBanner("success", res?.message || "Đã cập nhật bài viết.");
+        await fetchPosts();
+        return { status: "ok", message: res?.message };
+      }
+      throw new Error(res?.message || "Update failed");
+    } catch (e) {
+      showBanner("error", e?.message || "Update failed");
+      return { status: "error", message: e?.message || "Update failed" };
+    } finally {
+      setOpenEdit(false);
+      setEditPost(null);
+    }
   };
 
-  // Hiệu ứng loading nhỏ khi chuyển post
+  // Loading nhỏ khi chuyển post
   useEffect(() => {
     if (selectedId) {
       setPanelLoading(true);
@@ -138,7 +218,7 @@ export default function PostsTab() {
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      {/* ====== DANH SÁCH BÀI VIẾT ====== */}
+      {/* ====== DANH SÁCH ====== */}
       <div className="lg:col-span-2 space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold">Post List</h2>
@@ -154,7 +234,7 @@ export default function PostsTab() {
           </div>
         </div>
 
-        {/* 🔔 banner */}
+        {/* banner */}
         {banner && (
           <div
             className={
@@ -219,7 +299,7 @@ export default function PostsTab() {
                 post={p}
                 compact
                 onEdit={() => {
-                  setEditPost(p.raw);
+                  setEditPost(p.raw);     // để biết owner (p.raw.user_id)
                   setOpenEdit(true);
                 }}
                 onDelete={() => setConfirm({ open: true, target: p })}
@@ -252,7 +332,7 @@ export default function PostsTab() {
         )}
       </div>
 
-      {/* ====== PANEL CHI TIẾT BÊN PHẢI ====== */}
+      {/* ====== PANEL CHI TIẾT ====== */}
       <aside className="relative">
         {panelLoading ? (
           <div className="absolute inset-0 flex items-center justify-center bg-[#1C2028] rounded-xl border border-[#2d2d33] text-white/60 animate-pulse">
@@ -267,7 +347,7 @@ export default function PostsTab() {
         )}
       </aside>
 
-      {/* ====== MODAL XÁC NHẬN XOÁ ====== */}
+      {/* ====== MODAL XOÁ ====== */}
       <ConfirmModal
         open={confirm.open}
         message={`Are you sure you want to delete ${
@@ -292,7 +372,7 @@ export default function PostsTab() {
         }}
       />
 
-      {/* ====== MODAL EDIT BÀI VIẾT ====== */}
+      {/* ====== MODAL EDIT ====== */}
       <ModalEditPost
         open={openEdit}
         onClose={() => {
@@ -300,9 +380,10 @@ export default function PostsTab() {
           setEditPost(null);
         }}
         post={editPost || {}}
-        albums={[]} // TODO: truyền danh sách albums nếu cần
-        categories={[]} // TODO: truyền danh sách categories nếu cần
-        onSubmit={handleSubmitEdit}
+        albums={albums}
+        categories={categories}
+        isAdmin={isAdmin}
+        onSave={handleSubmitEdit}
       />
     </div>
   );

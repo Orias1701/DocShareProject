@@ -22,7 +22,7 @@ export default function FollowingPostsPage() {
     author: {
       id: p.user_id,
       name: p.full_name,
-      avatar: p.avatar_url || "/images/default-avatar.png",
+      avatar: p.avatar_url || "https://cdn2.fptshop.com.vn/small/avatar_trang_1_cd729c335b.jpg",
     },
     banner: p.banner_url || null,
     file: p.file_url ? { url: p.file_url, type: p.file_type } : null,
