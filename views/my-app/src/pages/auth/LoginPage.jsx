@@ -1,15 +1,19 @@
 // src/pages/auth/LoginPage.jsx
 import React, { useState } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
-import './Regis.css'; // giữ nguyên css của bạn
+import './Regis.css';
 import useAuth from '../../hook/useAuth';
 
-// Endpoint login JSON
-const API_LOGIN_URL = 'http://localhost:3000/public/index.php?action=api_login';
+// ✅ Lấy endpoint từ env, fallback cùng origin
+const API_BASE =
+  import.meta.env.VITE_API_URL ||
+  `${window.location.origin}/api/public/index.php`;
+
+const API_LOGIN_URL = `${API_BASE}?action=api_login`;
 
 const LoginPage = () => {
   const [formData, setFormData] = useState({
-    identifier: '', // email hoặc username
+    identifier: '',
     password: '',
   });
 
@@ -17,16 +21,13 @@ const LoginPage = () => {
   const [error, setError]     = useState(null);
   const [success, setSuccess] = useState(null);
 
-  const { setUser }  = useAuth();  // để cập nhật user sau login (context/hook)
+  const { setUser }  = useAuth();
   const navigate     = useNavigate();
   const location     = useLocation();
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value,
-    }));
+    setFormData(prev => ({ ...prev, [name]: value }));
   };
 
   const handleSubmit = async (e) => {
@@ -45,7 +46,7 @@ const LoginPage = () => {
     try {
       const res  = await fetch(API_LOGIN_URL, {
         method: 'POST',
-        credentials: 'include', // để lưu session cookie
+        credentials: 'include', // PHP session cookie
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
@@ -53,24 +54,17 @@ const LoginPage = () => {
         body: JSON.stringify(payload),
       });
 
-      // Parse JSON an toàn (server có thể trả body rỗng)
       const text = await res.text();
       let data = {};
       try { data = text ? JSON.parse(text) : {}; } catch { data = {}; }
 
       if (res.ok && (data.status === 'ok' || data.user)) {
         setSuccess('Đăng nhập thành công!');
-        if (data.user) setUser(data.user); // cập nhật user vào state (useAuth)
+        if (data.user) setUser(data.user);
+        if (data.token) localStorage.setItem('token', data.token);
 
-        // Nếu backend trả token (không bắt buộc với cookie session)
-        if (data.token) {
-          localStorage.setItem('token', data.token);
-        }
-
-        // Reset form
         setFormData({ identifier: '', password: '' });
 
-        // Điều hướng: quay về trang trước nếu có & không phải /login, ngược lại về "/"
         const from = location.state?.from?.pathname;
         const dest = from && from !== '/login' ? from : '/';
         navigate(dest, { replace: true });
@@ -91,7 +85,6 @@ const LoginPage = () => {
         <div className="left-content">
           <h1>Explore our newest features</h1>
           <p>Get updated posts and news from many individuals and organizations.</p>
-          {/* Giữ bố cục, thay a -> Link để không reload */}
           <Link to="/login">Sign in now &gt;&gt;</Link>
         </div>
       </div>

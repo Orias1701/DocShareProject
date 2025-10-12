@@ -1,0 +1,70 @@
+[12-Oct-2025 23:21:34 Asia/Ho_Chi_Minh] PHP Fatal error:  Uncaught Exception: DB connect error: SQLSTATE[HY000] [2002] php_network_getaddresses: getaddrinfo for sql104.infinityfree.com failed: No such host is known.  in E:\CODE\NHOM\PHP\DocShareProject\config\Database.php:35
+Stack trace:
+#0 E:\CODE\NHOM\PHP\DocShareProject\models\Post.php(14): Database::getConnection()
+#1 E:\CODE\NHOM\PHP\DocShareProject\controllers\PostController.php(24): Post->__construct()
+#2 E:\CODE\NHOM\PHP\DocShareProject\public\index.php(112): PostController->__construct()
+#3 {main}
+  thrown in E:\CODE\NHOM\PHP\DocShareProject\config\Database.php on line 35
+[12-Oct-2025 23:21:34 Asia/Ho_Chi_Minh] PHP Fatal error:  Uncaught Exception: DB connect error: SQLSTATE[HY000] [2002] php_network_getaddresses: getaddrinfo for sql104.infinityfree.com failed: No such host is known.  in E:\CODE\NHOM\PHP\DocShareProject\config\Database.php:35
+Stack trace:
+#0 E:\CODE\NHOM\PHP\DocShareProject\models\Post.php(14): Database::getConnection()
+#1 E:\CODE\NHOM\PHP\DocShareProject\controllers\PostController.php(24): Post->__construct()
+#2 E:\CODE\NHOM\PHP\DocShareProject\public\index.php(112): PostController->__construct()
+#3 {main}
+  thrown in E:\CODE\NHOM\PHP\DocShareProject\config\Database.php on line 35
+[12-Oct-2025 23:22:49 Asia/Ho_Chi_Minh] PHP Fatal error:  Uncaught Exception: DB connect error: SQLSTATE[HY000] [2002] php_network_getaddresses: getaddrinfo for sql104.infinityfree.com failed: No such host is known.  in E:\CODE\NHOM\PHP\DocShareProject\config\Database.php:35
+Stack trace:
+#0 E:\CODE\NHOM\PHP\DocShareProject\models\Post.php(14): Database::getConnection()
+#1 E:\CODE\NHOM\PHP\DocShareProject\controllers\PostController.php(24): Post->__construct()
+#2 E:\CODE\NHOM\PHP\DocShareProject\public\index.php(112): PostController->__construct()
+#3 {main}
+  thrown in E:\CODE\NHOM\PHP\DocShareProject\config\Database.php on line 35
+[12-Oct-2025 23:22:49 Asia/Ho_Chi_Minh] PHP Fatal error:  Uncaught Exception: DB connect error: SQLSTATE[HY000] [2002] php_network_getaddresses: getaddrinfo for sql104.infinityfree.com failed: No such host is known.  in E:\CODE\NHOM\PHP\DocShareProject\config\Database.php:35
+Stack trace:
+#0 E:\CODE\NHOM\PHP\DocShareProject\models\Post.php(14): Database::getConnection()
+#1 E:\CODE\NHOM\PHP\DocShareProject\controllers\PostController.php(24): Post->__construct()
+#2 E:\CODE\NHOM\PHP\DocShareProject\public\index.php(112): PostController->__construct()
+#3 {main}
+  thrown in E:\CODE\NHOM\PHP\DocShareProject\config\Database.php on line 35
+[12-Oct-2025 23:28:53 Asia/Ho_Chi_Minh] PHP Fatal error:  Uncaught Exception: DB connect error: SQLSTATE[HY000] [2002] php_network_getaddresses: getaddrinfo for sql104.infinityfree.com failed: No such host is known.  in E:\CODE\NHOM\PHP\DocShareProject\config\Database.php:35
+Stack trace:
+#0 E:\CODE\NHOM\PHP\DocShareProject\models\Post.php(14): Database::getConnection()
+#1 E:\CODE\NHOM\PHP\DocShareProject\controllers\PostController.php(24): Post->__construct()
+#2 E:\CODE\NHOM\PHP\DocShareProject\public\index.php(112): PostController->__construct()
+#3 {main}
+  thrown in E:\CODE\NHOM\PHP\DocShareProject\config\Database.php on line 35
+[12-Oct-2025 23:28:53 Asia/Ho_Chi_Minh] PHP Fatal error:  Uncaught Exception: DB connect error: SQLSTATE[HY000] [2002] php_network_getaddresses: getaddrinfo for sql104.infinityfree.com failed: No such host is known.  in E:\CODE\NHOM\PHP\DocShareProject\config\Database.php:35
+Stack trace:
+#0 E:\CODE\NHOM\PHP\DocShareProject\models\Post.php(14): Database::getConnection()
+#1 E:\CODE\NHOM\PHP\DocShareProject\controllers\PostController.php(24): Post->__construct()
+#2 E:\CODE\NHOM\PHP\DocShareProject\public\index.php(112): PostController->__construct()
+#3 {main}
+  thrown in E:\CODE\NHOM\PHP\DocShareProject\config\Database.php on line 35
+[12-Oct-2025 23:47:47 Asia/Ho_Chi_Minh] PHP Fatal error:  Uncaught Exception: DB connect error: SQLSTATE[HY000] [2002] php_network_getaddresses: getaddrinfo for sql104.infinityfree.com failed: No such host is known.  in E:\CODE\NHOM\PHP\DocShareProject\config\Database.php:35
+Stack trace:
+#0 E:\CODE\NHOM\PHP\DocShareProject\models\Post.php(14): Database::getConnection()
+#1 E:\CODE\NHOM\PHP\DocShareProject\controllers\PostController.php(24): Post->__construct()
+#2 E:\CODE\NHOM\PHP\DocShareProject\public\index.php(112): PostController->__construct()
+#3 {main}
+  thrown in E:\CODE\NHOM\PHP\DocShareProject\config\Database.php on line 35
+[12-Oct-2025 23:47:47 Asia/Ho_Chi_Minh] PHP Fatal error:  Uncaught Exception: DB connect error: SQLSTATE[HY000] [2002] php_network_getaddresses: getaddrinfo for sql104.infinityfree.com failed: No such host is known.  in E:\CODE\NHOM\PHP\DocShareProject\config\Database.php:35
+Stack trace:
+#0 E:\CODE\NHOM\PHP\DocShareProject\models\Post.php(14): Database::getConnection()
+#1 E:\CODE\NHOM\PHP\DocShareProject\controllers\PostController.php(24): Post->__construct()
+#2 E:\CODE\NHOM\PHP\DocShareProject\public\index.php(112): PostController->__construct()
+#3 {main}
+  thrown in E:\CODE\NHOM\PHP\DocShareProject\config\Database.php on line 35
+[12-Oct-2025 23:47:56 Asia/Ho_Chi_Minh] PHP Fatal error:  Uncaught Exception: DB connect error: SQLSTATE[HY000] [2002] php_network_getaddresses: getaddrinfo for sql104.infinityfree.com failed: No such host is known.  in E:\CODE\NHOM\PHP\DocShareProject\config\Database.php:35
+Stack trace:
+#0 E:\CODE\NHOM\PHP\DocShareProject\models\Post.php(14): Database::getConnection()
+#1 E:\CODE\NHOM\PHP\DocShareProject\controllers\PostController.php(24): Post->__construct()
+#2 E:\CODE\NHOM\PHP\DocShareProject\public\index.php(112): PostController->__construct()
+#3 {main}
+  thrown in E:\CODE\NHOM\PHP\DocShareProject\config\Database.php on line 35
+[12-Oct-2025 23:47:57 Asia/Ho_Chi_Minh] PHP Fatal error:  Uncaught Exception: DB connect error: SQLSTATE[HY000] [2002] php_network_getaddresses: getaddrinfo for sql104.infinityfree.com failed: No such host is known.  in E:\CODE\NHOM\PHP\DocShareProject\config\Database.php:35
+Stack trace:
+#0 E:\CODE\NHOM\PHP\DocShareProject\models\Post.php(14): Database::getConnection()
+#1 E:\CODE\NHOM\PHP\DocShareProject\controllers\PostController.php(24): Post->__construct()
+#2 E:\CODE\NHOM\PHP\DocShareProject\public\index.php(112): PostController->__construct()
+#3 {main}
+  thrown in E:\CODE\NHOM\PHP\DocShareProject\config\Database.php on line 35

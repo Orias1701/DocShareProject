@@ -1,10 +1,14 @@
+// src/pages/auth/RegisterPage.jsx
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-
+import { useNavigate, Link } from 'react-router-dom';
 import './Regis.css';
 
-// Nếu bạn dùng Vite proxy, đổi thành '/api?action=api_register'
-const API_REGISTER_URL = 'http://localhost:3000/public/index.php?action=api_register';
+// ✅ Lấy endpoint từ env, fallback cùng origin
+const API_BASE =
+  import.meta.env.VITE_API_URL ||
+  `${window.location.origin}/api/public/index.php`;
+
+const API_REGISTER_URL = `${API_BASE}?action=api_register`;
 
 const RegisterPage = () => {
   const [formData, setFormData] = useState({
@@ -31,11 +35,10 @@ const RegisterPage = () => {
     setFormData(prev => ({ ...prev, avatar: e.target.files[0] || null }));
   };
 
-  // Basic client-side password policy check
   function validatePassword(pw) {
     if (!pw || pw.length < 8) return 'Mật khẩu phải >= 8 ký tự.';
-    if (!/[0-9]/.test(pw)) return 'Mật khẩu phải chứa ít nhất 1 số.';
-    if (!/[a-z]/.test(pw)) return 'Mật khẩu phải chứa ít nhất 1 chữ thường.';
+    if (!/[0-9]/.test(pw))    return 'Mật khẩu phải chứa ít nhất 1 số.';
+    if (!/[a-z]/.test(pw))    return 'Mật khẩu phải chứa ít nhất 1 chữ thường.';
     return null;
   }
 
@@ -45,18 +48,9 @@ const RegisterPage = () => {
     setError(null);
     setSuccess(null);
 
-    // client-side validation
     const pwdErr = validatePassword(formData.password);
-    if (pwdErr) {
-      setError(pwdErr);
-      setLoading(false);
-      return;
-    }
-    if (!formData.email) {
-      setError('Vui lòng nhập email.');
-      setLoading(false);
-      return;
-    }
+    if (pwdErr) { setError(pwdErr); setLoading(false); return; }
+    if (!formData.email) { setError('Vui lòng nhập email.'); setLoading(false); return; }
 
     const payload = {
       username:   formData.username.trim(),
@@ -65,47 +59,37 @@ const RegisterPage = () => {
       full_name:  formData.fullName.trim(),
       birth_date: formData.birthday,
       bio:        formData.biography.trim() || null,
-      avatar_url: null, // nếu muốn upload file, cần endpoint multipart riêng
+      avatar_url: null, // nếu muốn upload file thật, cần endpoint multipart riêng
     };
 
     try {
       const res = await fetch(API_REGISTER_URL, {
         method: 'POST',
-        credentials: 'include', // giữ nếu bạn dùng PHP session cookie
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
         },
         body: JSON.stringify(payload),
       });
-      // xử lý an toàn: có thể server trả body rỗng hoặc non-JSON
+
       const text = await res.text();
-      let data = null;
-      try {
-        data = text ? JSON.parse(text) : {};
-      } catch (parseErr) {
-        // non-JSON response
+      let data = {};
+      try { data = text ? JSON.parse(text) : {}; } catch (parseErr) {
         console.error('Non-JSON response:', text);
         throw new Error('Server trả về dữ liệu không hợp lệ (không phải JSON).');
       }
 
       if (res.ok && data?.status === 'ok') {
         setSuccess(data.message || 'Đăng ký thành công!');
-        // reset form, navigate sau 700ms để user đọc message
         setTimeout(() => {
           setFormData({
-            username: '',
-            fullName: '',
-            email: '',
-            password: '',
-            birthday: '',
-            biography: '',
-            avatar: null,
+            username: '', fullName: '', email: '', password: '',
+            birthday: '', biography: '', avatar: null,
           });
           navigate('/login');
         }, 700);
       } else {
-        // ưu tiên message từ body, fallback sang status text
         const msg = data?.message || data?.error || `Đăng ký thất bại (${res.status})`;
         setError(msg);
       }
@@ -123,7 +107,7 @@ const RegisterPage = () => {
         <div className="left-content">
           <h1>Create your free account</h1>
           <p>Explore our core features for individuals and organizations.</p>
-          <a href="#">Get start now &gt;&gt;</a>
+          <Link to="/register">Get start now &gt;&gt;</Link>
         </div>
       </div>
 
@@ -227,7 +211,7 @@ const RegisterPage = () => {
           </form>
 
           <p className="login-link">
-            Already have an account? <a href="/login">Sign in +</a>
+            Already have an account? <Link to="/login">Sign in +</Link>
           </p>
         </div>
       </div>
