@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 import AlbumOptionsMenu from "./AlbumOptionsMenu"; // 👈 menu Sửa/Xóa
 
 const FALLBACK =
-  "https://i.pinimg.com/736x/18/bd/a5/18bda5a4616cd195fe49a9a32dbab836.jpg";
+  "https://play-lh.googleusercontent.com/oeN7NUZCJ4jRnr9iGSvkDbgDOp9vFx-4Q9bpMMxXdeLIngX6OiO6Dokf9IPon1UXlO4=w240-h480-rw";
 
 /**
  * Props:

@@ -161,7 +161,7 @@ export default function ExplorePage() {
               <div key={u.user_id} className="p-4 rounded-xl bg-white/5 border border-white/10">
                 <div className="flex items-center gap-3">
                   <img
-                    src={u.avatar_url || "https://i.pravatar.cc/40?img=1"}
+                    src={u.avatar_url || "https://cdn2.fptshop.com.vn/small/avatar_trang_1_cd729c335b.jpg"}
                     alt={u.full_name || u.username}
                     className="w-10 h-10 rounded-full"
                   />

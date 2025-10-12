@@ -8,7 +8,7 @@ import PostOptionsMenu from "./PostOptionsMenu";
 const FALLBACK_URL =
   "https://play-lh.googleusercontent.com/YkKvpRk6awQCkSi2oVDRBH7BAWpp0QBUWV9Pf-BVDTvJqwH8q3naROPyZET99DvO1HWq=w240-h480-rw";
 const FALLBACK_AVATAR =
-  "https://i.pinimg.com/736x/c7/cd/4d/c7cd4dde24c8fcfeeddc73899a45c4b0.jpg";
+  "https://cdn2.fptshop.com.vn/small/avatar_trang_1_cd729c335b.jpg";
 
 function normalizeHashtags(hx) {
   const toDisplay = (s) => {
