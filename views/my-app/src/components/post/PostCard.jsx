@@ -53,7 +53,7 @@ export default function PostCard({
   onBookmarkChange,
   hideReactions = false,
   onDeleted,
-  onEdited,           // ⬅️ thêm
+  onEdited,
 }) {
   if (!post || typeof post !== "object") return null;
 
@@ -157,7 +157,7 @@ export default function PostCard({
           ownerId={authorId}
           postRaw={post}
           onDeleted={onDeleted}
-          onEdited={onEdited}   // ⬅️ truyền lên để parent cập nhật state
+          onEdited={onEdited}
         />
       </div>
 
@@ -217,5 +217,5 @@ PostCard.propTypes = {
   onBookmarkChange: PropTypes.func,
   hideReactions: PropTypes.bool,
   onDeleted: PropTypes.func,
-  onEdited: PropTypes.func,    // ⬅️
+  onEdited: PropTypes.func,
 };
