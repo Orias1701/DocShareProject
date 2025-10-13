@@ -7,6 +7,11 @@ import images from "../../assets/image";
 import SearchBarPanel from "../search/SearchBarPanel.jsx";
 import { user_followServices } from "../../services/user_followServices";
 
+// ✅ Base URL API: ưu tiên ENV, fallback cùng origin /api/public/index.php
+const API_BASE =
+  import.meta.env.VITE_API_URL ||
+  `${window.location.origin}/api/public/index.php`;
+
 // click outside hook (đóng dropdown avatar khi click ra ngoài)
 const useClickOutside = (handler) => {
   const ref = useRef(null);
@@ -181,17 +186,19 @@ export default function Header() {
                         <i className="fa-regular fa-user w-4 text-center" />
                         <span>Profile</span>
                       </NavLink>
+
+                      {/* ✅ Logout gọi API_BASE (không dùng localhost) */}
                       <button
                         onClick={() => {
-                          fetch("http://localhost:3000/public/index.php?action=logout", {
+                          fetch(`${API_BASE}?action=logout`, {
                             method: "POST",
                             credentials: "include",
                           })
                             .then(() => {
-                              setDropdownOpen(false); // đóng dropdown
+                              setDropdownOpen(false);
                               setTimeout(() => {
-                                window.location.reload(); // reload trang sau 1 giây
-                              }, 1000);
+                                window.location.reload();
+                              }, 600);
                             })
                             .catch((err) => console.error(err));
                         }}
@@ -200,7 +207,6 @@ export default function Header() {
                         <i className="fa-solid fa-arrow-right-from-bracket w-4 text-center" />
                         <span>Log out</span>
                       </button>
-
                     </div>
                   </motion.div>
                 )}

@@ -1,6 +1,11 @@
 // src/services/postService.js
 import fetchJson from "./fetchJson";
 
+// ✅ Base URL API để dùng cho các call đặc biệt (ví dụ: download)
+const API_BASE =
+  import.meta.env.VITE_API_URL ||
+  `${window.location.origin}/api/public/index.php`;
+
 const ACTIONS = {
   // Posts
   getLatest: "latest_posts",
@@ -14,11 +19,12 @@ const ACTIONS = {
   listPostByUser: "list_posts_by_user",
   listUserPosts: "list_posts_by_user",
   postsByAlbum: "get_posts_by_album",
-  //Dowload
+  // Download
   download: "download",
+
   // Post ↔ Hashtag
   listPostHashtags: "list_post_hashtags",
-  postsByHashtag: "posts_by_hashtag", // ← BE của bạn
+  postsByHashtag: "posts_by_hashtag",
   createPostHashtag: "create_post_hashtag",
   updatePostHashtag: "update_post_hashtag",
   deletePostHashtag: "delete_post_hashtag",
@@ -31,9 +37,9 @@ const ACTIONS = {
   // Feed
   getPostsFromFollowedUsers: "list_posts_by_following",
 
-  // ▼▼▼ Count posts (mới thêm, khớp routes bạn đưa) ▼▼▼
+  // Counts
   countAllPosts: "count_posts_all",
-  countPostsByUser: "count_posts_by_user",     // ?user_id=... | (session nếu không truyền)
+  countPostsByUser: "count_posts_by_user",     // ?user_id=...
   countPostsByAlbum: "count_posts_by_album",   // ?album_id=...
 };
 
@@ -64,7 +70,6 @@ function normalizePost(p) {
 
 // Chuẩn hoá kết quả count do BE có thể trả {status, data:{count}} hoặc {count}
 function pickCount(res) {
-  // ưu tiên { data: { count } }
   if (res && typeof res === "object") {
     if (res.data && typeof res.data.count !== "undefined") {
       return Number(res.data.count) || 0;
@@ -90,8 +95,9 @@ export const postService = {
   getByCategory(category_id) {
     return fetchJson(`${ACTIONS.postsByCategory}&category_id=${encodeURIComponent(category_id)}`);
   },
+  // ✅ Sửa: dùng ACTIONS.postDetail (trước gọi nhầm showPostDetail)
   showDetail(post_id) {
-    return fetchJson(`${ACTIONS.showPostDetail}&post_id=${encodeURIComponent(post_id)}`);
+    return fetchJson(`${ACTIONS.postDetail}&post_id=${encodeURIComponent(post_id)}`);
   },
   listAll() {
     return fetchJson(ACTIONS.listAll);
@@ -118,45 +124,40 @@ export const postService = {
     });
     return fetchJson(ACTIONS.create, { method: "POST", body });
   },
- // src/services/postService.js
-update(params) {
-  const fd = new FormData();
 
-  // helper: append nếu field có trong params (kể cả chuỗi rỗng, để BE hiểu là muốn clear)
-  const has = (k) => Object.prototype.hasOwnProperty.call(params, k);
-  const app = (k) => { if (has(k)) fd.append(k, params[k]); };
+  update(params) {
+    const fd = new FormData();
+    const has = (k) => Object.prototype.hasOwnProperty.call(params, k);
+    const app = (k) => { if (has(k)) fd.append(k, params[k]); };
 
-  // BẮT BUỘC
-  app("post_id");
+    // bắt buộc
+    app("post_id");
 
-  // ----- Nhóm meta (ownerUpdatePost/adminUpdatePost) -----
-  // Cho phép set URL banner trực tiếp, hoặc gửi file banner mới (key 'banner')
-  app("title");
-  app("banner_url");
-  if (has("bannerFile") && params.bannerFile) fd.append("banner", params.bannerFile);
-  if (has("banner") && params.banner) fd.append("banner", params.banner); // tương thích caller cũ
+    // meta
+    app("title");
+    app("banner_url");
+    if (has("bannerFile") && params.bannerFile) fd.append("banner", params.bannerFile);
+    if (has("banner") && params.banner) fd.append("banner", params.banner);
 
-  // chuyển album/category
-  app("album_id_new");
-  app("category_id_new");
+    // chuyển album/category
+    app("album_id_new");
+    app("category_id_new");
 
-  // admin-only: đổi tên album/category hiện tại
-  app("album_name_new");
-  app("category_name_new");
+    // admin-only: đổi tên album/category hiện tại
+    app("album_name_new");
+    app("category_name_new");
 
-  // ----- Nhóm chỉnh nội dung “đầy đủ” (Controller update cũ) -----
-  app("content");
-  app("description");
-  app("summary");
-  app("album_id");      // flow cũ
-  app("category_id");   // flow cũ
-  if (has("content_file") && params.content_file) fd.append("content_file", params.content_file);
+    // nội dung đầy đủ (flow cũ)
+    app("content");
+    app("description");
+    app("summary");
+    app("album_id");
+    app("category_id");
+    if (has("content_file") && params.content_file) fd.append("content_file", params.content_file);
 
-  // Đi chung một route 'update_post'
-  return fetchJson(ACTIONS.update, { method: "POST", body: fd });
-},
+    return fetchJson(ACTIONS.update, { method: "POST", body: fd });
+  },
 
-  // src/services/postService.js
   remove(id) {
     return fetchJson(`${ACTIONS.delete}&post_id=${encodeURIComponent(id)}`);
   },
@@ -165,17 +166,11 @@ update(params) {
     return fetchJson(ACTIONS.delete, { method: "POST", body });
   },
 
-
   // ---------- Post ↔ Hashtag ----------
   listHashtagsByPost(post_id) {
     return fetchJson(`${ACTIONS.listPostHashtags}&post_id=${encodeURIComponent(post_id)}`);
   },
 
-  /**
-   * Lấy posts theo hashtag.
-   * Bạn có thể truyền { hashtag_id } *hoặc* { hashtag_name }.
-   * BE trả JSON dạng: { status: "success", data: [ ...posts ] }
-   */
   async getPostsByHashtag({ hashtag_id, hashtag_name }) {
     const q =
       hashtag_id != null
@@ -237,23 +232,11 @@ update(params) {
     return fetchJson(`${ACTIONS.postsByAlbum}&album_id=${encodeURIComponent(album_id)}`);
   },
 
-  // ---------- COUNT POSTS (mới) ----------
-  /**
-   * Đếm tổng số bài viết trong hệ thống.
-   * BE route: case 'count_posts_all'
-   * Trả về: number
-   */
+  // ---------- COUNT POSTS ----------
   async countAllPosts() {
     const res = await fetchJson(ACTIONS.countAllPosts);
     return pickCount(res);
   },
-
-  /**
-   * Đếm số bài viết của một user.
-   * Nếu không truyền user_id → BE dùng session (user hiện tại).
-   * BE route: case 'count_posts_by_user'
-   * Trả về: number
-   */
   async countPostsByUser(user_id) {
     const url = user_id
       ? `${ACTIONS.countPostsByUser}&user_id=${encodeURIComponent(user_id)}`
@@ -261,12 +244,6 @@ update(params) {
     const res = await fetchJson(url);
     return pickCount(res);
   },
-
-  /**
-   * Đếm số bài viết trong một album (bắt buộc album_id).
-   * BE route: case 'count_posts_by_album'
-   * Trả về: number
-   */
   async countPostsByAlbum(album_id) {
     if (!album_id) throw new Error("album_id is required");
     const res = await fetchJson(
@@ -274,13 +251,11 @@ update(params) {
     );
     return pickCount(res);
   },
+
   // ---------- DOWNLOAD ----------
-  // src/services/postService.js
   async download(postId) {
     if (!postId) throw new Error("postId is required");
-
-    const API_BASE = "http://localhost:3000/public/index.php";
-    const url = `${API_BASE}?action=download&post_id=${encodeURIComponent(postId)}`;
+    const url = `${API_BASE}?action=${ACTIONS.download}&post_id=${encodeURIComponent(postId)}`;
 
     const res = await fetch(url, { credentials: "include" });
     if (!res.ok) {

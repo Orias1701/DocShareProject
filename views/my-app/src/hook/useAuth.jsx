@@ -1,3 +1,4 @@
+// src/hook/useAuth.js
 import {
   createContext,
   useCallback,
@@ -7,7 +8,11 @@ import {
   useState,
 } from "react";
 
-const API_ME_URL = "http://localhost:3000/public/index.php?action=api_me";
+const API_BASE =
+  import.meta.env.VITE_API_URL ||
+  `${window.location.origin}/api/public/index.php`;
+
+const API_ME_URL = `${API_BASE}?action=api_me`;
 
 const AuthContext = createContext(null);
 
@@ -44,7 +49,6 @@ export function AuthProvider({ children }) {
       } else {
         setUser(null);
       }
-      
     } catch (e) {
       console.error("Auth refresh failed:", e);
       setUser(null);
