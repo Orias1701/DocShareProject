@@ -127,10 +127,9 @@ export default function ExplorePage() {
           hideReactions={false}
           onBookmarkChange={handleBookmarkChange}
           onDeleted={handleDeleted}
-          onEdited={handleEdited}   // ⬅️ thêm
+          onEdited={handleEdited}
         />
       )}
-
 
       {latest?.length > 0 && (
         <PostSection
@@ -139,7 +138,7 @@ export default function ExplorePage() {
           hideReactions
           onBookmarkChange={handleBookmarkChange}
           onDeleted={handleDeleted}
-          onEdited={handleEdited}   // ⬅️ thêm
+          onEdited={handleEdited}
         />
       )}
 
@@ -149,7 +148,7 @@ export default function ExplorePage() {
           posts={following}
           onBookmarkChange={handleBookmarkChange}
           onDeleted={handleDeleted}
-          onEdited={handleEdited}   // ⬅️ thêm
+          onEdited={handleEdited}
         />
       )}
 

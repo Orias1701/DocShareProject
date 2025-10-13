@@ -10,9 +10,9 @@ import { categoryServices } from "../../services/categoryServices";
 export default function PostOptionsMenu({
   postId,
   ownerId,
-  postRaw,                 // ⬅️ truyền raw post từ PostCard
+  postRaw,                 // raw post từ PostCard
   onDeleted,
-  onEdited,                // ⬅️ callback update UI sau khi edit
+  onEdited,                // callback update UI sau khi edit
 }) {
   const [open, setOpen] = useState(false);
   const [message, setMessage] = useState(null);
@@ -81,7 +81,7 @@ export default function PostOptionsMenu({
     return () => document.removeEventListener("mousedown", onDocClick);
   }, []);
 
-  // ===== Check delete permission =====
+  // ===== Check delete/edit permission (chủ bài) =====
   useEffect(() => {
     let mounted = true;
     async function run() {
@@ -212,6 +212,12 @@ export default function PostOptionsMenu({
 
   // ===== EDIT =====
   const openEditModal = async () => {
+    // Bảo vệ: chỉ chủ bài mới mở được
+    if (!canDelete) {
+      showMessage("error", "🚫 Bạn không có quyền sửa bài viết này.");
+      setOpen(false);
+      return;
+    }
     setOpen(false);
     setLoadingMeta(true);
     try {
@@ -220,12 +226,14 @@ export default function PostOptionsMenu({
         albumService.listMyAlbums().catch(() => []),
         categoryServices.list().catch(() => ({ data: [] })),
       ]);
+
       setAlbums(
         (myAlbums || []).map((a) => ({
           album_id: a.album_id ?? a.id,
           album_name: a.album_name ?? a.name,
         }))
       );
+
       const catArr = Array.isArray(cats?.data) ? cats.data : Array.isArray(cats) ? cats : [];
       setCategories(
         catArr.map((c) => ({
@@ -233,6 +241,13 @@ export default function PostOptionsMenu({
           category_name: c.category_name ?? c.name,
         }))
       );
+
+      // Nếu thiếu hoàn toàn dữ liệu để chọn → cảnh báo
+      if ((myAlbums?.length ?? 0) === 0 && (catArr?.length ?? 0) === 0) {
+        showMessage("warning", "⚠️ Chưa có Album và Danh mục. Hãy tạo/ chọn trước khi sửa.");
+        return;
+      }
+
       setOpenEdit(true);
     } finally {
       setLoadingMeta(false);
@@ -240,10 +255,46 @@ export default function PostOptionsMenu({
   };
 
   const handleSaveEdit = async (payload) => {
+    // ====== VALIDATION CƠ BẢN + THÔNG BÁO THIẾU ======
+    const maxTitleLen = 120;
+    const title = String(payload?.title ?? "").trim();
+    if (!title) {
+      showMessage("error", "❌ Thiếu tiêu đề. Vui lòng nhập tiêu đề.");
+      return { status: "error", message: "Vui lòng nhập tiêu đề." };
+    }
+    if (title.length > maxTitleLen) {
+      showMessage("error", `❌ Tiêu đề quá dài (tối đa ${maxTitleLen} ký tự).`);
+      return { status: "error", message: `Tiêu đề quá dài (tối đa ${maxTitleLen} ký tự).` };
+    }
+
+    const banner = String(payload?.banner_url ?? "").trim();
+    if (banner) {
+      try {
+        new URL(banner);
+      } catch {
+        showMessage("error", "❌ URL banner không hợp lệ.");
+        return { status: "error", message: "URL banner không hợp lệ." };
+      }
+    }
+
+    // ⛔️ BẮT BUỘC chọn đủ: Album VÀ Danh mục
+    const albumIdNew = payload.album_id_new ?? postRaw?.album_id;
+    const categoryIdNew = payload.category_id_new ?? postRaw?.category_id;
+
+    if (!albumIdNew) {
+      showMessage("warning", "⚠️ Thiếu Album. Hãy chọn Album trước khi lưu.");
+      return { status: "error", message: "Hãy chọn Album." };
+    }
+    if (!categoryIdNew) {
+      showMessage("warning", "⚠️ Thiếu Danh mục. Hãy chọn Danh mục trước khi lưu.");
+      return { status: "error", message: "Hãy chọn Danh mục." };
+    }
+
     // ✅ ràng buộc: album đích phải thuộc user hiện tại
     if (payload.album_id_new) {
       const okAlbum = albums.some((a) => String(a.album_id) === String(payload.album_id_new));
       if (!okAlbum) {
+        showMessage("error", "🚫 Album đích không thuộc bạn.");
         return { status: "error", message: "Album đích không thuộc bạn." };
       }
     }
@@ -277,10 +328,13 @@ export default function PostOptionsMenu({
         };
 
         onEdited?.(updated);
+        showMessage("success", res?.message || "✅ Đã cập nhật bài viết.");
         return { status: "ok", message: res?.message || "Đã cập nhật bài viết." };
       }
+      showMessage("error", res?.message || "❌ Cập nhật thất bại.");
       return { status: "error", message: res?.message || "Cập nhật thất bại." };
     } catch (e) {
+      showMessage("error", e?.message || "❌ Lỗi khi cập nhật.");
       return { status: "error", message: e?.message || "Lỗi khi cập nhật." };
     } finally {
       setOpenEdit(false);
@@ -302,15 +356,17 @@ export default function PostOptionsMenu({
 
       {open && (
         <div className="absolute right-0 mt-2 w-48 bg-[#1C2028] border border-gray-700 rounded-lg shadow-lg z-50 overflow-hidden">
-          {/* Edit */}
-          <button
-            onClick={openEditModal}
-            className="flex items-center gap-2 w-full px-3 py-2 text-left text-sm text-gray-300 hover:bg-gray-700/40"
-            disabled={loadingMeta}
-          >
-            <i className="fa-solid fa-pen-to-square text-blue-400"></i>
-            {loadingMeta ? "Đang tải…" : "Sửa bài viết"}
-          </button>
+          {/* Edit (chỉ chủ bài) */}
+          {canDelete && (
+            <button
+              onClick={openEditModal}
+              className="flex items-center gap-2 w-full px-3 py-2 text-left text-sm text-gray-300 hover:bg-gray-700/40"
+              disabled={loadingMeta}
+            >
+              <i className="fa-solid fa-pen-to-square text-blue-400"></i>
+              {loadingMeta ? "Đang tải…" : "Sửa bài viết"}
+            </button>
+          )}
 
           {/* Report */}
           <button
