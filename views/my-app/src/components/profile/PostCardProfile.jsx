@@ -7,6 +7,8 @@ import CommentsPanel from "../comments/CommentsPanel";
 import useAuth from "../../hook/useAuth"; // ✅ chú ý: hooks/useAuth
 import post_commentServices from "../../services/post_commentServices";
 
+
+
 const FALLBACK_IMG =
   "https://cdn2.fptshop.com.vn/small/avatar_trang_1_cd729c335b.jpg";
 
@@ -40,6 +42,17 @@ export default function PostCardProfile({ post = {} }) {
       : null;
 
   const postId = post?.post_id ?? post?.id ?? null;
+
+  // 🔹 Đặt ở trên cùng trong component (trước return)
+function stripHtmlTags(html) {
+  if (!html) return "";
+  const tmp = document.createElement("div");
+  tmp.innerHTML = html;
+  return tmp.textContent || tmp.innerText || "";
+}
+
+
+  
 
   // 🔢 Lấy count thực tế từ BE (dùng countCommentByPost)
   useEffect(() => {
@@ -164,9 +177,10 @@ export default function PostCardProfile({ post = {} }) {
                   <div className="text-gray-100 font-semibold truncate">
                     {m?.title || "Post name"}
                   </div>
-                  <div className="text-xs text-gray-400 truncate">
-                    {m?.description || "Post description"}
-                  </div>
+                 <div className="text-xs text-gray-400 truncate">
+                  {stripHtmlTags(m?.description) || "Post description"}
+                </div>
+
                 </div>
               </div>
             </div>
