@@ -135,7 +135,7 @@ export default function ExplorePage() {
         <PostSection
           title="🕒 Mới nhất"
           posts={latest}
-          hideReactions
+          hideReactions={false}
           onBookmarkChange={handleBookmarkChange}
           onDeleted={handleDeleted}
           onEdited={handleEdited}

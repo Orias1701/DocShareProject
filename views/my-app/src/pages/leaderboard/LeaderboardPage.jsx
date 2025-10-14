@@ -7,7 +7,7 @@ import UserProfileCard from "../../components/leaderboard/UserProfileCard";
 import user_followServices from "../../services/user_followServices";
 import postService from "../../services/postService";
 
-const tabs = ["Criterion 1", "Criterion 2", "Criterion 3", "Criterion 4"];
+const tabs = ["Criterion 1", "Criterion 2"];
 const FALLBACK_AVATAR = "https://cdn2.fptshop.com.vn/small/avatar_trang_1_cd729c335b.jpg";
 
 export default function LeaderboardPage() {
@@ -26,7 +26,7 @@ export default function LeaderboardPage() {
     (async () => {
       setLoading(true);
       try {
-        const { status, data } = await user_followServices.top(20);
+        const { status, data } = await user_followServices.top(10);
         const arr = status === "success" && Array.isArray(data) ? data : [];
         arr.sort((a, b) => (b.followers_count ?? 0) - (a.followers_count ?? 0));
         setAllRankings(arr);
