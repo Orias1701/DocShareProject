@@ -107,5 +107,4 @@ const FileUpload = ({ title, subtitle, buttonText, note, onFileSelect }) => {
     </div>
   );
 };
-
 export default FileUpload;
