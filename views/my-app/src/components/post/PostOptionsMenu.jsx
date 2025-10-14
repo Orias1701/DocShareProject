@@ -1,35 +1,43 @@
+// src/components/post/PostOptionsMenu.jsx
+// Menu 3 chấm của Post:
+// - Sửa, Xoá (chỉ chủ bài)
+// - Report/Unreport (persist nhờ bubble lên ProfilePage)
+// - Download
+
 import React, { useState, useRef, useEffect } from "react";
 import postService from "../../services/postService";
 import post_reportService from "../../services/post_reportServices";
 import authApi from "../../services/usersServices";
 import ConfirmModal from "../common/ConfirmModal";
-import ModalEditPost from "../user_manager/modals/ModalEditPost"; // ⬅️ modal edit
+import ModalEditPost from "../user_manager/modals/ModalEditPost";
 import { albumService } from "../../services/albumService";
 import { categoryServices } from "../../services/categoryServices";
 
 export default function PostOptionsMenu({
   postId,
   ownerId,
-  postRaw,                 // raw post từ PostCard
-  onDeleted,
-  onEdited,                // callback update UI sau khi edit
+  postRaw,                  // raw data để fill modal
+  onDeleted,                // (postId) => void
+  onEdited,                 // (updated) => void
+  initialIsReported,        // ✅ cờ report ban đầu từ BE
+  onReportChange,           // ✅ (postId, nextIsReported) => void
 }) {
   const [open, setOpen] = useState(false);
   const [message, setMessage] = useState(null);
-  const [isReported, setIsReported] = useState(false);
+  const [isReported, setIsReported] = useState(Boolean(initialIsReported)); // ✅ init từ props
   const [canDelete, setCanDelete] = useState(false);
   const [checking, setChecking] = useState(true);
   const [showConfirm, setShowConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const ref = useRef(null);
 
-  // ==== EDIT modal state ====
+  // Modal Edit
   const [openEdit, setOpenEdit] = useState(false);
   const [albums, setAlbums] = useState([]);
   const [categories, setCategories] = useState([]);
   const [loadingMeta, setLoadingMeta] = useState(false);
 
-  // ===== Helpers =====
+  // Helper: lấy user_id từ các schema
   const pickMeUserId = (meRes) =>
     meRes?.user?.user_id ??
     meRes?.user_id ??
@@ -72,7 +80,7 @@ export default function PostOptionsMenu({
     setTimeout(() => setMessage(null), 3000);
   };
 
-  // ===== Close menu on outside click =====
+  // Đóng menu khi click ra ngoài
   useEffect(() => {
     const onDocClick = (e) => {
       if (ref.current && !ref.current.contains(e.target)) setOpen(false);
@@ -81,7 +89,12 @@ export default function PostOptionsMenu({
     return () => document.removeEventListener("mousedown", onDocClick);
   }, []);
 
-  // ===== Check delete/edit permission (chủ bài) =====
+  // ✅ Sync state nút report khi postId/initialIsReported thay đổi (điều hướng/trả về trang)
+  useEffect(() => {
+    setIsReported(Boolean(initialIsReported));
+  }, [postId, initialIsReported]);
+
+  // Check quyền chủ bài (để hiện Edit/Delete)
   useEffect(() => {
     let mounted = true;
     async function run() {
@@ -108,10 +121,12 @@ export default function PostOptionsMenu({
       }
     }
     run();
-    return () => { mounted = false; };
+    return () => {
+      mounted = false;
+    };
   }, [postId, ownerId]);
 
-  // ===== DOWNLOAD =====
+  // Download
   const handleDownload = async () => {
     if (!postId) {
       showMessage("error", "❌ Không có postId để tải!");
@@ -136,7 +151,7 @@ export default function PostOptionsMenu({
     }
   };
 
-  // ===== REPORT =====
+  // Report / Unreport (toggle)
   const handleReport = async () => {
     if (!postId) {
       showMessage("error", "❌ Không có postId để report!");
@@ -145,15 +160,22 @@ export default function PostOptionsMenu({
     try {
       const res = await post_reportService.toggle(postId, "Nội dung không phù hợp");
       if (res?.status === "success") {
+        // BE có thể trả "created"/"deleted"
+        let next;
         if (res.data?.action === "created") {
-          setIsReported(true);
+          next = true;
           showMessage("success", "✅ Report thành công.");
         } else if (res.data?.action === "deleted") {
-          setIsReported(false);
+          next = false;
           showMessage("warning", "🗑️ Bạn đã gỡ report.");
         } else {
+          next = !isReported;
           showMessage("success", "✅ Report xử lý xong.");
         }
+
+        // ✅ Cập nhật local + BÁO CHA để lưu vào danh sách (bền vững qua điều hướng)
+        setIsReported(Boolean(next));
+        onReportChange?.(postId, Boolean(next));
       } else {
         showMessage("error", `❌ Lỗi report: ${res?.error || "Không rõ"}`);
       }
@@ -167,7 +189,7 @@ export default function PostOptionsMenu({
     }
   };
 
-  // ===== DELETE =====
+  // Delete
   const confirmDelete = () => {
     setOpen(false);
     setShowConfirm(true);
@@ -186,7 +208,7 @@ export default function PostOptionsMenu({
       if (isDeleteSuccess(res)) {
         setShowConfirm(false);
         showMessage("success", "🗑️ Xoá bài viết thành công.");
-        if (typeof onDeleted === "function") onDeleted(postId);
+        onDeleted?.(postId);
         return;
       }
       const errMsg =
@@ -210,9 +232,8 @@ export default function PostOptionsMenu({
     }
   };
 
-  // ===== EDIT =====
+  // Edit (mở modal)
   const openEditModal = async () => {
-    // Bảo vệ: chỉ chủ bài mới mở được
     if (!canDelete) {
       showMessage("error", "🚫 Bạn không có quyền sửa bài viết này.");
       setOpen(false);
@@ -221,7 +242,6 @@ export default function PostOptionsMenu({
     setOpen(false);
     setLoadingMeta(true);
     try {
-      // Tải albums của tôi + toàn bộ categories để chọn
       const [myAlbums, cats] = await Promise.all([
         albumService.listMyAlbums().catch(() => []),
         categoryServices.list().catch(() => ({ data: [] })),
@@ -242,9 +262,8 @@ export default function PostOptionsMenu({
         }))
       );
 
-      // Nếu thiếu hoàn toàn dữ liệu để chọn → cảnh báo
       if ((myAlbums?.length ?? 0) === 0 && (catArr?.length ?? 0) === 0) {
-        showMessage("warning", "⚠️ Chưa có Album và Danh mục. Hãy tạo/ chọn trước khi sửa.");
+        showMessage("warning", "⚠️ Chưa có Album và Danh mục. Hãy tạo/chọn trước khi sửa.");
         return;
       }
 
@@ -254,8 +273,8 @@ export default function PostOptionsMenu({
     }
   };
 
+  // Edit (lưu)
   const handleSaveEdit = async (payload) => {
-    // ====== VALIDATION CƠ BẢN + THÔNG BÁO THIẾU ======
     const maxTitleLen = 120;
     const title = String(payload?.title ?? "").trim();
     if (!title) {
@@ -277,7 +296,6 @@ export default function PostOptionsMenu({
       }
     }
 
-    // ⛔️ BẮT BUỘC chọn đủ: Album VÀ Danh mục
     const albumIdNew = payload.album_id_new ?? postRaw?.album_id;
     const categoryIdNew = payload.category_id_new ?? postRaw?.category_id;
 
@@ -290,7 +308,6 @@ export default function PostOptionsMenu({
       return { status: "error", message: "Hãy chọn Danh mục." };
     }
 
-    // ✅ ràng buộc: album đích phải thuộc user hiện tại
     if (payload.album_id_new) {
       const okAlbum = albums.some((a) => String(a.album_id) === String(payload.album_id_new));
       if (!okAlbum) {
@@ -302,7 +319,6 @@ export default function PostOptionsMenu({
     try {
       const res = await postService.update(payload);
       if (res?.status === "ok" || res?.status === "success") {
-        // Tạo object updated để cập nhật UI ngay
         const newAlbumId = payload.album_id_new ?? postRaw?.album_id;
         const newAlbumName = payload.album_id_new
           ? (albums.find((a) => String(a.album_id) === String(payload.album_id_new))?.album_name ||
@@ -350,6 +366,7 @@ export default function PostOptionsMenu({
         aria-label="more options"
         onClick={() => setOpen((v) => !v)}
         disabled={checking && !open}
+        type="button"
       >
         <i className="fa-solid fa-ellipsis-vertical"></i>
       </button>
@@ -362,13 +379,14 @@ export default function PostOptionsMenu({
               onClick={openEditModal}
               className="flex items-center gap-2 w-full px-3 py-2 text-left text-sm text-gray-300 hover:bg-gray-700/40"
               disabled={loadingMeta}
+              type="button"
             >
               <i className="fa-solid fa-pen-to-square text-blue-400"></i>
               {loadingMeta ? "Đang tải…" : "Sửa bài viết"}
             </button>
           )}
 
-          {/* Report */}
+          {/* ✅ Report / Unreport hiển thị theo state isReported */}
           <button
             onClick={() => {
               setOpen(false);
@@ -376,6 +394,8 @@ export default function PostOptionsMenu({
             }}
             className={`flex items-center gap-2 w-full px-3 py-2 text-left text-sm hover:bg-gray-700/40 
               ${isReported ? "text-yellow-300" : "text-gray-300"}`}
+            type="button"
+            title={isReported ? "Unreport" : "Report"}
           >
             <i className={`fa-regular fa-flag ${isReported ? "text-yellow-400" : "text-red-400"}`}></i>
             {isReported ? "Unreport" : "Report"}
@@ -388,16 +408,18 @@ export default function PostOptionsMenu({
               await handleDownload();
             }}
             className={`flex items-center gap-2 w-full px-3 py-2 text-left text-sm text-gray-300 hover:bg-gray-700/40 ${downloadTailClass}`}
+            type="button"
           >
             <i className="fa-solid fa-download text-blue-400"></i>
             Tải tài liệu
           </button>
 
-          {/* Delete (chỉ hiện nếu có quyền) */}
+          {/* Delete (chỉ chủ bài) */}
           {canDelete && (
             <button
               onClick={confirmDelete}
               className="flex items-center gap-2 w-full px-3 py-2 text-left text-sm text-red-400 hover:bg-gray-700/40 rounded-b-lg"
+              type="button"
             >
               <i className="fa-solid fa-trash-can text-red-500"></i>
               Xóa bài viết
@@ -427,7 +449,7 @@ export default function PostOptionsMenu({
         onConfirm={handleDelete}
       />
 
-      {/* Modal Edit Post */}
+      {/* Modal Edit */}
       <ModalEditPost
         open={openEdit}
         onClose={() => setOpenEdit(false)}
@@ -444,7 +466,7 @@ export default function PostOptionsMenu({
         }}
         albums={albums}
         categories={categories}
-        isAdmin={false}          // nếu có role admin, pass true ở đây
+        isAdmin={false}
         onSave={handleSaveEdit}
       />
     </div>

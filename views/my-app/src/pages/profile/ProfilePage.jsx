@@ -1,4 +1,7 @@
 // src/pages/profile/ProfilePage.jsx
+// Trang hồ sơ người dùng: giữ danh sách bài viết (userPosts)
+// và là "nguồn sự thật" cho cờ is_reported để bền vững qua điều hướng.
+
 import React, { useEffect, useState } from "react";
 import ProfileHeader from "../../components/profile/ProfileHeader";
 import BioCard from "../../components/profile/BioCard";
@@ -9,21 +12,25 @@ import EditProfileModal from "../../components/profile/EditProfileModal";
 import postService from "../../services/postService";
 import { user_followServices } from "../../services/user_followServices";
 
-/** Map JSON BE -> cấu trúc PostCardProfile */
+/** Chuẩn hoá JSON BE -> cấu trúc dùng bởi UI */
 function normalizePostForProfile(p) {
   const isPdf = String(p?.file_type || "").toLowerCase().includes("pdf");
   const banner =
     p?.banner_url && p.banner_url.trim() !== ""
       ? p.banner_url
       : isPdf
-      ? "https://play-lh.googleusercontent.com/WC5Fpn66aDQ5rzLB5Y5GVqthxC6z03T8eFY3xcqaVx2qIFZvqBmImiPSeul9qWSYnGw=w240-h480-rw" //PDF
-      : "https://upload.wikimedia.org/wikipedia/commons/8/8d/Microsoft_Word_2013-2019_logo.svg"; //WORD
+      ? "https://play-lh.googleusercontent.com/WC5Fpn66aDQ5rzLB5Y5GVqthxC6z03T8eFY3xcqaVx2qIFZvqBmImiPSeul9qWSYnGw=w240-h480-rw"
+      : "https://upload.wikimedia.org/wikipedia/commons/8/8d/Microsoft_Word_2013-2019_logo.svg";
 
   return {
     id: p?.post_id || p?.id,
+    post_id: p?.post_id || p?.id,
     author: {
+      id: p?.user_id ?? p?.author_id ?? null,
       realName: p?.author_name || "Ẩn danh",
-      avatar: p?.avatar_url || "https://cdn2.fptshop.com.vn/small/avatar_trang_1_cd729c335b.jpg",
+      avatar:
+        p?.avatar_url ||
+        "https://cdn2.fptshop.com.vn/small/avatar_trang_1_cd729c335b.jpg",
     },
     postDate: p?.created_at || "",
     mangles: [
@@ -42,6 +49,8 @@ function normalizePostForProfile(p) {
     commentCount: Number(p?.comment_count || 0),
     my_reaction: null,
     hashtags: [],
+    // ✅ GIỮ CỜ REPORT TỪ BE
+    is_reported: Boolean(p?.is_reported),
   };
 }
 
@@ -60,7 +69,7 @@ function ProfilePage() {
   const [followersCount, setFollowersCount] = useState(0);
   const [followingCount, setFollowingCount] = useState(0);
 
-  // Lấy me + info
+  // Lấy me + user info
   useEffect(() => {
     (async () => {
       try {
@@ -72,6 +81,7 @@ function ProfilePage() {
         if (!id) throw new Error("Không tìm thấy user_id từ api_me");
         setMe(currentUser);
 
+        // Ưu tiên user_info nếu có
         try {
           const infoRes = await userInfoApi.showUserInfo(id);
           const fromInfo = infoRes?.user ?? null;
@@ -108,7 +118,7 @@ function ProfilePage() {
     })();
   }, [me?.user_id]);
 
-  // Lấy số followers/following của tôi
+  // Lấy số followers/following
   useEffect(() => {
     if (!me?.user_id) return;
     (async () => {
@@ -142,8 +152,56 @@ function ProfilePage() {
       return true;
     } catch (err) {
       console.error("Lỗi cập nhật profile:", err);
-      throw err; // để EditProfileModal nhận và hiển thị
+      throw err;
     }
+  };
+
+  // ✅ Xoá bài: filter khỏi mảng
+  const handlePostDeleted = (deletedId) => {
+    setUserPosts((prev) =>
+      prev.filter((p) => String(p?.id ?? p?.post_id) !== String(deletedId))
+    );
+  };
+
+  // ✅ Sửa bài: merge dữ liệu vào item tương ứng
+  const handlePostEdited = (updated) => {
+    setUserPosts((prev) =>
+      prev.map((p) => {
+        const id = p?.id ?? p?.post_id;
+        if (String(id) !== String(updated?.post_id)) return p;
+
+        const newMangles = Array.isArray(p.mangles) ? [...p.mangles] : [];
+        if (newMangles[0]) {
+          newMangles[0] = {
+            ...newMangles[0],
+            title: updated?.title ?? newMangles[0]?.title,
+            image: updated?.banner_url ?? newMangles[0]?.image,
+          };
+        }
+
+        return {
+          ...p,
+          id: updated?.post_id ?? id,
+          post_id: updated?.post_id ?? p?.post_id,
+          mangles: newMangles,
+          album_id: updated?.album_id ?? p?.album_id,
+          album_name: updated?.album_name ?? p?.album_name,
+          category_id: updated?.category_id ?? p?.category_id,
+          category_name: updated?.category_name ?? p?.category_name,
+        };
+      })
+    );
+  };
+
+  // ✅ Report toggle: cập nhật cờ vào mảng (bền vững sau điều hướng)
+  const handlePostReportChange = (postId, nextIsReported) => {
+    setUserPosts((prev) =>
+      prev.map((p) => {
+        const id = p?.id ?? p?.post_id;
+        if (String(id) !== String(postId)) return p;
+        return { ...p, is_reported: Boolean(nextIsReported) };
+      })
+    );
   };
 
   if (loading) return <div className="text-white p-4">Đang tải hồ sơ...</div>;
@@ -158,7 +216,9 @@ function ProfilePage() {
     );
   }
 
-  const avatarUrl = userData?.avatar_url || "https://cdn2.fptshop.com.vn/small/avatar_trang_1_cd729c335b.jpg";
+  const avatarUrl =
+    userData?.avatar_url ||
+    "https://cdn2.fptshop.com.vn/small/avatar_trang_1_cd729c335b.jpg";
   const fullName = userData?.full_name || "Anonymous";
   const userName = userData?.username || "no-username";
   const birthday = userData?.birth_date || "N/A";
@@ -190,7 +250,13 @@ function ProfilePage() {
           ) : userPosts.length === 0 ? (
             <div className="text-gray-400 italic">Bạn chưa có bài viết nào</div>
           ) : (
-            <PostFeed posts={userPosts} />
+            <PostFeed
+              posts={userPosts}
+              onPostEdited={handlePostEdited}
+              onPostDeleted={handlePostDeleted}
+              // ✅ TRUYỀN CALLBACK REPORT
+              onReportChange={handlePostReportChange}
+            />
           )}
         </div>
       </div>

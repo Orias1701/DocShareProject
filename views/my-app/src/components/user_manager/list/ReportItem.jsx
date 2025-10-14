@@ -208,7 +208,7 @@ export default function ReportItem({
 
           <div className="flex flex-col gap-2 ml-1">
             <ViewButton />
-            <button
+            {/* <button
               className="px-2 py-1 rounded-md border border-white/10 text-xs text-white/80 hover:text-white"
               onClick={(e) => {
                 e.stopPropagation();
@@ -217,7 +217,7 @@ export default function ReportItem({
               title="Edit"
             >
               <i className="fa-regular fa-pen-to-square" />
-            </button>
+            </button> */}
             <button
               className="px-2 py-1 rounded-md border border-red-500/30 text-xs text-red-300 hover:text-red-200"
               onClick={(e) => {

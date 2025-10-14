@@ -206,7 +206,7 @@ class PostController
                 $fileName  = uniqid() . '.' . $uploadedFileExt;
                 $uploadDir = __DIR__ . '/../uploads/posts';
                 if (!is_dir($uploadDir)) mkdir($uploadDir, 0755, true);
-                $targetPath = $uploadDir . $fileName;
+                $targetPath = $uploadDir . DIRECTORY_SEPARATOR . $fileName;
 
                 if (move_uploaded_file($uploadedFile['tmp_name'], $targetPath)) {
                     $fileUrl  = $baseUrl . 'uploads/posts/' . $fileName;
