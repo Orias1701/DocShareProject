@@ -397,9 +397,9 @@ if (isset($_GET['action'])) {
             $categoryController->delete();
             exit;
         case 'category_post_counts':
-                // ✅ Lấy category_id (nếu có) từ query string
+            // ✅ Lấy category_id (nếu có) từ query string
             $category_id = $_GET['category_id'] ?? null;
-                
+
             // ✅ Gọi controller, truyền id
             $categoryController->listCategoryWithPostCounts($category_id);
             exit;

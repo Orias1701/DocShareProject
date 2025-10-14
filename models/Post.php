@@ -17,7 +17,7 @@ class Post
     /**
      * View A: user_infos, user_follows, albums, posts, post_comments, post_reactions, post_reports
      */
-    
+
     public function getLatestPosts()
     {
         try {
@@ -536,9 +536,9 @@ class Post
         }
     }
     public function getPostsByAlbumId($albumId)
-{
-    try {
-        $sql = "
+    {
+        try {
+            $sql = "
             SELECT 
                 p.post_id,
                 p.title,
@@ -563,27 +563,27 @@ class Post
             ORDER BY p.created_at DESC
         ";
 
-        $stmt = $this->pdo->prepare($sql);
-        $stmt->execute([$albumId]);
-        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            $stmt = $this->pdo->prepare($sql);
+            $stmt->execute([$albumId]);
+            $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-        // Chuẩn hoá hashtags về mảng (giống getPostsFromFollowedUsers)
-        foreach ($rows as &$row) {
-            if (!empty($row['hashtags_concat'])) {
-                $arr = array_map('trim', explode(',', $row['hashtags_concat']));
-                $row['hashtags'] = array_values(array_filter($arr, fn($x) => $x !== ''));
-            } else {
-                $row['hashtags'] = [];
+            // Chuẩn hoá hashtags về mảng (giống getPostsFromFollowedUsers)
+            foreach ($rows as &$row) {
+                if (!empty($row['hashtags_concat'])) {
+                    $arr = array_map('trim', explode(',', $row['hashtags_concat']));
+                    $row['hashtags'] = array_values(array_filter($arr, fn($x) => $x !== ''));
+                } else {
+                    $row['hashtags'] = [];
+                }
+                unset($row['hashtags_concat']);
             }
-            unset($row['hashtags_concat']);
-        }
 
-        return $rows;
-    } catch (Exception $e) {
-        error_log("Error in getPostsByAlbumId: " . $e->getMessage());
-        return [];
+            return $rows;
+        } catch (Exception $e) {
+            error_log("Error in getPostsByAlbumId: " . $e->getMessage());
+            return [];
+        }
     }
-}
     public function countAllPosts()
     {
         try {
@@ -596,238 +596,238 @@ class Post
         }
     }
     public function countPostsByUserId($userId)
-        {
-            try {
-                $sql = "
+    {
+        try {
+            $sql = "
                     SELECT COUNT(*)
                     FROM posts p
                     JOIN albums a ON p.album_id = a.album_id
                     WHERE a.user_id = ?
                 ";
-                $stmt = $this->pdo->prepare($sql);
-                $stmt->execute([$userId]);
-                return (int)$stmt->fetchColumn();
-            } catch (Exception $e) {
-                error_log("Error in countPostsByUserId: " . $e->getMessage());
-                return 0;
-            }
+            $stmt = $this->pdo->prepare($sql);
+            $stmt->execute([$userId]);
+            return (int)$stmt->fetchColumn();
+        } catch (Exception $e) {
+            error_log("Error in countPostsByUserId: " . $e->getMessage());
+            return 0;
+        }
     }
-    
-        /** 
-         * Đếm số bài viết trong một album 
-         */
+
+    /** 
+     * Đếm số bài viết trong một album 
+     */
     public function countPostsByAlbumId($albumId)
-        {
-            try {
-                $sql = "SELECT COUNT(*) FROM posts WHERE album_id = ?";
-                $stmt = $this->pdo->prepare($sql);
-                $stmt->execute([$albumId]);
-                return (int)$stmt->fetchColumn();
-            } catch (Exception $e) {
-                error_log("Error in countPostsByAlbumId: " . $e->getMessage());
-                return 0;
-            }
+    {
+        try {
+            $sql = "SELECT COUNT(*) FROM posts WHERE album_id = ?";
+            $stmt = $this->pdo->prepare($sql);
+            $stmt->execute([$albumId]);
+            return (int)$stmt->fetchColumn();
+        } catch (Exception $e) {
+            error_log("Error in countPostsByAlbumId: " . $e->getMessage());
+            return 0;
+        }
     }
     public function ownerUpdatePost(array $p): bool
-{
-    // Bắt buộc
-    if (empty($p['post_id']) || empty($p['user_id'])) {
-        throw new InvalidArgumentException('post_id và user_id là bắt buộc.');
-    }
+    {
+        // Bắt buộc
+        if (empty($p['post_id']) || empty($p['user_id'])) {
+            throw new InvalidArgumentException('post_id và user_id là bắt buộc.');
+        }
 
-    try {
-        // 1) Kiểm tra album đích thuộc owner (nếu có yêu cầu đổi album)
-        if (array_key_exists('album_id_new', $p) && !empty($p['album_id_new'])) {
-            $chk = $this->pdo->prepare(
-                "SELECT COUNT(*) FROM albums WHERE album_id = ? AND user_id = ? LIMIT 1"
-            );
-            $chk->execute([$p['album_id_new'], $p['user_id']]);
-            if ((int)$chk->fetchColumn() === 0) {
-                throw new Exception('Album đích không thuộc bạn.');
+        try {
+            // 1) Kiểm tra album đích thuộc owner (nếu có yêu cầu đổi album)
+            if (array_key_exists('album_id_new', $p) && !empty($p['album_id_new'])) {
+                $chk = $this->pdo->prepare(
+                    "SELECT COUNT(*) FROM albums WHERE album_id = ? AND user_id = ? LIMIT 1"
+                );
+                $chk->execute([$p['album_id_new'], $p['user_id']]);
+                if ((int)$chk->fetchColumn() === 0) {
+                    throw new Exception('Album đích không thuộc bạn.');
+                }
             }
-        }
 
-        // 2) (Tuỳ) kiểm tra category tồn tại (nếu bạn chưa có FK)
-        if (array_key_exists('category_id_new', $p) && !empty($p['category_id_new'])) {
-            $chkCat = $this->pdo->prepare(
-                "SELECT COUNT(*) FROM categories WHERE category_id = ? LIMIT 1"
-            );
-            $chkCat->execute([$p['category_id_new']]);
-            if ((int)$chkCat->fetchColumn() === 0) {
-                throw new Exception('Category không tồn tại.');
+            // 2) (Tuỳ) kiểm tra category tồn tại (nếu bạn chưa có FK)
+            if (array_key_exists('category_id_new', $p) && !empty($p['category_id_new'])) {
+                $chkCat = $this->pdo->prepare(
+                    "SELECT COUNT(*) FROM categories WHERE category_id = ? LIMIT 1"
+                );
+                $chkCat->execute([$p['category_id_new']]);
+                if ((int)$chkCat->fetchColumn() === 0) {
+                    throw new Exception('Category không tồn tại.');
+                }
             }
-        }
 
-        // 3) Build SET động
-        $set  = [];
-        $args = [];
+            // 3) Build SET động
+            $set  = [];
+            $args = [];
 
-        // Chỉ set nếu caller truyền key (kể cả chuỗi rỗng để cho phép clear banner_url)
-        if (array_key_exists('title', $p)) {
-            $set[]  = "title = ?";
-            $args[] = $p['title'];
-        }
-        if (array_key_exists('banner_url', $p)) {
-            // cho phép null/"" => clear banner
-            $set[]  = "banner_url = ?";
-            $args[] = ($p['banner_url'] === '' ? null : $p['banner_url']);
-        }
-        if (array_key_exists('album_id_new', $p) && $p['album_id_new'] !== null && $p['album_id_new'] !== '') {
-            $set[]  = "album_id = ?";
-            $args[] = $p['album_id_new'];
-        }
-        if (array_key_exists('category_id_new', $p) && $p['category_id_new'] !== null && $p['category_id_new'] !== '') {
-            $set[]  = "category_id = ?";
-            $args[] = $p['category_id_new'];
-        }
+            // Chỉ set nếu caller truyền key (kể cả chuỗi rỗng để cho phép clear banner_url)
+            if (array_key_exists('title', $p)) {
+                $set[]  = "title = ?";
+                $args[] = $p['title'];
+            }
+            if (array_key_exists('banner_url', $p)) {
+                // cho phép null/"" => clear banner
+                $set[]  = "banner_url = ?";
+                $args[] = ($p['banner_url'] === '' ? null : $p['banner_url']);
+            }
+            if (array_key_exists('album_id_new', $p) && $p['album_id_new'] !== null && $p['album_id_new'] !== '') {
+                $set[]  = "album_id = ?";
+                $args[] = $p['album_id_new'];
+            }
+            if (array_key_exists('category_id_new', $p) && $p['category_id_new'] !== null && $p['category_id_new'] !== '') {
+                $set[]  = "category_id = ?";
+                $args[] = $p['category_id_new'];
+            }
 
-        if (empty($set)) {
-            // Không có gì để cập nhật
-            return true;
-        }
+            if (empty($set)) {
+                // Không có gì để cập nhật
+                return true;
+            }
 
-        // 4) UPDATE với ràng buộc quyền: chỉ update post thuộc album của owner
-        $sql = "
+            // 4) UPDATE với ràng buộc quyền: chỉ update post thuộc album của owner
+            $sql = "
             UPDATE posts
             SET " . implode(", ", $set) . "
             WHERE post_id = ?
               AND album_id IN (SELECT album_id FROM albums WHERE user_id = ?)
         ";
-        $args[] = $p['post_id'];
-        $args[] = $p['user_id'];
-
-        $stmt = $this->pdo->prepare($sql);
-        $ok = $stmt->execute($args);
-
-        // Lưu ý: rowCount = 0 có thể do giá trị không đổi → vẫn coi là thành công
-        if (!$ok) {
-            error_log('[ownerUpdatePost] execute failed: ' . print_r($stmt->errorInfo(), true));
-            return false;
-        }
-
-        return true;
-    } catch (Throwable $e) {
-        error_log('[ownerUpdatePost] ' . $e->getMessage());
-        throw $e; // hoặc return false nếu bạn muốn nuốt lỗi
-    }
-}
-
-
-
-public function adminUpdatePost(array $p): bool
-{
-    // Bắt buộc
-    if (empty($p['post_id'])) {
-        throw new InvalidArgumentException('post_id là bắt buộc.');
-    }
-
-    $this->pdo->beginTransaction();
-    try {
-        // Lấy post hiện tại (để có album_id / category_id đang dùng)
-        $cur = $this->getPostById($p['post_id']);
-        if (!$cur) {
-            throw new Exception('Post not found.');
-        }
-        $curAlbumId    = $cur['album_id']     ?? null;
-        $curCategoryId = $cur['category_id']  ?? null;
-
-        // Không cho vừa đổi ID vừa đổi tên cùng 1 thực thể
-        if (!empty($p['album_id_new']) && !empty($p['album_name_new'])) {
-            throw new Exception('Chỉ được đổi album_id hoặc đổi tên album hiện tại, không đồng thời.');
-        }
-        if (!empty($p['category_id_new']) && !empty($p['category_name_new'])) {
-            throw new Exception('Chỉ được đổi category_id hoặc đổi tên category hiện tại, không đồng thời.');
-        }
-
-        // Nếu đổi album_id → kiểm tra tồn tại
-        if (!empty($p['album_id_new'])) {
-            $chkAlb = $this->pdo->prepare("SELECT COUNT(*) FROM albums WHERE album_id = ? LIMIT 1");
-            $chkAlb->execute([$p['album_id_new']]);
-            if ((int)$chkAlb->fetchColumn() === 0) {
-                throw new Exception('Album đích không tồn tại.');
-            }
-        }
-
-        // Nếu đổi category_id → kiểm tra tồn tại
-        if (!empty($p['category_id_new'])) {
-            $chkCat = $this->pdo->prepare("SELECT COUNT(*) FROM categories WHERE category_id = ? LIMIT 1");
-            $chkCat->execute([$p['category_id_new']]);
-            if ((int)$chkCat->fetchColumn() === 0) {
-                throw new Exception('Category đích không tồn tại.');
-            }
-        }
-
-        // ===== Build UPDATE posts (SET động) =====
-        $set  = [];
-        $args = [];
-
-        // title / banner_url (cho phép clear banner_url về NULL nếu truyền rỗng)
-        if (array_key_exists('title', $p)) {
-            $set[]  = "title = ?";
-            $args[] = $p['title'];
-        }
-        if (array_key_exists('banner_url', $p)) {
-            $set[]  = "banner_url = ?";
-            $args[] = ($p['banner_url'] === '' ? null : $p['banner_url']);
-        }
-
-        // đổi album_id
-        if (!empty($p['album_id_new'])) {
-            $set[]  = "album_id = ?";
-            $args[] = $p['album_id_new'];
-        }
-
-        // đổi category_id
-        if (!empty($p['category_id_new'])) {
-            $set[]  = "category_id = ?";
-            $args[] = $p['category_id_new'];
-        }
-
-        // Thực thi UPDATE posts nếu có trường cần đổi
-        if (!empty($set)) {
-            $sql = "UPDATE posts SET " . implode(", ", $set) . " WHERE post_id = ?";
             $args[] = $p['post_id'];
+            $args[] = $p['user_id'];
 
-            $st = $this->pdo->prepare($sql);
-            $ok = $st->execute($args);
+            $stmt = $this->pdo->prepare($sql);
+            $ok = $stmt->execute($args);
+
+            // Lưu ý: rowCount = 0 có thể do giá trị không đổi → vẫn coi là thành công
             if (!$ok) {
-                error_log('[adminUpdatePost] posts update failed: ' . print_r($st->errorInfo(), true));
-                throw new Exception('Cập nhật bài viết thất bại.');
+                error_log('[ownerUpdatePost] execute failed: ' . print_r($stmt->errorInfo(), true));
+                return false;
             }
-        }
 
-        // ===== Đổi tên album hiện tại (nếu có) =====
-        if (!empty($p['album_name_new'])) {
-            if (!$curAlbumId) {
-                throw new Exception('Album hiện tại không xác định để đổi tên.');
-            }
-            $stAlb = $this->pdo->prepare("UPDATE albums SET album_name = ? WHERE album_id = ?");
-            $stAlb->execute([$p['album_name_new'], $curAlbumId]);
+            return true;
+        } catch (Throwable $e) {
+            error_log('[ownerUpdatePost] ' . $e->getMessage());
+            throw $e; // hoặc return false nếu bạn muốn nuốt lỗi
         }
-
-        // ===== Đổi tên category hiện tại (nếu có) =====
-        if (!empty($p['category_name_new'])) {
-            if (!$curCategoryId) {
-                throw new Exception('Category hiện tại không xác định để đổi tên.');
-            }
-            $stCat = $this->pdo->prepare("UPDATE categories SET category_name = ? WHERE category_id = ?");
-            $stCat->execute([$p['category_name_new'], $curCategoryId]);
-        }
-
-        $this->pdo->commit();
-        return true;
-    } catch (Throwable $e) {
-        if ($this->pdo->inTransaction()) {
-            $this->pdo->rollBack();
-        }
-        error_log('[adminUpdatePost] ' . $e->getMessage());
-        throw $e; // hoặc return false tuỳ bạn muốn bắt ở Controller
     }
-}
 
 
 
-    
+    public function adminUpdatePost(array $p): bool
+    {
+        // Bắt buộc
+        if (empty($p['post_id'])) {
+            throw new InvalidArgumentException('post_id là bắt buộc.');
+        }
+
+        $this->pdo->beginTransaction();
+        try {
+            // Lấy post hiện tại (để có album_id / category_id đang dùng)
+            $cur = $this->getPostById($p['post_id']);
+            if (!$cur) {
+                throw new Exception('Post not found.');
+            }
+            $curAlbumId    = $cur['album_id']     ?? null;
+            $curCategoryId = $cur['category_id']  ?? null;
+
+            // Không cho vừa đổi ID vừa đổi tên cùng 1 thực thể
+            if (!empty($p['album_id_new']) && !empty($p['album_name_new'])) {
+                throw new Exception('Chỉ được đổi album_id hoặc đổi tên album hiện tại, không đồng thời.');
+            }
+            if (!empty($p['category_id_new']) && !empty($p['category_name_new'])) {
+                throw new Exception('Chỉ được đổi category_id hoặc đổi tên category hiện tại, không đồng thời.');
+            }
+
+            // Nếu đổi album_id → kiểm tra tồn tại
+            if (!empty($p['album_id_new'])) {
+                $chkAlb = $this->pdo->prepare("SELECT COUNT(*) FROM albums WHERE album_id = ? LIMIT 1");
+                $chkAlb->execute([$p['album_id_new']]);
+                if ((int)$chkAlb->fetchColumn() === 0) {
+                    throw new Exception('Album đích không tồn tại.');
+                }
+            }
+
+            // Nếu đổi category_id → kiểm tra tồn tại
+            if (!empty($p['category_id_new'])) {
+                $chkCat = $this->pdo->prepare("SELECT COUNT(*) FROM categories WHERE category_id = ? LIMIT 1");
+                $chkCat->execute([$p['category_id_new']]);
+                if ((int)$chkCat->fetchColumn() === 0) {
+                    throw new Exception('Category đích không tồn tại.');
+                }
+            }
+
+            // ===== Build UPDATE posts (SET động) =====
+            $set  = [];
+            $args = [];
+
+            // title / banner_url (cho phép clear banner_url về NULL nếu truyền rỗng)
+            if (array_key_exists('title', $p)) {
+                $set[]  = "title = ?";
+                $args[] = $p['title'];
+            }
+            if (array_key_exists('banner_url', $p)) {
+                $set[]  = "banner_url = ?";
+                $args[] = ($p['banner_url'] === '' ? null : $p['banner_url']);
+            }
+
+            // đổi album_id
+            if (!empty($p['album_id_new'])) {
+                $set[]  = "album_id = ?";
+                $args[] = $p['album_id_new'];
+            }
+
+            // đổi category_id
+            if (!empty($p['category_id_new'])) {
+                $set[]  = "category_id = ?";
+                $args[] = $p['category_id_new'];
+            }
+
+            // Thực thi UPDATE posts nếu có trường cần đổi
+            if (!empty($set)) {
+                $sql = "UPDATE posts SET " . implode(", ", $set) . " WHERE post_id = ?";
+                $args[] = $p['post_id'];
+
+                $st = $this->pdo->prepare($sql);
+                $ok = $st->execute($args);
+                if (!$ok) {
+                    error_log('[adminUpdatePost] posts update failed: ' . print_r($st->errorInfo(), true));
+                    throw new Exception('Cập nhật bài viết thất bại.');
+                }
+            }
+
+            // ===== Đổi tên album hiện tại (nếu có) =====
+            if (!empty($p['album_name_new'])) {
+                if (!$curAlbumId) {
+                    throw new Exception('Album hiện tại không xác định để đổi tên.');
+                }
+                $stAlb = $this->pdo->prepare("UPDATE albums SET album_name = ? WHERE album_id = ?");
+                $stAlb->execute([$p['album_name_new'], $curAlbumId]);
+            }
+
+            // ===== Đổi tên category hiện tại (nếu có) =====
+            if (!empty($p['category_name_new'])) {
+                if (!$curCategoryId) {
+                    throw new Exception('Category hiện tại không xác định để đổi tên.');
+                }
+                $stCat = $this->pdo->prepare("UPDATE categories SET category_name = ? WHERE category_id = ?");
+                $stCat->execute([$p['category_name_new'], $curCategoryId]);
+            }
+
+            $this->pdo->commit();
+            return true;
+        } catch (Throwable $e) {
+            if ($this->pdo->inTransaction()) {
+                $this->pdo->rollBack();
+            }
+            error_log('[adminUpdatePost] ' . $e->getMessage());
+            throw $e; // hoặc return false tuỳ bạn muốn bắt ở Controller
+        }
+    }
+
+
+
+
     // public function getHashtagsByUserId($userId)
     // {
     //     try {
