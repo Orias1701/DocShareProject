@@ -70,7 +70,7 @@ class Post
                 LEFT JOIN post_hashtags ph ON p.post_id = ph.post_id
                 LEFT JOIN hashtags h ON ph.hashtag_id = h.hashtag_id
                 GROUP BY p.post_id
-                ORDER BY reaction_count DESC, comment_count DESC, report_count ASC, p.created_at DESCs
+                ORDER BY reaction_count DESC, comment_count DESC, report_count ASC, p.created_at DESC;
             ";
             $stmt = $this->pdo->query($sql);
             return $stmt->fetchAll(PDO::FETCH_ASSOC);
