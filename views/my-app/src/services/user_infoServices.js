@@ -1,109 +1,76 @@
-// src/services/user_infoServices.js
+// [Tác dụng file] CRUD thông tin người dùng (user_info) và các form liên quan
 import fetchJson from "./fetchJson";
 
-/**
- * Gợi ý: PHP side cần đảm bảo KHÔNG echo gì khác ngoài JSON
- * (không BOM, không warning/notice) để tránh lỗi "Không parse được JSON".
- */
-
+// [Tác dụng] Chuyển object → FormData cho POST (có thể có avatar)
 function toFormData(obj) {
-  const fd = new FormData();
-  Object.entries(obj).forEach(([k, v]) => {
-    if (v !== undefined && v !== null) {
-      fd.append(k, v);
+  let fd = new FormData();
+  let o = obj || {};
+  for (let k in o) {
+    if (Object.prototype.hasOwnProperty.call(o, k)) {
+      let v = o[k];
+      if (v !== undefined && v !== null) fd.append(k, v);
     }
-  });
+  }
   return fd;
 }
 
+// [Tác dụng] Các API cụ thể cho user info
 export const userInfoApi = {
-  /** GET /?action=list_user_infos */
-  async listUserInfos() {
+  // [Tác dụng] Lấy danh sách tất cả user_info
+  listUserInfos: async function () {
     return fetchJson("list_user_infos");
   },
 
-  /** GET /?action=show_create_form
-   *  -> trả về các user chưa có user_info (availableUsers)
-   */
-  async getAvailableUsers() {
-    const res = await fetchJson("show_create_form");
-    // res = { availableUsers: [...] }
+  // [Tác dụng] Lấy danh sách user chưa có user_info (để tạo mới)
+  getAvailableUsers: async function () {
+    let res = await fetchJson("show_create_form");
     return res;
   },
 
-  /** POST /?action=create_user_info
-   *  params: { user_id, full_name, bio?, birth_date?, avatar? (File) }
-   */
-  async createUserInfo({ user_id, full_name, bio, birth_date, avatar }) {
-    const body = toFormData({
-      user_id,
-      full_name,
-      bio,
-      birth_date,
-      // avatar là File hoặc Blob; chỉ append khi có
-      ...(avatar ? { avatar } : {}),
+  // [Tác dụng] Tạo user_info: cho phép kèm avatar (File/Blob)
+  createUserInfo: async function (params) {
+    let body = toFormData({
+      user_id: params && params.user_id,
+      full_name: params && params.full_name,
+      bio: params && params.bio,
+      birth_date: params && params.birth_date,
+      avatar: params && params.avatar ? params.avatar : undefined
     });
+    return fetchJson("create_user_info", { method: "POST", body: body });
+  },
 
-    return fetchJson("create_user_info", {
-      method: "POST",
-      body,
-      // KHÔNG set 'Content-Type' khi dùng FormData (tránh sai boundary)
+  // [Tác dụng] Lấy dữ liệu hiện tại để edit user_info theo id
+  getUserInfoForEdit: async function (id) {
+    return fetchJson("show_edit_form&id=" + encodeURIComponent(id));
+  },
+
+  // [Tác dụng] Cập nhật user_info (cho phép thay avatar mới)
+  updateUserInfo: async function (params) {
+    let body = toFormData({
+      user_id: params && params.user_id,
+      full_name: params && params.full_name,
+      bio: params && params.bio,
+      birth_date: params && params.birth_date,
+      avatar: params && params.avatar ? params.avatar : undefined
     });
+    return fetchJson("update_user_info", { method: "POST", body: body });
   },
 
-  /** GET /?action=show_edit_form&id=:id
-   *  -> lấy dữ liệu hiện tại để edit
-   */
-  async getUserInfoForEdit(id) {
-    // fetchJson build URL: ...?action=${action}
-    // nên mình "nhét" &id= vào action luôn
-    return fetchJson(`show_edit_form&id=${encodeURIComponent(id)}`);
+  // [Tác dụng] Xoá user_info theo id (dạng GET query)
+  deleteUserInfo: async function (id) {
+    return fetchJson("delete_user_info&id=" + encodeURIComponent(id));
   },
 
-  /** POST /?action=update_user_info
-   *  params: { user_id, full_name, bio?, birth_date?, avatar? (File mới) }
-   */
-  async updateUserInfo({ user_id, full_name, bio, birth_date, avatar }) {
-    const body = toFormData({
-      user_id,
-      full_name,
-      bio,
-      birth_date,
-      ...(avatar ? { avatar } : {}),
-    });
-
-    return fetchJson("update_user_info", {
-      method: "POST",
-      body,
-    });
+  // [Tác dụng] Xoá user_info qua POST (fallback nếu cần)
+  deleteUserInfoViaPost: async function (id) {
+    let body = toFormData({ id: id });
+    return fetchJson("delete_user_info", { method: "POST", body: body });
   },
 
-  /** DELETE /?action=delete_user_info&id=:id
-   *  Nếu client khó gửi DELETE, PHP cũng cho phép POST (controller đã note).
-   *  Ở đây mặc định dùng GET query cho đơn giản; muốn dùng POST thì xem hàm dưới.
-   */
-  async deleteUserInfo(id) {
-    // Dùng query string: ...?action=delete_user_info&id=123
-    return fetchJson(`delete_user_info&id=${encodeURIComponent(id)}`);
-  },
-
-  /** POST fallback cho xoá (nếu server chặn DELETE/GET)
-   *  PHP controller đọc id từ $_GET['id'] hoặc $_POST['id'].
-   */
-  async deleteUserInfoViaPost(id) {
-    const body = toFormData({ id });
-    return fetchJson("delete_user_info", {
-      method: "POST",
-      body,
-    });
-  },
-
-  /** GET /?action=show_user_info&id=:id
-   *  -> trả về { user: {...}, isFollowing: bool }
-   */
-  async showUserInfo(id) {
-    return fetchJson(`show_user_info&id=${encodeURIComponent(id)}`);
-  },
+  // [Tác dụng] Hiển thị thông tin user_info theo id
+  showUserInfo: async function (id) {
+    return fetchJson("show_user_info&id=" + encodeURIComponent(id));
+  }
 };
 
 export default userInfoApi;

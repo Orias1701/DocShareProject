@@ -1,37 +1,38 @@
-// src/services/categoryServices.js
+// [Tác dụng file] CRUD category và đếm số post theo category
 import fetchJson from "./fetchJson";
 
+// [Tác dụng] Action API cho category
 const ACTIONS = {
   list: "list_categories",
   detail: "category_detail",
   create: "create_category",
   update: "update_category",
   delete: "delete_category",
-  countPost: "category_post_counts",
+  countPost: "category_post_counts"
 };
 
+// [Tác dụng] POST JSON tiện lợi cho create/update/delete
 function postJson(action, payload) {
   return fetchJson(action, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload ?? {}),
+    body: JSON.stringify(payload || {})
   });
 }
 
-// Chuẩn hoá kết quả count từ BE
+// [Tác dụng] Chuẩn hoá kết quả count để UI dễ dùng: { ok, total, categories }
 function normalizeCountsResponse(res) {
   if (res && typeof res === "object") {
-    const categories = Array.isArray(res.categories)
-      ? res.categories
-      : Array.isArray(res.data)
-      ? res.data
-      : Array.isArray(res)
-      ? res
-      : [];
+    let categories;
+    if (Array.isArray(res.categories)) categories = res.categories;
+    else if (Array.isArray(res.data)) categories = res.data;
+    else if (Array.isArray(res)) categories = res;
+    else categories = [];
+
     return {
       ok: res.ok === undefined ? true : !!res.ok,
       total: typeof res.total === "number" ? res.total : categories.length,
-      categories,
+      categories: categories
     };
   }
   if (Array.isArray(res)) {
@@ -41,16 +42,19 @@ function normalizeCountsResponse(res) {
 }
 
 export const categoryServices = {
-  list() {
+  // [Tác dụng] Lấy danh sách category
+  list: function () {
     return fetchJson(ACTIONS.list);
   },
 
-  detail(id) {
-    return fetchJson(`${ACTIONS.detail}&id=${encodeURIComponent(id)}`);
+  // [Tác dụng] Lấy chi tiết category theo id
+  detail: function (id) {
+    return fetchJson(ACTIONS.detail + "&id=" + encodeURIComponent(id));
   },
 
-  create({ category_name }) {
-    return postJson(ACTIONS.create, { category_name }).then((res) => {
+  // [Tác dụng] Tạo category mới với tên
+  create: function (params) {
+    return postJson(ACTIONS.create, { category_name: params && params.category_name }).then(function (res) {
       if (res && typeof res === "object" && !("status" in res)) {
         return { status: "ok", data: res };
       }
@@ -58,12 +62,15 @@ export const categoryServices = {
     });
   },
 
-  update({ category_id, category_name }) {
+  // [Tác dụng] Cập nhật category theo id + tên mới
+  update: function (params) {
+    let category_id = params && params.category_id;
+    let category_name = params && params.category_name;
     return postJson(ACTIONS.update, {
-      category_id,
+      category_id: category_id,
       id: category_id,
-      category_name,
-    }).then((res) => {
+      category_name: category_name
+    }).then(function (res) {
       if (res && typeof res === "object" && !("status" in res)) {
         return { status: "ok", data: res };
       }
@@ -71,8 +78,9 @@ export const categoryServices = {
     });
   },
 
-  delete(id) {
-    return postJson(ACTIONS.delete, { id }).then((res) => {
+  // [Tác dụng] Xoá category theo id
+  delete: function (id) {
+    return postJson(ACTIONS.delete, { id: id }).then(function (res) {
       if (res === true || res === 1 || (res && typeof res === "object" && !("status" in res))) {
         return { status: "ok", data: res };
       }
@@ -80,14 +88,15 @@ export const categoryServices = {
     });
   },
 
-  // ✅ GET: ?action=category_post_counts[&category_id=...]
-  async countPost(category_id) {
-    const url = category_id
-      ? `${ACTIONS.countPost}&category_id=${encodeURIComponent(category_id)}`
-      : ACTIONS.countPost;
-    const res = await fetchJson(url);
+  // [Tác dụng] Đếm số post theo category (hoặc tất cả nếu không truyền id)
+  countPost: async function (category_id) {
+    let url = ACTIONS.countPost;
+    if (category_id !== undefined && category_id !== null && category_id !== "") {
+      url = url + "&category_id=" + encodeURIComponent(category_id);
+    }
+    let res = await fetchJson(url);
     return normalizeCountsResponse(res);
-  },
+  }
 };
 
 export default categoryServices;

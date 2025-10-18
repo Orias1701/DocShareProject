@@ -3,14 +3,25 @@
 /* --- Root Variables (relative units) --- */
 /* Chỉ áp dụng khi body có class "main-page" */
 .main-page {
+  /* MÀU CƠ BẢN */
   --color-bg: #0E1217;
   --color-header-border: #444;
   --color-input-bg: #222;
+  --color-input-primary: #53d4ff;
   --color-text: #FFF;
   --color-text-darker: #DDD;
   --color-user: #ffde4b;
   --color-info: #AAA;
 
+  /* MÀU BỔ SUNG (thêm cho đầy đủ) */
+  --color-link: #FFF;            /* link, hover */
+  --color-link-hover:#abd3fb;
+  --color-muted-bg: #0c1118;        /* nền blockquote nhẹ */
+  --color-code-bg: #0b1220;         /* nền code/pre */
+  --color-border-soft: #233045;     /* viền pre/khối */
+  --color-focus-ring: rgba(59,130,246,.35); /* focus ring */
+
+  /* KÍCH THƯỚC & KHOẢNG CÁCH (giữ nguyên format) */
   --header-height: 3.75rem; /* 60px */
   --header-font-size: 1.6em;
   --icon-font-size: 1.7em;
@@ -21,8 +32,10 @@
   --padding-header: 5%;
   --gap-header-right: 1rem;
   --gap-header-span: 0.3125rem 0.9375rem 0 0.3125rem;
-}
 
+  /* BỔ SUNG: thiếu trong code gốc (được dùng ở header/main) */
+  --padding-main: 1.25rem;          /* 20px */
+}
 
 /* Đặt sidebar-width theo trạng thái body */
 body {
@@ -32,6 +45,7 @@ body {
 body.sidebar--collapsed {
   --sidebar-width: 5rem;                /* ~80px khi thu gọn */
 }
+
 html, body, #root { background-color: var(--color-bg); }
 
 /* Vùng bọc Nav + Main */
@@ -39,9 +53,6 @@ html, body, #root { background-color: var(--color-bg); }
   background-color: var(--color-bg);
   min-height: 100vh;
 }
-
-/* Khi sidebar thu gọn (đã set class body.sidebar--collapsed) */
-
 
 /* --- Header --- */
 header {
@@ -95,9 +106,11 @@ header {
   width: 100%;
   height: 100%;
 }
+
 .auth-btn{
   font-size: 18px !important;
 }
+
 .header-right {
   height: 100%;
   align-items: center;
@@ -448,6 +461,7 @@ nav .nav-header {
   color: #155724;
   border: 1px solid #c3e6cb;
 }
+
 /* Wrapper của thanh search mở rộng */
 .search-panel {
   position: absolute;
@@ -462,6 +476,7 @@ nav .nav-header {
   padding: 1rem;
 }
 
+/* --- Nội dung HTML render --- */
 .content-html {
   background: #0F172A;
   color: #fff;
@@ -485,10 +500,10 @@ nav .nav-header {
 
 /* Các thẻ khác (blockquote, code, ul, ol) */
 .content-html blockquote {
-  border-left: 3px solid #60a5fa;
+  border-left: 3px solid var(--color-link);
   padding-left: 0.75rem;
   color: #f3f4f6;
-  background: #0c1118;
+  background: var(--color-muted-bg);
   margin: 0.5rem 0;
   border-radius: 6px;
 }
@@ -500,19 +515,20 @@ nav .nav-header {
 }
 
 .content-html code {
-  background: #0b1220;
+  background: var(--color-code-bg);
   padding: 2px 6px;
   border-radius: 6px;
   font-size: 0.9rem;
 }
 
 .content-html pre {
-  background: #0b1220;
+  background: var(--color-code-bg);
   padding: 12px;
   border-radius: 10px;
-  border: 1px solid #233045;
+  border: 1px solid var(--color-border-soft);
   overflow: auto;
 }
+
 /* Đảm bảo hiển thị đúng trong vùng soạn thảo */
 .ProseMirror strong { font-weight: 700; }
 .ProseMirror em { font-style: italic; }
@@ -520,18 +536,42 @@ nav .nav-header {
 .ProseMirror h1, .ProseMirror h2, .ProseMirror h3 { text-align: left; margin-top: 1em; margin-bottom: .5em; }
 .ProseMirror p { margin: 0.5em 0; text-align: left; }
 
+/* --- Focus & Link (màu bổ sung) --- */
+a { color: var(--color-link); text-decoration: none; }
+a:hover { color: var(--color-link-hover); text-decoration: underline; }
+
+a:focus-visible,
+button:focus-visible,
+.header-search input:focus-visible,
+.register-page .form-group input:focus-visible,
+.register-page .form-group textarea:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--color-focus-ring);
+  border-color: var(--color-link);
+}
+
 /* --- Responsive --- */
 @media (max-width: 48rem) {          /* 768px */
   header {
     grid-template-columns: 1fr;      /* Stack header content on small screens */
   }
 
+  /* Nav chuyển sang dạng đẩy nội dung (không đè lên header) */
   nav {
+    position: static;
     width: 100%;
     height: auto;
+    border-right: none;
+    border-bottom: 0.0625rem solid var(--color-header-border);
   }
 
   main {
     margin-left: 0;                  /* Sidebar full width -> content full width */
+    width: 100%;
+  }
+
+  .search-panel {
+    left: 0;                         /* vì nav không còn cố định */
+    right: 0;
   }
 }

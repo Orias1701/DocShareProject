@@ -1,39 +1,51 @@
-// src/services/pdfService.js
+// [Tác dụng file] Tải PDF qua proxy (để kèm cookie/CORS), kiểm tra bytes PDF, và fallback sang tải trực tiếp
 import { pdfjsLib } from "../lib/pdfjs";
 
-const API_ORIGIN = import.meta.env.VITE_API_ORIGIN || ""; // để "" nếu FE & BE cùng origin
-export const buildProxyUrl = (u) =>
-  `${API_ORIGIN}/index.php?action=pdf_proxy&u=${encodeURIComponent(u)}`;
+// [Tác dụng] Lấy API_ORIGIN (nếu có) từ biến môi trường
+const API_ORIGIN =
+  (typeof import.meta !== "undefined" &&
+    import.meta &&
+    import.meta.env &&
+    import.meta.env.VITE_API_ORIGIN) || "";
 
-/** Kiểm tra bytes có “giống PDF” không (%PDF- xuất hiện trong ~1KB đầu) */
+// [Tác dụng] Tạo URL proxy để server tải hộ file PDF
+export function buildProxyUrl(u) {
+  if (!API_ORIGIN) return u; // không cấu hình proxy → trả về URL gốc
+  const base = API_ORIGIN.replace(/\/+$/, "");
+  const qs = new URLSearchParams({ u });
+  return `${base}/index.php?action=pdf_proxy&${qs.toString()}`;
+}
+
+// [Tác dụng] Kiểm tra xem ArrayBuffer có chứa header %PDF- không
 export function looksLikePdf(ab) {
   if (!ab || !ab.byteLength) return false;
   const maxScan = Math.min(ab.byteLength, 1024);
   const head = new Uint8Array(ab, 0, maxScan);
   const ascii = new TextDecoder("ascii").decode(head);
-  return ascii.includes("%PDF-");
+  return ascii.indexOf("%PDF-") !== -1;
 }
 
-/** Tải PDF: ưu tiên proxy (ArrayBuffer), nếu fail thì để pdf.js tự tải trực tiếp */
+// [Tác dụng] Tải tài liệu PDF: ưu tiên qua proxy, nếu lỗi thì pdf.js tự tải từ URL gốc
 export async function loadPdfDocument(url) {
-  // 1) Thử proxy cùng origin — tránh ERR_TUNNEL/CORS
-  try {
-    const proxied = buildProxyUrl(url);
-    const ab = await fetch(proxied, {
-      credentials: "include",    // nếu BE cần session/cookie
-      cache: "no-store",
-      referrerPolicy: "no-referrer",
-    }).then((r) => {
-      if (!r.ok) throw new Error(`Proxy fetch failed: ${r.status}`);
-      return r.arrayBuffer();
-    });
+  if (API_ORIGIN) {
+    try {
+      const proxied = buildProxyUrl(url);
+      const r = await fetch(proxied, {
+        credentials: "include",
+        cache: "no-store",
+        referrerPolicy: "no-referrer",
+      });
+      if (!r.ok) throw new Error("Proxy fetch failed: " + r.status);
+      const ab = await r.arrayBuffer();
 
-    if (!looksLikePdf(ab)) throw new Error("Proxy did not return a PDF");
-    const task = pdfjsLib.getDocument({ data: ab });
-    return await task.promise;
-  } catch (e) {
-    // 2) Fallback: để pdf.js tự tải trực tiếp từ URL gốc
-    const task = pdfjsLib.getDocument({ url });
-    return await task.promise;
+      if (!looksLikePdf(ab)) throw new Error("Proxy did not return a PDF");
+      const task = pdfjsLib.getDocument({ data: ab });
+      return await task.promise;
+    } catch (e) {
+      // rơi xuống fallback
+    }
   }
+  // Fallback: để pdf.js tự tải từ URL gốc
+  const task2 = pdfjsLib.getDocument({ url });
+  return await task2.promise;
 }

@@ -1,88 +1,73 @@
-// src/services/usersServices.js
+// [Tác dụng file] Xử lý đăng nhập/đăng ký/đăng xuất, lấy thông tin người dùng, cập nhật tài khoản, xoá user
 import fetchJson from "./fetchJson";
 
-/** 
- * LƯU Ý:
- * - fetchJson đã cấu hình credentials: "include" → gửi/nhận PHP session cookie.
- * - fetchJson trả về `data.data ?? data`, nên nếu API trả {status, user} thì bạn nhận nguyên object đó.
- */
-
+// [Tác dụng] POST JSON tiện dụng (dùng cho các API body JSON)
 function postJson(action, payload) {
   return fetchJson(action, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload ?? {}),
-  });a
+    body: JSON.stringify(payload || {})
+  });
 }
 
+// [Tác dụng] Gom các API xác thực và quản trị người dùng
 export const authApi = {
-  /** POST /?action=api_login
-   * Body: { identifier, password }
-   * Response: { status: "ok", user: {...} } hoặc { status:"error", message:... }
-   */
-  login({ identifier, password }) {
-    return postJson("api_login", { identifier, password });
-  },
-
-  /** POST /?action=api_register
-   * Body: {
-   *   username, email, password, full_name, birth_date,
-   *   avatar_url (optional), bio (optional)
-   * }
-   * Response: { status: "ok", message: "Đăng ký thành công" }
-   */
-  register({ username, email, password, full_name, birth_date, avatar_url = null, bio = null }) {
-    return postJson("api_register", {
-      username,
-      email,
-      password,
-      full_name,
-      birth_date,
-      avatar_url,
-      bio,
+  // [Tác dụng] Đăng nhập bằng identifier (username/email) + password
+  login: function (params) {
+    return postJson("api_login", {
+      identifier: params && params.identifier,
+      password: params && params.password
     });
   },
 
-  /** POST /?action=api_logout
-   * Response: { status: "ok", message: "Đã đăng xuất" }
-   */
-  logout() {
-    // Không cần body
+  // [Tác dụng] Đăng ký tài khoản mới
+  register: function (params) {
+    return postJson("api_register", {
+      username: params && params.username,
+      email: params && params.email,
+      password: params && params.password,
+      full_name: params && params.full_name,
+      birth_date: params && params.birth_date,
+      avatar_url: params && params.avatar_url !== undefined ? params.avatar_url : null,
+      bio: params && params.bio !== undefined ? params.bio : null
+    });
+  },
+
+  // [Tác dụng] Đăng xuất (huỷ session)
+  logout: function () {
     return postJson("api_logout", {});
   },
-  deleteUser(user_id) {
+
+  // [Tác dụng] Xoá người dùng theo user_id (method DELETE)
+  deleteUser: function (user_id) {
     if (!user_id) throw new Error("user_id is required");
     return fetchJson("api_delete_user", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ user_id }),
+      body: JSON.stringify({ user_id: user_id })
     });
   },
-  
-  
-  /** GET /?action=api_me
-   * Response (khi đã đăng nhập):
-   * {
-   *   status:"ok",
-   *   user: { user_id, username, email, full_name, phone, bio, avatar_url }
-   * }
-   * Nếu chưa đăng nhập: { status:"error", message:"Chưa đăng nhập" }
-   */
-  me() {
+
+  // [Tác dụng] Lấy thông tin người dùng hiện tại
+  me: function () {
     return fetchJson("api_me");
   },
-  admin(){
+
+  // [Tác dụng] Kiểm tra quyền admin
+  admin: function () {
     return fetchJson("api_admin");
   },
-  updateAccount({ user_id, email, new_password, role_id }) {
-    return postJson("api_update_account", {
-      user_id,
-      // chỉ đẩy field nào muốn đổi; để undefined sẽ không cập nhật
-      ...(email !== undefined ? { email } : {}),
-      ...(new_password !== undefined ? { new_password } : {}),
-      ...(role_id !== undefined ? { role_id } : {}),
-    });
-  },
+
+  // [Tác dụng] Cập nhật tài khoản
+  updateAccount: function (params) {
+    let payload = {};
+    if (params && "user_id" in params) payload.user_id = params.user_id;
+    if (params && params.email !== undefined) payload.email = params.email;
+    if (params && params.new_password !== undefined) payload.new_password = params.new_password;
+    if (params && params.role_id !== undefined) payload.role_id = params.role_id;
+
+    return postJson("api_update_account", payload);
+  }
 };
 
 export default authApi;

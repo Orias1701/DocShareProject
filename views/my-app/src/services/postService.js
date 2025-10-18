@@ -1,6 +1,7 @@
-// src/services/postService.js
+// [Tác dụng file] Cung cấp các hàm thao tác với bài viết (posts), hashtag liên quan, master data và đếm số bài
 import fetchJson from "./fetchJson";
 
+// [Tác dụng] Khai báo các action do backend cung cấp cho post
 const ACTIONS = {
   // Posts
   getLatest: "latest_posts",
@@ -18,34 +19,39 @@ const ACTIONS = {
   download: "download",
   // Post ↔ Hashtag
   listPostHashtags: "list_post_hashtags",
-  postsByHashtag: "posts_by_hashtag", // ← BE của bạn
+  postsByHashtag: "posts_by_hashtag",
   createPostHashtag: "create_post_hashtag",
   updatePostHashtag: "update_post_hashtag",
   deletePostHashtag: "delete_post_hashtag",
-
   // Master data
   listCategories: "list_categories",
   listAlbums: "list_albums",
   listHashtags: "list_hashtags",
-
   // Feed
   getPostsFromFollowedUsers: "list_posts_by_following",
-
-  // ▼▼▼ Count posts (mới thêm, khớp routes bạn đưa) ▼▼▼
+  // Count
   countAllPosts: "count_posts_all",
-  countPostsByUser: "count_posts_by_user",     // ?user_id=... | (session nếu không truyền)
-  countPostsByAlbum: "count_posts_by_album",   // ?album_id=...
+  countPostsByUser: "count_posts_by_user",
+  countPostsByAlbum: "count_posts_by_album"
 };
 
-// --- helpers ---
-function toFormData(obj = {}) {
-  const fd = new FormData();
-  Object.entries(obj).forEach(([k, v]) => {
-    if (v !== undefined && v !== null) fd.append(k, v);
-  });
+// [Tác dụng] Chuyển object → FormData để gửi POST (có thể kèm file)
+function toFormData(obj) {
+  let fd = new FormData();
+  if (obj && typeof obj === "object") {
+    for (let k in obj) {
+      if (Object.prototype.hasOwnProperty.call(obj, k)) {
+        let v = obj[k];
+        if (v !== undefined && v !== null) {
+          fd.append(k, v);
+        }
+      }
+    }
+  }
   return fd;
 }
 
+// [Tác dụng] Chuẩn hoá 1 post về cấu trúc gọn gàng
 function normalizePost(p) {
   if (!p) return null;
   return {
@@ -58,13 +64,12 @@ function normalizePost(p) {
     album_name: p.album_name,
     user_id: p.user_id,
     username: p.username,
-    email: p.email,
+    email: p.email
   };
 }
 
-// Chuẩn hoá kết quả count do BE có thể trả {status, data:{count}} hoặc {count}
+// [Tác dụng] Trích số đếm từ nhiều kiểu response khác nhau ({data:{count}} | {count} | ...)
 function pickCount(res) {
-  // ưu tiên { data: { count } }
   if (res && typeof res === "object") {
     if (res.data && typeof res.data.count !== "undefined") {
       return Number(res.data.count) || 0;
@@ -76,236 +81,255 @@ function pickCount(res) {
   return 0;
 }
 
+// [Tác dụng] Gom các API thao tác với post
 export const postService = {
-  // ---------- Posts ----------
-  getLatest() {
+  // [Tác dụng] Lấy bài mới nhất
+  getLatest: function () {
     return fetchJson(ACTIONS.getLatest);
   },
-  getPopular() {
+
+  // [Tác dụng] Lấy bài phổ biến
+  getPopular: function () {
     return fetchJson(ACTIONS.getPopular);
   },
-  getByIdCompact(post_id) {
-    return fetchJson(`${ACTIONS.postDetail}&post_id=${encodeURIComponent(post_id)}`);
+
+  // [Tác dụng] Lấy chi tiết gọn cho một bài theo id
+  getByIdCompact: function (post_id) {
+    return fetchJson(ACTIONS.postDetail + "&post_id=" + encodeURIComponent(post_id));
   },
-  getByCategory(category_id) {
-    return fetchJson(`${ACTIONS.postsByCategory}&category_id=${encodeURIComponent(category_id)}`);
+
+  // [Tác dụng] Lấy bài theo category_id
+  getByCategory: function (category_id) {
+    return fetchJson(ACTIONS.postsByCategory + "&category_id=" + encodeURIComponent(category_id));
   },
-  showDetail(post_id) {
-    return fetchJson(`${ACTIONS.showPostDetail}&post_id=${encodeURIComponent(post_id)}`);
+
+  // [Tác dụng] Lấy chi tiết đầy đủ theo post_id
+  showDetail: function (post_id) {
+    return fetchJson(ACTIONS.postDetail + "&post_id=" + encodeURIComponent(post_id));
   },
-  listAll() {
+
+  // [Tác dụng] Lấy tất cả bài
+  listAll: function () {
     return fetchJson(ACTIONS.listAll);
   },
 
-  // Feed
-  async listPostsByFollowing() {
-    const res = await fetchJson(ACTIONS.getPostsFromFollowedUsers);
-    return Array.isArray(res?.data) ? res.data : [];
+  // [Tác dụng] Lấy feed từ những người mình theo dõi (trả về mảng)
+  listPostsByFollowing: async function () {
+    let res = await fetchJson(ACTIONS.getPostsFromFollowedUsers);
+    return res && typeof res === "object" && Array.isArray(res.data) ? res.data : [];
   },
 
-  // CRUD post
-  create(params) {
-    const body = toFormData({
-      title: params.title,
-      content: params.content,
-      description: params.description,
-      summary: params.summary,
-      album_id: params.album_id,
-      category_id: params.category_id,
-      hashtags: params.hashtags,
-      ...(params.banner ? { banner: params.banner } : {}),
-      ...(params.content_file ? { content_file: params.content_file } : {}),
+  // [Tác dụng] Tạo bài viết mới (hỗ trợ banner, content_file)
+  create: function (params) {
+    let fd = new FormData();
+    if (params) {
+      if ("title" in params) fd.append("title", params.title);
+      if ("content" in params) fd.append("content", params.content);
+      if ("description" in params) fd.append("description", params.description);
+      if ("summary" in params) fd.append("summary", params.summary);
+      if ("album_id" in params) fd.append("album_id", params.album_id);
+      if ("category_id" in params) fd.append("category_id", params.category_id);
+      if ("hashtags" in params) fd.append("hashtags", params.hashtags);
+      if ("banner" in params && params.banner) fd.append("banner", params.banner);
+      if ("content_file" in params && params.content_file) fd.append("content_file", params.content_file);
+    }
+    return fetchJson(ACTIONS.create, { method: "POST", body: fd });
+  },
+
+  // [Tác dụng] Cập nhật bài viết (cả meta + nội dung + file)
+  update: function (params) {
+    let fd = new FormData();
+    function has(k) { return params && Object.prototype.hasOwnProperty.call(params, k); }
+    function app(k) { if (has(k)) fd.append(k, params[k]); }
+
+    // Bắt buộc
+    app("post_id");
+
+    // Meta
+    app("title");
+    app("banner_url");
+    if (has("bannerFile") && params.bannerFile) fd.append("banner", params.bannerFile);
+    if (has("banner") && params.banner) fd.append("banner", params.banner);
+
+    // Chuyển album/category
+    app("album_id_new");
+    app("category_id_new");
+
+    // Admin-only: đổi tên album/category
+    app("album_name_new");
+    app("category_name_new");
+
+    // Nhóm chỉnh nội dung đầy đủ (flow cũ)
+    app("content");
+    app("description");
+    app("summary");
+    app("album_id");
+    app("category_id");
+    if (has("content_file") && params.content_file) fd.append("content_file", params.content_file);
+
+    return fetchJson(ACTIONS.update, { method: "POST", body: fd });
+  },
+
+  // [Tác dụng] Xoá bài (GET theo id)
+  remove: function (id) {
+    return fetchJson(ACTIONS.delete + "&post_id=" + encodeURIComponent(id));
+  },
+
+  // [Tác dụng] Xoá bài (POST theo id)
+  removeViaPost: function (id) {
+    let body = toFormData({ post_id: id });
+    return fetchJson(ACTIONS.delete, { method: "POST", body: body });
+  },
+
+  // [Tác dụng] Lấy hashtag của một bài
+  listHashtagsByPost: function (post_id) {
+    return fetchJson(ACTIONS.listPostHashtags + "&post_id=" + encodeURIComponent(post_id));
+  },
+
+  // [Tác dụng] Lấy danh sách bài theo hashtag (truyền hashtag_id hoặc hashtag_name)
+  getPostsByHashtag: async function (params) {
+    let hashtag_id = params && params.hashtag_id;
+    let hashtag_name = params && params.hashtag_name;
+    let q;
+    if (hashtag_id !== undefined && hashtag_id !== null) {
+      q = ACTIONS.postsByHashtag + "&hashtag_id=" + encodeURIComponent(hashtag_id);
+    } else {
+      let name = hashtag_name || "";
+      q = ACTIONS.postsByHashtag + "&hashtag_name=" + encodeURIComponent(name);
+    }
+
+    let res = await fetchJson(q);
+    let arr = res && typeof res === "object" && Array.isArray(res.data) ? res.data : [];
+    let out = [];
+    for (let i = 0; i < arr.length; i++) {
+      let n = normalizePost(arr[i]);
+      if (n) out.push(n);
+    }
+    return out;
+  },
+
+  // [Tác dụng] Thêm hashtag vào bài
+  addHashtagToPost: function (params) {
+    let body = toFormData({ post_id: params && params.post_id, hashtag_id: params && params.hashtag_id });
+    return fetchJson(ACTIONS.createPostHashtag, { method: "POST", body: body });
+  },
+
+  // [Tác dụng] Đổi hashtag của bài (old → new)
+  updatePostHashtag: function (params) {
+    let body = toFormData({
+      post_id: params && params.post_id,
+      old_hashtag_id: params && params.old_hashtag_id,
+      new_hashtag_id: params && params.new_hashtag_id
     });
-    return fetchJson(ACTIONS.create, { method: "POST", body });
-  },
- // src/services/postService.js
-update(params) {
-  const fd = new FormData();
-
-  // helper: append nếu field có trong params (kể cả chuỗi rỗng, để BE hiểu là muốn clear)
-  const has = (k) => Object.prototype.hasOwnProperty.call(params, k);
-  const app = (k) => { if (has(k)) fd.append(k, params[k]); };
-
-  // BẮT BUỘC
-  app("post_id");
-
-  // ----- Nhóm meta (ownerUpdatePost/adminUpdatePost) -----
-  // Cho phép set URL banner trực tiếp, hoặc gửi file banner mới (key 'banner')
-  app("title");
-  app("banner_url");
-  if (has("bannerFile") && params.bannerFile) fd.append("banner", params.bannerFile);
-  if (has("banner") && params.banner) fd.append("banner", params.banner); // tương thích caller cũ
-
-  // chuyển album/category
-  app("album_id_new");
-  app("category_id_new");
-
-  // admin-only: đổi tên album/category hiện tại
-  app("album_name_new");
-  app("category_name_new");
-
-  // ----- Nhóm chỉnh nội dung “đầy đủ” (Controller update cũ) -----
-  app("content");
-  app("description");
-  app("summary");
-  app("album_id");      // flow cũ
-  app("category_id");   // flow cũ
-  if (has("content_file") && params.content_file) fd.append("content_file", params.content_file);
-
-  // Đi chung một route 'update_post'
-  return fetchJson(ACTIONS.update, { method: "POST", body: fd });
-},
-
-  // src/services/postService.js
-  remove(id) {
-    return fetchJson(`${ACTIONS.delete}&post_id=${encodeURIComponent(id)}`);
-  },
-  removeViaPost(id) {
-    const body = toFormData({ post_id: id });
-    return fetchJson(ACTIONS.delete, { method: "POST", body });
+    return fetchJson(ACTIONS.updatePostHashtag, { method: "POST", body: body });
   },
 
-
-  // ---------- Post ↔ Hashtag ----------
-  listHashtagsByPost(post_id) {
-    return fetchJson(`${ACTIONS.listPostHashtags}&post_id=${encodeURIComponent(post_id)}`);
+  // [Tác dụng] Xoá hashtag khỏi bài
+  deletePostHashtag: function (params) {
+    let body = toFormData({ post_id: params && params.post_id, hashtag_id: params && params.hashtag_id });
+    return fetchJson(ACTIONS.deletePostHashtag, { method: "POST", body: body });
   },
 
-  /**
-   * Lấy posts theo hashtag.
-   * Bạn có thể truyền { hashtag_id } *hoặc* { hashtag_name }.
-   * BE trả JSON dạng: { status: "success", data: [ ...posts ] }
-   */
-  async getPostsByHashtag({ hashtag_id, hashtag_name }) {
-    const q =
-      hashtag_id != null
-        ? `${ACTIONS.postsByHashtag}&hashtag_id=${encodeURIComponent(hashtag_id)}`
-        : `${ACTIONS.postsByHashtag}&hashtag_name=${encodeURIComponent(hashtag_name ?? "")}`;
-
-    const res = await fetchJson(q);
-    const arr = Array.isArray(res?.data) ? res.data : [];
-    return arr.map(normalizePost).filter(Boolean);
+  // [Tác dụng] Lấy danh mục (chuẩn hoá {id, name})
+  listCategories: async function () {
+    let res = await fetchJson(ACTIONS.listCategories);
+    let arr = res && typeof res === "object" && Array.isArray(res.data) ? res.data : [];
+    let out = [];
+    for (let i = 0; i < arr.length; i++) {
+      let x = arr[i];
+      out.push({ id: x.category_id !== undefined ? x.category_id : x.id, name: x.category_name !== undefined ? x.category_name : x.name });
+    }
+    return out;
   },
 
-  addHashtagToPost({ post_id, hashtag_id }) {
-    const body = toFormData({ post_id, hashtag_id });
-    return fetchJson(ACTIONS.createPostHashtag, { method: "POST", body });
-  },
-  updatePostHashtag({ post_id, old_hashtag_id, new_hashtag_id }) {
-    const body = toFormData({ post_id, old_hashtag_id, new_hashtag_id });
-    return fetchJson(ACTIONS.updatePostHashtag, { method: "POST", body });
-  },
-  deletePostHashtag({ post_id, hashtag_id }) {
-    const body = toFormData({ post_id, hashtag_id });
-    return fetchJson(ACTIONS.deletePostHashtag, { method: "POST", body });
-  },
-
-  // ---------- Master data ----------
-  async listCategories() {
-    const res = await fetchJson(ACTIONS.listCategories);
-    const arr = Array.isArray(res?.data) ? res.data : [];
-    return arr
-      .map((x) => ({ id: x.category_id ?? x.id, name: x.category_name ?? x.name }))
-      .filter(Boolean);
-  },
-  async listAlbums() {
-    const res = await fetchJson(ACTIONS.listAlbums);
-    const arr = Array.isArray(res?.data) ? res.data : [];
-    return arr
-      .map((x) => ({ id: x.album_id ?? x.id, name: x.album_name ?? x.name }))
-      .filter(Boolean);
-  },
-  async listHashtags() {
-    const res = await fetchJson(ACTIONS.listHashtags);
-    const arr = Array.isArray(res?.data) ? res.data : [];
-    return arr
-      .map((x) => ({ id: x.hashtag_id ?? x.id, name: x.hashtag_name ?? x.name }))
-      .filter(Boolean);
+  // [Tác dụng] Lấy album (chuẩn hoá {id, name})
+  listAlbums: async function () {
+    let res = await fetchJson(ACTIONS.listAlbums);
+    let arr = res && typeof res === "object" && Array.isArray(res.data) ? res.data : [];
+    let out = [];
+    for (let i = 0; i < arr.length; i++) {
+      let x = arr[i];
+      out.push({ id: x.album_id !== undefined ? x.album_id : x.id, name: x.album_name !== undefined ? x.album_name : x.name });
+    }
+    return out;
   },
 
-  // ---------- My posts ----------
-  async listMyPosts() {
-    const res = await fetchJson(ACTIONS.listPostByUser);
-    return Array.isArray(res?.data) ? res.data : [];
-  },
-  async listUserPosts(user_id) {
-    const res = await fetchJson(`${ACTIONS.listUserPosts}&user_id=${encodeURIComponent(user_id)}`);
-    return Array.isArray(res?.data) ? res.data : [];
-  },
-
-  getByAlbum(album_id) {
-    return fetchJson(`${ACTIONS.postsByAlbum}&album_id=${encodeURIComponent(album_id)}`);
+  // [Tác dụng] Lấy hashtag (chuẩn hoá {id, name})
+  listHashtags: async function () {
+    let res = await fetchJson(ACTIONS.listHashtags);
+    let arr = res && typeof res === "object" && Array.isArray(res.data) ? res.data : [];
+    let out = [];
+    for (let i = 0; i < arr.length; i++) {
+      let x = arr[i];
+      out.push({ id: x.hashtag_id !== undefined ? x.hashtag_id : x.id, name: x.hashtag_name !== undefined ? x.hashtag_name : x.name });
+    }
+    return out;
   },
 
-  // ---------- COUNT POSTS (mới) ----------
-  /**
-   * Đếm tổng số bài viết trong hệ thống.
-   * BE route: case 'count_posts_all'
-   * Trả về: number
-   */
-  async countAllPosts() {
-    const res = await fetchJson(ACTIONS.countAllPosts);
+  // [Tác dụng] Lấy bài của tôi (theo session)
+  listMyPosts: async function () {
+    let res = await fetchJson(ACTIONS.listPostByUser);
+    return res && typeof res === "object" && Array.isArray(res.data) ? res.data : [];
+  },
+
+  // [Tác dụng] Lấy bài theo user_id chỉ định
+  listUserPosts: async function (user_id) {
+    let res = await fetchJson(ACTIONS.listUserPosts + "&user_id=" + encodeURIComponent(user_id));
+    return res && typeof res === "object" && Array.isArray(res.data) ? res.data : [];
+  },
+
+  // [Tác dụng] Lấy bài theo album_id
+  getByAlbum: function (album_id) {
+    return fetchJson(ACTIONS.postsByAlbum + "&album_id=" + encodeURIComponent(album_id));
+  },
+
+  // [Tác dụng] Đếm tổng số bài
+  countAllPosts: async function () {
+    let res = await fetchJson(ACTIONS.countAllPosts);
     return pickCount(res);
   },
 
-  /**
-   * Đếm số bài viết của một user.
-   * Nếu không truyền user_id → BE dùng session (user hiện tại).
-   * BE route: case 'count_posts_by_user'
-   * Trả về: number
-   */
-  async countPostsByUser(user_id) {
-    const url = user_id
-      ? `${ACTIONS.countPostsByUser}&user_id=${encodeURIComponent(user_id)}`
-      : ACTIONS.countPostsByUser; // dùng session
-    const res = await fetchJson(url);
+  // [Tác dụng] Đếm số bài theo user (nếu không truyền user_id → BE dùng session)
+  countPostsByUser: async function (user_id) {
+    let url = user_id ? (ACTIONS.countPostsByUser + "&user_id=" + encodeURIComponent(user_id)) : ACTIONS.countPostsByUser;
+    let res = await fetchJson(url);
     return pickCount(res);
   },
 
-  /**
-   * Đếm số bài viết trong một album (bắt buộc album_id).
-   * BE route: case 'count_posts_by_album'
-   * Trả về: number
-   */
-  async countPostsByAlbum(album_id) {
+  // [Tác dụng] Đếm số bài trong một album
+  countPostsByAlbum: async function (album_id) {
     if (!album_id) throw new Error("album_id is required");
-    const res = await fetchJson(
-      `${ACTIONS.countPostsByAlbum}&album_id=${encodeURIComponent(album_id)}`
-    );
+    let res = await fetchJson(ACTIONS.countPostsByAlbum + "&album_id=" + encodeURIComponent(album_id));
     return pickCount(res);
   },
-  // ---------- DOWNLOAD ----------
-  // src/services/postService.js
-  async download(postId) {
+
+  // [Tác dụng] Tải file đính kèm của bài (trình duyệt sẽ tải xuống)
+  download: async function (postId) {
     if (!postId) throw new Error("postId is required");
+    let API_BASE = "http://localhost:3000/public/index.php";
+    let url = API_BASE + "?action=download&post_id=" + encodeURIComponent(postId);
 
-    const API_BASE = "http://localhost:3000/public/index.php";
-    const url = `${API_BASE}?action=download&post_id=${encodeURIComponent(postId)}`;
-
-    const res = await fetch(url, { credentials: "include" });
+    let res = await fetch(url, { credentials: "include" });
     if (!res.ok) {
-      const msg = await res.text();
-      throw new Error(`Download failed: ${res.status} ${msg}`);
+      let msg = await res.text();
+      throw new Error("Download failed: " + res.status + " " + msg);
     }
 
-    // lấy filename từ Content-Disposition
     let filename = "downloaded_file";
-    const disposition = res.headers.get("Content-Disposition");
-    if (disposition && disposition.includes("filename=")) {
-      filename = decodeURIComponent(
-        disposition.split("filename=")[1].replace(/["']/g, "")
-      );
+    let disposition = res.headers.get("Content-Disposition");
+    if (disposition && disposition.indexOf("filename=") !== -1) {
+      filename = decodeURIComponent(disposition.split("filename=")[1].replace(/["']/g, ""));
     }
 
-    const blob = await res.blob();
-    const link = document.createElement("a");
+    let blob = await res.blob();
+    let link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
     link.download = filename;
     document.body.appendChild(link);
     link.click();
     URL.revokeObjectURL(link.href);
     link.remove();
-  },
+  }
 };
 
 export default postService;

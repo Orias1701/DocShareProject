@@ -1,78 +1,76 @@
-// src/services/post_reactionService.js
+// [Tác dụng file] Quản lý reaction (like/dislike): bật/tắt, trạng thái, và đếm
 import fetchJson from "./fetchJson";
 
+// [Tác dụng] Action API cho reaction
 const ACTIONS = {
-  toggle: "toggle_reaction_api",        // POST: post_id, reaction_type ('like'|'dislike')
-  getState: "get_reaction_state_api",   // GET : post_id -> { ok, myReaction, counts }
-  count: "count_reactions",     // GET : post_id -> { ok, likes, dislikes }
+  toggle: "toggle_reaction_api",
+  getState: "get_reaction_state_api",
+  count: "count_reactions"
 };
 
-// Gửi POST dạng FormData
-function postForm(action, payload = {}) {
-  const fd = new FormData();
-  Object.entries(payload).forEach(([k, v]) => {
-    if (v !== undefined && v !== null) fd.append(k, v);
-  });
+// [Tác dụng] Tạo body FormData và gọi POST
+function postForm(action, payload) {
+  let fd = new FormData();
+  let obj = payload || {};
+  for (let k in obj) {
+    if (Object.prototype.hasOwnProperty.call(obj, k)) {
+      let v = obj[k];
+      if (v !== undefined && v !== null) fd.append(k, v);
+    }
+  }
   return fetchJson(action, { method: "POST", body: fd });
 }
 
-// Chuẩn hoá API response (tương thích cả {ok: true} hoặc {status,data})
+// [Tác dụng] Chuẩn hoá phản hồi về dạng có status/data hoặc status/error
 async function normalizeApiResponse(promise) {
-  const res = await promise;
+  let res = await promise;
 
-  // Trường hợp API của reaction trả { ok: true, ... }
   if (res && typeof res === "object" && "ok" in res) {
     if (res.ok === true) return { status: "success", data: res };
     return { status: "error", data: res };
   }
-
-  // Theo format mẫu
   if (Array.isArray(res)) return { status: "success", data: res };
   if (res && typeof res === "object" && "status" in res && "data" in res) return res;
-
   return { status: "success", data: Array.isArray(res) ? res : [res] };
 }
 
 export const post_reactionService = {
-  /**
-   * Toggle like/dislike cho 1 post
-   * @param {number|string} postId
-   * @param {'like'|'dislike'} reactionType
-   */
-  toggle(postId, reactionType) {
+  // [Tác dụng] Bật/tắt 1 reaction cho post (like/dislike)
+  toggle: function (postId, reactionType) {
     if (!postId) throw new Error("postId is required");
-    if (!["like", "dislike"].includes(reactionType)) {
+    if (reactionType !== "like" && reactionType !== "dislike") {
       throw new Error("reactionType must be 'like' or 'dislike'");
     }
     return normalizeApiResponse(
-      postForm(ACTIONS.toggle, {
-        post_id: postId,
-        reaction_type: reactionType,
-      })
+      postForm(ACTIONS.toggle, { post_id: postId, reaction_type: reactionType })
     );
   },
 
-  /** Lấy trạng thái hiện tại (myReaction + counts) */
-  getState(postId) {
+  // [Tác dụng] Lấy trạng thái reaction hiện tại của post cho người dùng
+  getState: function (postId) {
     if (!postId) throw new Error("postId is required");
     return normalizeApiResponse(
-      fetchJson(`${ACTIONS.getState}&post_id=${encodeURIComponent(postId)}`)
+      fetchJson(ACTIONS.getState + "&post_id=" + encodeURIComponent(postId))
     );
   },
 
-  /** Helper ngắn gọn */
-  like(postId) {
+  // [Tác dụng] Tạo nhanh like (wrapper)
+  like: function (postId) {
     return this.toggle(postId, "like");
   },
-  dislike(postId) {
+
+  // [Tác dụng] Tạo nhanh dislike (wrapper)
+  dislike: function (postId) {
     return this.toggle(postId, "dislike");
   },
-  count(postId) {
+
+  // [Tác dụng] Đếm số reaction của post
+  count: function (postId) {
     if (!postId) throw new Error("postId is required");
     return normalizeApiResponse(
-      fetchJson(`${ACTIONS.count}&post_id=${encodeURIComponent(postId)}`)
+      fetchJson(ACTIONS.count + "&post_id=" + encodeURIComponent(postId))
     );
-  },
+  }
 };
 
 export default post_reactionService;

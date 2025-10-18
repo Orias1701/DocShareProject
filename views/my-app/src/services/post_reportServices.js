@@ -1,54 +1,66 @@
-// src/services/post_reportService.js
+// [Tác dụng file] Báo cáo bài viết: toggle, liệt kê, tất cả, và đếm số report
 import fetchJson from "./fetchJson";
 
+// [Tác dụng] Action API cho report
 const ACTIONS = {
-  toggle: "toggle_report",       // POST: post_id, reason
-  listByPost: "list_reports",    // GET: post_id -> {ok, data}
-  listAll: "list_all_reports",   // GET -> {ok, data}
-  countReports: "count_reports" // GET -> {ok, data}
+  toggle: "toggle_report",
+  listByPost: "list_reports",
+  listAll: "list_all_reports",
+  countReports: "count_reports"
 };
 
-// Gửi POST dạng FormData
-function postForm(action, payload = {}) {
-  const fd = new FormData();
-  Object.entries(payload).forEach(([k, v]) => {
-    if (v !== undefined && v !== null) fd.append(k, v);
-  });
+// [Tác dụng] Tạo body FormData và gọi POST
+function postForm(action, payload) {
+  let fd = new FormData();
+  let obj = payload || {};
+  for (let k in obj) {
+    if (Object.prototype.hasOwnProperty.call(obj, k)) {
+      let v = obj[k];
+      if (v !== undefined && v !== null) fd.append(k, v);
+    }
+  }
   return fetchJson(action, { method: "POST", body: fd });
 }
 
-// Chuẩn hoá response
+// [Tác dụng] Chuẩn hoá phản hồi về { status, data|error } để dễ dùng
 async function normalizeApiResponse(promise) {
-  const res = await promise;
+  let res = await promise;
   if (res && typeof res === "object" && "ok" in res) {
-    return res.ok ? { status: "success", data: res.data ?? res } 
+    return res.ok ? { status: "success", data: ("data" in res ? res.data : res) }
                   : { status: "error", error: res.error };
   }
   return { status: "success", data: res };
 }
 
 export const post_reportService = {
-  toggle(postId, reason = "") {
+  // [Tác dụng] Bật/tắt report cho post với lý do (optional)
+  toggle: function (postId, reason) {
     if (!postId) throw new Error("postId is required");
     return normalizeApiResponse(
-      postForm(ACTIONS.toggle, { post_id: postId, reason })
+      postForm(ACTIONS.toggle, { post_id: postId, reason: reason || "" })
     );
   },
 
-  listByPost(postId) {
+  // [Tác dụng] Liệt kê các report của một post
+  listByPost: function (postId) {
     if (!postId) throw new Error("postId is required");
     return normalizeApiResponse(
-      fetchJson(`${ACTIONS.listByPost}&post_id=${encodeURIComponent(postId)}`)
+      fetchJson(ACTIONS.listByPost + "&post_id=" + encodeURIComponent(postId))
     );
   },
 
-  listAll() {
+  // [Tác dụng] Lấy tất cả report (tuỳ quyền)
+  listAll: function () {
     return normalizeApiResponse(fetchJson(ACTIONS.listAll));
   },
-  countReports(postId) {
+
+  // [Tác dụng] Đếm số report của một post
+  countReports: function (postId) {
     if (!postId) throw new Error("postId is required");
-    return normalizeApiResponse(fetchJson(`${ACTIONS.countReports}&post_id=${encodeURIComponent(postId)}`));
-  },
+    return normalizeApiResponse(
+      fetchJson(ACTIONS.countReports + "&post_id=" + encodeURIComponent(postId))
+    );
+  }
 };
 
 export default post_reportService;

@@ -1,4 +1,3 @@
-// src/pages/posts/NewPostPage.jsx
 import React, { useEffect, useMemo, useState } from "react";
 import FormField from "../../components/new-post/FormField";
 import FileUpload from "../../components/new-post/FileUpload";
@@ -9,21 +8,20 @@ import hashtagService from "../../services/hashtagService";
 import Toast from "../../components/common/Toast";
 import RichTextEditor from "../../components/new-post/RichTextEditor";
 import categoryServices from "../../services/categoryServices";
+import aiService from "../../services/aiService"; // ✅ tích hợp AI
 
 const NewPostPage = () => {
-  // ===== Mode: pdf | word
   const [mode, setMode] = useState("pdf");
-
-  const [mainFile, setMainFile] = useState(null); // PDF
-  const [thumbnailFile, setThumbnailFile] = useState(null); // Image
-  const [editorHtml, setEditorHtml] = useState(""); // WORD mode content
-
+  const [mainFile, setMainFile] = useState(null);
+  const [thumbnailFile, setThumbnailFile] = useState(null);
+  const [editorHtml, setEditorHtml] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [isSummarizing, setIsSummarizing] = useState(false);
+
   const [errors, setErrors] = useState({});
   const [toast, setToast] = useState({ open: false, message: "", type: "success" });
   const showToast = (message, type = "success") => setToast({ open: true, message, type });
 
-  // ▼ options
   const [categories, setCategories] = useState([]);
   const [albums, setAlbums] = useState([]);
   const [hashtags, setHashtags] = useState([]);
@@ -41,7 +39,7 @@ const NewPostPage = () => {
 
   const handleChange = (name, value) => setNewPost((prev) => ({ ...prev, [name]: value }));
 
-  // === Hashtag input
+  // Hashtag input
   const [hashtagInput, setHashtagInput] = useState("");
   const formatHashtagInput = (raw) => {
     const s = String(raw ?? "");
@@ -73,7 +71,7 @@ const NewPostPage = () => {
       )
     );
 
-  // === load options
+  // === Load dropdown options
   useEffect(() => {
     const loadAll = async () => {
       try {
@@ -110,22 +108,18 @@ const NewPostPage = () => {
     loadAll();
   }, []);
 
-  // Clear state không dùng khi đổi mode
+  // === Khi đổi mode
   useEffect(() => {
     setErrors({});
-    if (mode === "pdf") {
-      setEditorHtml((h) => h);
-    } else {
-      setMainFile(null);
-    }
+    if (mode === "pdf") setEditorHtml((h) => h);
+    else setMainFile(null);
   }, [mode]);
 
-  // === validate theo mode
+  // === Validate
   const validate = () => {
     const e = {};
     if (!newPost.title.trim()) e.title = "Title là bắt buộc";
     if (!newPost.category) e.category = "Hãy chọn Category";
-
     if (mode === "pdf") {
       if (!mainFile) e.mainFile = "Cần upload file chính (.pdf)";
       if (mainFile && mainFile.type !== "application/pdf") e.mainFile = "File chính phải là PDF";
@@ -133,23 +127,101 @@ const NewPostPage = () => {
       const html = (editorHtml || "").replace(/<[^>]*>/g, "").trim();
       if (!html) e.editor = "Nội dung bài viết không được để trống";
     }
-
     if (thumbnailFile && !/^image\//.test(thumbnailFile.type))
       e.thumbnailFile = "Thumbnail phải là ảnh";
-
     setErrors(e);
     return Object.keys(e).length === 0;
   };
+  // Chuẩn hoá chuỗi: bỏ dấu, lowercase, gộp khoảng trắng
+const normalizeName = (s = "") =>
+  s
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim();
 
+// Lấy tên category từ response AI (hỗ trợ cả 'category' lẫn 'category_name')
+const getAiCategoryName = (data = {}) => data.category ?? data.category_name ?? "";
+
+  // ====== AI summarize + chọn category ======
+  const findCategoryIdByName = (name) => {
+    const norm = normalizeName(name);
+    if (!norm) return "";
+    const found = categories.find((c) => normalizeName(c.name) === norm);
+    return found?.id || "";
+  };
+  
+
+  // Lưu lại tên category AI trả về, để map sang ID khi categories đã tải xong
+  const [aiCategoryName, setAiCategoryName] = useState("");
+
+  const handleSummarize = async (file) => {
+    if (!file) return;
+    if (file.type !== "application/pdf") {
+      showToast("File chính phải là PDF", "error");
+      return;
+    }
+    setIsSummarizing(true);
+    setNewPost((p) => ({ ...p, summary: "⏳ Đang tóm tắt..." }));
+    try {
+      const ctrl = new AbortController();
+      const data = await aiService.summarizePDF(file, ctrl.signal);
+  
+      console.log("📄 AI trả về:", data);
+  
+      // Lấy tên category từ AI: ưu tiên category, fallback category_name
+      const aiCatName = getAiCategoryName(data);
+      console.log("🏷️ AI category name:", aiCatName);
+  
+      let next = {
+        ...newPost,
+        summary: data.summary || "",
+      };
+  
+      const mappedId = findCategoryIdByName(aiCatName);
+      if (mappedId) {
+        console.log("✅ Tìm thấy category ID:", mappedId, "←", aiCatName);
+        next.category = mappedId;
+      } else {
+        console.warn("⚠️ Không khớp category AI:", aiCatName);
+        setAiCategoryName(aiCatName || "");
+      }
+  
+      setNewPost(next);
+      showToast("✅ Đã tóm tắt tự động!", "success");
+    } catch (err) {
+      console.error("❌ AI summarize error:", err);
+      showToast("❌ Lỗi tóm tắt tự động", "error");
+      setNewPost((p) => ({ ...p, summary: "(Không thể kết nối AI)" }));
+    } finally {
+      setIsSummarizing(false);
+    }
+  };
+  
+
+  // Khi categories đã tải xong, nếu AI có tên category mà chưa set ID thì map ngay
+  useEffect(() => {
+    if (!loadingOpts.categories && aiCategoryName && !newPost.category) {
+      const id = findCategoryIdByName(aiCategoryName);
+      if (id) {
+        console.log("🔁 Map lại category từ AI:", aiCategoryName, "→", id);
+        setNewPost((p) => ({ ...p, category: id }));
+      } else {
+        console.warn("⚠️ Không tìm thấy category tương ứng:", aiCategoryName);
+      }
+    }
+  }, [loadingOpts.categories, aiCategoryName, categories]); // eslint-disable-line
+  
+
+  // === Submit post
   const handleSubmit = async () => {
     if (!validate()) return;
     try {
       setSubmitting(true);
-
       const hashtagsForSubmit = parseHashtagForSubmit(hashtagInput)
         .map((tag) => tag.substring(1))
         .join(",");
-
       const basePayload = {
         title: newPost.title,
         description: newPost.summary || "",
@@ -160,22 +232,16 @@ const NewPostPage = () => {
         hashtags: hashtagsForSubmit,
         banner: thumbnailFile || undefined,
       };
-
       let payload = { ...basePayload };
-
-      if (mode === "pdf") {
-        payload.content_file = mainFile || undefined;
-      } else {
+      if (mode === "pdf") payload.content_file = mainFile || undefined;
+      else {
         payload.content = editorHtml || "";
         payload.content_file = undefined;
       }
-
       const res = await postService.create(payload);
       const postId = res?.post_id ?? res?.data?.post_id;
       if (!postId) throw new Error(res?.message || "Không tạo được post, postId rỗng");
-
       showToast("Tạo bài viết thành công!", "success");
-
       // reset
       setNewPost({ title: "", category: "", album: "", hashtagIds: [], summary: "", description: "" });
       setHashtagInput("");
@@ -185,7 +251,7 @@ const NewPostPage = () => {
       setErrors({});
     } catch (err) {
       console.error("Create post failed:", err);
-      showToast(err?.message || "Tạo bài viết thất bại. Vui lòng thử lại!", "error");
+      showToast(err?.message || "Tạo bài viết thất bại!", "error");
     } finally {
       setSubmitting(false);
     }
@@ -199,30 +265,29 @@ const NewPostPage = () => {
     ));
 
   const catOptions = useMemo(() => {
-    if (loadingOpts.categories) return [<option key="loading">Loading categories...</option>];
-    if (optErrors.categories) return [<option key="err">Không tải được categories</option>];
-    return [<option key="" value="">Choose category to save post</option>, ...renderOptions(categories)];
+    if (loadingOpts.categories) return [<option key="loading">Loading...</option>];
+    if (optErrors.categories) return [<option key="err">Lỗi tải categories</option>];
+    return [<option key="" value="">Chọn category</option>, ...renderOptions(categories)];
   }, [loadingOpts.categories, optErrors.categories, categories]);
 
   const albOptions = useMemo(() => {
-    if (loadingOpts.albums) return [<option key="loading">Loading albums...</option>];
-    if (optErrors.albums) return [<option key="err">Không tải được albums</option>];
-    return [<option key="" value="">Choose album to save post</option>, ...renderOptions(albums)];
+    if (loadingOpts.albums) return [<option key="loading">Loading...</option>];
+    if (optErrors.albums) return [<option key="err">Lỗi tải albums</option>];
+    return [<option key="" value="">Chọn album</option>, ...renderOptions(albums)];
   }, [loadingOpts.albums, optErrors.albums, albums]);
 
   return (
-    <div className="bg-[#0D1117] p-8 rounded-lg border border-[#2d2d33]">
-      {/* Toggle PDF / WORD */}
+    <div className="bg-[#0D1117] p-8 rounded-lg border border-[#2d2d33] text-white">
       <div className="mb-4 flex gap-3">
         <button
-          className={`px-4 py-1 rounded-lg border border-white/10 ${mode === "pdf" ? "bg-white text-black" : "text-white hover:bg-white/10"}`}
+          className={`px-4 py-1 rounded-lg border ${mode === "pdf" ? "bg-white text-black" : "text-white border-white/10"}`}
           onClick={() => setMode("pdf")}
           type="button"
         >
           PDF
         </button>
         <button
-          className={`px-4 py-1 rounded-lg border border-white/10 ${mode === "word" ? "bg-white text-black" : "text-white hover:bg-white/10"}`}
+          className={`px-4 py-1 rounded-lg border ${mode === "word" ? "bg-white text-black" : "text-white border-white/10"}`}
           onClick={() => setMode("word")}
           type="button"
         >
@@ -230,9 +295,8 @@ const NewPostPage = () => {
         </button>
       </div>
 
-      {/* Layout 2 cột; riêng WORD bỏ preview, chỉ giữ thông tin cần thiết */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-10 gap-y-8">
-        {/* === LEFT === */}
+        {/* LEFT */}
         <div className="flex flex-col gap-8">
           <FormField
             label="Post title"
@@ -269,10 +333,15 @@ const NewPostPage = () => {
                 <div>
                   <FileUpload
                     title="Upload file"
-                    subtitle="Or if you prefer"
+                    subtitle="Chọn file PDF"
                     buttonText="Browse my file"
                     note="Only support .pdf file"
-                    onFileSelect={(file) => setMainFile(file)}
+                    // Nếu component FileUpload hỗ trợ accept, nên thêm:
+                    // accept=".pdf,application/pdf"
+                    onFileSelect={(file) => {
+                      setMainFile(file);
+                      if (file && file.type === "application/pdf") handleSummarize(file);
+                    }}
                   />
                   {errors.mainFile && <p className="text-sm text-red-400 mt-2">{errors.mainFile}</p>}
                   {mainFile && <p className="text-xs text-gray-400 mt-1">Đã chọn: {mainFile.name}</p>}
@@ -281,24 +350,21 @@ const NewPostPage = () => {
                 <div>
                   <FileUpload
                     title="Upload thumbnail"
-                    subtitle="Or if you prefer"
+                    subtitle="Chọn ảnh thumbnail"
                     buttonText="Browse my file"
-                    note="Support .jpeg, .jpg, .png, ..."
+                    note="Hỗ trợ .jpeg, .jpg, .png"
+                    // accept="image/*"
                     onFileSelect={(file) => setThumbnailFile(file)}
                   />
-                  {errors.thumbnailFile && (
-                    <p className="text-sm text-red-400 mt-2">{errors.thumbnailFile}</p>
-                  )}
-                  {thumbnailFile && (
-                    <p className="text-xs text-gray-400 mt-1">Đã chọn: {thumbnailFile.name}</p>
-                  )}
+                  {errors.thumbnailFile && <p className="text-sm text-red-400 mt-2">{errors.thumbnailFile}</p>}
+                  {thumbnailFile && <p className="text-xs text-gray-400 mt-1">Đã chọn: {thumbnailFile.name}</p>}
                 </div>
               </div>
 
               <FormField
                 label="Your summary"
                 type="textarea"
-                placeholder="Your summary will be shown here"
+                placeholder="AI sẽ tự điền tóm tắt tại đây..."
                 rows={5}
                 value={newPost.summary}
                 onChange={(e) => handleChange("summary", e.target.value)}
@@ -314,92 +380,56 @@ const NewPostPage = () => {
             </>
           ) : (
             <>
-              {/* WORD mode: chỉ hiển thị editor + thumbnail; KHÔNG có preview */}
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Write content (additional)
+                  Write content
                 </label>
                 <RichTextEditor value={editorHtml} onChange={setEditorHtml} />
                 {errors.editor && <p className="text-sm text-red-400 mt-2">{errors.editor}</p>}
               </div>
-
               <div>
                 <FileUpload
                   title="Upload thumbnail"
-                  subtitle="Or if you prefer"
-                  buttonText="Browse my file"
-                  note="Support .jpeg, .jpg, .png, ..."
+                  subtitle="Chọn ảnh thumbnail"
+                  buttonText="Browse"
+                  note="Hỗ trợ .jpeg, .jpg, .png"
+                  // accept="image/*"
                   onFileSelect={(file) => setThumbnailFile(file)}
                 />
-                {errors.thumbnailFile && (
-                  <p className="text-sm text-red-400 mt-2">{errors.thumbnailFile}</p>
-                )}
-                {thumbnailFile && (
-                  <p className="text-xs text-gray-400 mt-1">Đã chọn: {thumbnailFile.name}</p>
-                )}
               </div>
             </>
           )}
         </div>
 
-        {/* === RIGHT === */}
+        {/* RIGHT */}
         <div className="flex flex-col gap-8">
-          {/* Hashtags */}
           <FormField
             label="Hashtags"
-            placeholder="#ai, #ml   hoặc   ai ml"
+            placeholder="#ai, #ml"
             value={hashtagInput}
             onChange={(e) => setHashtagInput(formatHashtagInput(e.target.value))}
-          >
-            {loadingOpts.hashtags && <option>Loading hashtags...</option>}
-            {!loadingOpts.hashtags && optErrors.hashtags && <option>Không tải được hashtags</option>}
-            {!loadingOpts.hashtags &&
-              !optErrors.hashtags &&
-              hashtags.map((h) => (
-                <option key={h.id} value={h.name}>
-                  {h.name}
-                </option>
-              ))}
-          </FormField>
-
+          />
           {mode === "pdf" ? (
-            // PDF: giữ FilePreview
-            <div className="flex-grow flex flex-col h-full">
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                File Preview
-              </label>
+            <div className="flex-grow">
+              <label className="block text-sm font-medium text-gray-300 mb-2">File Preview</label>
               <FilePreview file={mainFile} />
             </div>
           ) : (
-            // WORD: thay bằng card thông tin gọn
-            <div className="flex-grow rounded-xl border border-white/10 bg-[#0D1117] p-4 text-sm text-white/80">
-              <div className="font-semibold mb-2">Preview disabled in WORD mode</div>
-              <p className="mb-2">
-                Khi soạn ở chế độ <b>WORD</b>, nội dung sẽ được lưu dưới dạng HTML và hiển thị ở
-                trang chi tiết bài viết sau khi bạn đăng.
-              </p>
-              <ul className="list-disc pl-5 space-y-1 text-white/70">
-                <li>Hỗ trợ: tiêu đề (H1–H3), in đậm/nghiêng/gạch chân, danh sách, khối code.</li>
-                <li>Dùng thanh công cụ phía trên để định dạng văn bản.</li>
-                <li>Nếu cần xem trước, bạn có thể chuyển sang PDF và tải file để xem bằng Preview.</li>
-              </ul>
-            </div>
+            <div className="text-white/70 text-sm">WORD mode – preview disabled</div>
           )}
         </div>
       </div>
 
-      {/* Submit */}
       <div className="flex justify-end mt-8">
         <button
           onClick={handleSubmit}
-          disabled={submitting || loadingOpts.categories || loadingOpts.albums}
+          disabled={submitting || isSummarizing || loadingOpts.categories || loadingOpts.albums}
           className="bg-gray-200 hover:bg-white disabled:opacity-60 text-black font-bold py-2 px-8 rounded-lg transition-colors"
         >
-          {submitting ? "Submitting..." : "Submit"}
+          {submitting ? "Submitting..." : isSummarizing ? "Summarizing..." : "Submit"}
         </button>
       </div>
 
-      {/* Toast */}
       <Toast
         open={toast.open}
         message={toast.message}
