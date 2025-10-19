@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import PostItem from "../../../components/user_manager/list/PostItem";
@@ -20,7 +20,7 @@ const mapApiPost = (p) => {
     "unknown";
   return {
     id: p.post_id,
-    user_id: p.user_id, // giữ để xác định owner khi edit
+    user_id: p.user_id,
     authorId: p.user_id,
     authorName,
     authorAvatar: p.avatar_url || FALLBACK_AVATAR,
@@ -45,20 +45,23 @@ const getCurrentUserId = () =>
 export default function PostsTab() {
   const navigate = useNavigate();
 
+  // List state
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [fetched, setFetched] = useState(false);
 
+  // Selection & paging (giống UsersTab)
   const [selectedId, setSelectedId] = useState();
-  const [panelLoading, setPanelLoading] = useState(false);
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 10;
 
+  // Modals
   const [confirm, setConfirm] = useState({ open: false, target: null });
   const [openEdit, setOpenEdit] = useState(false);
   const [editPost, setEditPost] = useState(null);
 
+  // Banner
   const [banner, setBanner] = useState(null);
   const showBanner = (type, text, ms = 2000) => {
     setBanner({ type, text });
@@ -66,19 +69,24 @@ export default function PostsTab() {
     showBanner._t = window.setTimeout(() => setBanner(null), ms);
   };
 
+  // Data for edit modal
   const [albums, setAlbums] = useState([]);
   const [categories, setCategories] = useState([]);
   const isAdmin =
     (window?.APP?.currentUser?.role_id || window?.SESSION?.role_id) === "ROLE000";
 
+  // Paging helpers (giống UsersTab)
   const totalPages = Math.max(1, Math.ceil(data.length / PAGE_SIZE));
   const pageData = useMemo(() => {
     const start = (page - 1) * PAGE_SIZE;
     return data.slice(start, start + PAGE_SIZE);
   }, [data, page]);
 
-  const currentPost = data.find((p) => p.id === selectedId) ?? pageData[0] ?? null;
+  // Item đang chọn: pick trong trang hiện tại giống UsersTab
+  const currentPost =
+    pageData.find((p) => p.id === selectedId) ?? pageData[0] ?? null;
 
+  // Fetch list
   const fetchPosts = async () => {
     try {
       setLoading(true);
@@ -99,6 +107,7 @@ export default function PostsTab() {
     }
   };
 
+  // Albums/Categories for edit modal (theo owner)
   const fetchAlbumsCategories = async () => {
     try {
       const userIdTarget =
@@ -139,9 +148,10 @@ export default function PostsTab() {
     }
   };
 
+  // Effects
   useEffect(() => {
     if (!fetched && !loading) fetchPosts();
-  }, []);
+  }, []); // once
 
   useEffect(() => setPage(1), [fetched]);
 
@@ -152,6 +162,7 @@ export default function PostsTab() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [openEdit, editPost]);
 
+  // Delete helpers
   const doDelete = async (postId) => {
     try {
       return await postService.removeViaPost(postId);
@@ -163,6 +174,7 @@ export default function PostsTab() {
   const removeFromLocal = (postId) => {
     setData((prev) => {
       const next = prev.filter((x) => x.id !== postId);
+      // nếu đang đứng trên item vừa xóa, chuyển selection sang item đầu trang
       setSelectedId((prevSel) => (prevSel === postId ? next[0]?.id : prevSel));
       const newTotalPages = Math.max(1, Math.ceil(next.length / PAGE_SIZE));
       setPage((p) => Math.min(p, newTotalPages));
@@ -170,12 +182,13 @@ export default function PostsTab() {
     });
   };
 
+  // Submit edit
   const handleSubmitEdit = async (payload) => {
     try {
       const res = await postService.update(payload);
       if (res?.status === "ok" || res?.status === "success") {
         showBanner("success", res?.message || "Đã cập nhật bài viết.");
-        await fetchPosts();
+        await fetchPosts(); // refresh list để đồng bộ
         return { status: "ok", message: res?.message };
       }
       throw new Error(res?.message || "Update failed");
@@ -188,17 +201,9 @@ export default function PostsTab() {
     }
   };
 
-  useEffect(() => {
-    if (selectedId) {
-      setPanelLoading(true);
-      const t = setTimeout(() => setPanelLoading(false), 500);
-      return () => clearTimeout(t);
-    }
-  }, [selectedId]);
-
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      {/* List */}
+      {/* LEFT: List */}
       <div className="lg:col-span-2 space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold">Post List</h2>
@@ -209,11 +214,12 @@ export default function PostsTab() {
               disabled={loading}
               title="Refresh"
             >
-              <i className="fa-solid fa-rotate"></i>
+              <i className="fa-solid fa-rotate" />
             </button>
           </div>
         </div>
 
+        {/* Banner */}
         {banner && (
           <div
             className={
@@ -229,6 +235,7 @@ export default function PostsTab() {
           </div>
         )}
 
+        {/* States */}
         {loading && !fetched && (
           <div className="space-y-3 animate-pulse">
             {Array.from({ length: 6 }).map((_, i) => (
@@ -250,14 +257,15 @@ export default function PostsTab() {
           <div className="panel panel-muted">No posts found.</div>
         )}
 
+        {/* List items */}
         <div className="space-y-3">
           {pageData.map((p) => (
             <div
               key={p.id}
-              onClick={() => setSelectedId(p.id)}
-              onKeyDown={(e) => e.key === "Enter" && setSelectedId(p.id)}
               role="button"
               tabIndex={0}
+              onClick={() => setSelectedId(p.id)}
+              onKeyDown={(e) => e.key === "Enter" && setSelectedId(p.id)}
               className={`rounded-xl transition ring-0 cursor-pointer ${
                 p.id === selectedId ? "ring-1 ring-white/40 bg-white/5" : "hover:bg-white/5"
               }`}
@@ -266,7 +274,7 @@ export default function PostsTab() {
                 post={p}
                 compact
                 onEdit={() => {
-                  setEditPost(p.raw);
+                  setEditPost(p.raw);      // để modal biết owner (user_id)
                   setOpenEdit(true);
                 }}
                 onDelete={() => setConfirm({ open: true, target: p })}
@@ -276,6 +284,7 @@ export default function PostsTab() {
           ))}
         </div>
 
+        {/* Pagination */}
         {totalPages > 1 && (
           <div className="pagination">
             <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1}>
@@ -294,14 +303,10 @@ export default function PostsTab() {
         )}
       </div>
 
-      {/* Detail panel */}
-      <aside className="relative">
-        {panelLoading ? (
-          <div className="absolute inset-0 flex items-center justify-center panel">
-            <i className="fa-solid fa-spinner fa-spin mr-2" /> Loading...
-          </div>
-        ) : currentPost ? (
-          <PostInfoPanel postId={currentPost.id} />
+      {/* RIGHT: Detail panel – truyền thẳng object như UsersTab */}
+      <aside>
+        {currentPost ? (
+          <PostInfoPanel post={currentPost} postId={currentPost.id} />
         ) : (
           <div className="panel panel-muted">Nothing to show here.</div>
         )}
