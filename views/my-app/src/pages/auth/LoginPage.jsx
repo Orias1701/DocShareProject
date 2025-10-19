@@ -1,149 +1,129 @@
-// src/pages/auth/LoginPage.jsx
-import React, { useState } from 'react';
-import { useNavigate, useLocation, Link } from 'react-router-dom';
-import './Regis.css'; // giữ nguyên css của bạn
-import useAuth from '../../hook/useAuth';
+import React, { useState } from "react";
+import { useNavigate, useLocation, Link } from "react-router-dom";
+import useAuth from "../../hook/useAuth";
+import bannerAuth from "../../assets/image/banner_auth.png";
 
-// Endpoint login JSON
-const API_LOGIN_URL = 'http://localhost:3000/public/index.php?action=api_login';
+const API_LOGIN_URL = "http://localhost:3000/public/index.php?action=api_login";
 
-const LoginPage = () => {
-  const [formData, setFormData] = useState({
-    identifier: '', // email hoặc username
-    password: '',
-  });
-
+export default function LoginPage() {
+  const [formData, setFormData] = useState({ identifier: "", password: "" });
   const [loading, setLoading] = useState(false);
-  const [error, setError]     = useState(null);
+  const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
-
-  const { setUser }  = useAuth();  // để cập nhật user sau login (context/hook)
-  const navigate     = useNavigate();
-  const location     = useLocation();
+  const { setUser } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value,
-    }));
+    setFormData((p) => ({ ...p, [name]: value }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (loading) return;
-
-    setLoading(true);
-    setError(null);
-    setSuccess(null);
-
-    const payload = {
-      identifier: formData.identifier.trim(),
-      password: formData.password,
-    };
-
+    setLoading(true); setError(null); setSuccess(null);
     try {
-      const res  = await fetch(API_LOGIN_URL, {
-        method: 'POST',
-        credentials: 'include', // để lưu session cookie
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-        body: JSON.stringify(payload),
+      const res = await fetch(API_LOGIN_URL, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData),
       });
-
-      // Parse JSON an toàn (server có thể trả body rỗng)
       const text = await res.text();
       let data = {};
-      try { data = text ? JSON.parse(text) : {}; } catch { data = {}; }
+      try { data = text ? JSON.parse(text) : {}; } catch {}
 
-      if (res.ok && (data.status === 'ok' || data.user)) {
-        setSuccess('Đăng nhập thành công!');
-        if (data.user) setUser(data.user); // cập nhật user vào state (useAuth)
-
-        // Nếu backend trả token (không bắt buộc với cookie session)
-        if (data.token) {
-          localStorage.setItem('token', data.token);
-        }
-
-        // Reset form
-        setFormData({ identifier: '', password: '' });
-
-        // Điều hướng: quay về trang trước nếu có & không phải /login, ngược lại về "/"
+      if (res.ok && (data.status === "ok" || data.user)) {
+        setSuccess("Đăng nhập thành công!");
+        if (data.user) setUser(data.user);
+        if (data.token) localStorage.setItem("token", data.token);
         const from = location.state?.from?.pathname;
-        const dest = from && from !== '/login' ? from : '/';
-        navigate(dest, { replace: true });
+        navigate(from && from !== "/login" ? from : "/", { replace: true });
       } else {
-        setError(data?.message || 'Đăng nhập thất bại. Vui lòng thử lại!');
+        setError(data?.message || "Đăng nhập thất bại!");
       }
-    } catch (err) {
-      console.error('Login error:', err);
-      setError('Không thể kết nối đến server. Vui lòng thử lại sau.');
+    } catch {
+      setError("Không thể kết nối đến server.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="signup-container">
-      <div className="left-panel">
-        <div className="left-content">
-          <h1>Explore our newest features</h1>
-          <p>Get updated posts and news from many individuals and organizations.</p>
-          {/* Giữ bố cục, thay a -> Link để không reload */}
-          <Link to="/login">Sign in now &gt;&gt;</Link>
+    <div className="min-h-screen flex flex-col md:flex-row">
+      {/* Left - banner image */}
+      <div
+        className="
+          w-full md:w-1/2
+          min-h-screen md:h-screen
+          bg-no-repeat bg-top bg-cover  /* ⬅ ảnh bám TOP */
+          md:sticky md:top-0            /* ⬅ cột trái dính trên đầu khi cuộn (tùy chọn) */
+        "
+        style={{ backgroundImage: `url(${bannerAuth})` }}
+      >
+        <div className="h-full w-full bg-black/40 flex flex-col justify-center px-10 py-20">
+          <h1 className="text-5xl font-bold text-white leading-tight">
+            Explore our<br />newest features
+          </h1>
+          <p className="mt-4 text-gray-300 text-lg max-w-md">
+            Get updated posts and news from many individuals and organizations.
+          </p>
+          <Link to="/login" className="mt-6 text-indigo-300 hover:text-indigo-200">
+            Sign in now &gt;&gt;
+          </Link>
         </div>
       </div>
 
-      <div className="right-panel">
-        <div className="form-wrapper">
-          <h2>Sign in</h2>
+      {/* Right - form */}
+      <div className="w-full md:w-1/2 flex items-center justify-center bg-white">
+        <div className="w-full max-w-md px-8">
+          <h2 className="text-2xl font-semibold text-center text-gray-800 mb-6">Sign in</h2>
 
-          {error &&   <div className="alert alert-error">{error}</div>}
-          {success && <div className="alert alert-success">{success}</div>}
+          {error && <div className="mb-3 text-sm text-red-600">{error}</div>}
+          {success && <div className="mb-3 text-sm text-green-600">{success}</div>}
 
-          <form onSubmit={handleSubmit}>
-            <div className="form-group">
-              <label htmlFor="identifier">Email or Username</label>
+          <form onSubmit={handleSubmit} className="space-y-5">
+            <div>
+              <label className="block text-sm text-gray-700">Email or Username</label>
               <input
                 type="text"
-                id="identifier"
                 name="identifier"
                 value={formData.identifier}
                 onChange={handleChange}
                 required
-                disabled={loading}
-                autoComplete="username"
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 mt-1 focus:outline-none focus:ring-2 focus:ring-indigo-300"
               />
             </div>
 
-            <div className="form-group">
-              <label htmlFor="password">Password</label>
+            <div>
+              <label className="block text-sm text-gray-700">Password</label>
               <input
                 type="password"
-                id="password"
                 name="password"
                 value={formData.password}
                 onChange={handleChange}
                 required
-                disabled={loading}
-                autoComplete="current-password"
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 mt-1 focus:outline-none focus:ring-2 focus:ring-indigo-300"
               />
             </div>
 
-            <button type="submit" className="signup-button" disabled={loading}>
-              {loading ? 'Signing in...' : 'Sign in'}
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-2 rounded-lg bg-gray-900 text-white hover:bg-gray-800 transition disabled:opacity-60"
+            >
+              {loading ? "Signing in..." : "Sign in"}
             </button>
           </form>
 
-          <p className="login-link">
-            Don't have an account? <Link to="/register">Sign up +</Link>
+          <p className="text-center text-sm text-gray-600 mt-6">
+            Don&apos;t have an account?{" "}
+            <Link to="/register" className="text-indigo-600 hover:text-indigo-500">
+              Sign up +
+            </Link>
           </p>
         </div>
       </div>
     </div>
   );
-};
-
-export default LoginPage;
+}

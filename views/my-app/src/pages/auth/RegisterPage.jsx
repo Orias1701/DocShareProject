@@ -1,238 +1,277 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+// src/pages/auth/RegisterPage.jsx
+import React, { useRef, useState } from "react";
+import { useNavigate, Link } from "react-router-dom";
+import bannerAuth from "../../assets/image/banner_auth.png";
 
-import './Regis.css';
+const API_REGISTER_URL = "http://localhost:3000/public/index.php?action=api_register";
 
-// Nếu bạn dùng Vite proxy, đổi thành '/api?action=api_register'
-const API_REGISTER_URL = 'http://localhost:3000/public/index.php?action=api_register';
-
-const RegisterPage = () => {
-  const [formData, setFormData] = useState({
-    username: '',
-    fullName: '',
-    email: '',
-    password: '',
-    birthday: '',
-    biography: '',
+export default function RegisterPage() {
+  const [form, setForm] = useState({
+    fullName: "",
+    username: "",
+    email: "",
+    password: "",
+    birthday: "",
+    biography: "",
     avatar: null,
   });
-
+  const [errors, setErrors] = useState({});
+  const [serverMsg, setServerMsg] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError]     = useState(null);
-  const [success, setSuccess] = useState(null);
   const navigate = useNavigate();
+  const formRef = useRef(null);
 
   const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    const { name, value, files } = e.target;
+    setForm((prev) => ({ ...prev, [name]: files ? files[0] || null : value }));
   };
 
-  const handleFileChange = (e) => {
-    setFormData(prev => ({ ...prev, avatar: e.target.files[0] || null }));
+  const validate = () => {
+    const e = {};
+    if (!form.fullName.trim()) e.fullName = "Vui lòng nhập họ và tên.";
+    if (!form.username.match(/^[a-zA-Z0-9_]{3,20}$/))
+      e.username = "Tên người dùng 3–20 ký tự, chỉ gồm chữ, số và dấu gạch dưới.";
+    if (!form.email.match(/^[^@]+@[^@]+\.[^@]+$/)) e.email = "Email không hợp lệ.";
+    if (form.password.length < 8)
+      e.password = "Mật khẩu phải có ít nhất 8 ký tự.";
+    if (!/[0-9]/.test(form.password))
+      e.password = "Mật khẩu phải chứa ít nhất 1 số.";
+    if (!/[a-z]/.test(form.password))
+      e.password = "Mật khẩu phải chứa ít nhất 1 chữ thường.";
+    if (!form.birthday) e.birthday = "Vui lòng chọn ngày sinh.";
+    return e;
   };
-
-  // Basic client-side password policy check
-  function validatePassword(pw) {
-    if (!pw || pw.length < 8) return 'Mật khẩu phải >= 8 ký tự.';
-    if (!/[0-9]/.test(pw)) return 'Mật khẩu phải chứa ít nhất 1 số.';
-    if (!/[a-z]/.test(pw)) return 'Mật khẩu phải chứa ít nhất 1 chữ thường.';
-    return null;
-  }
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    const eObj = validate();
+    setErrors(eObj);
+    if (Object.keys(eObj).length > 0) {
+      const firstField = Object.keys(eObj)[0];
+      formRef.current?.querySelector(`[name="${firstField}"]`)?.focus();
+      return;
+    }
+
     setLoading(true);
-    setError(null);
-    setSuccess(null);
-
-    // client-side validation
-    const pwdErr = validatePassword(formData.password);
-    if (pwdErr) {
-      setError(pwdErr);
-      setLoading(false);
-      return;
-    }
-    if (!formData.email) {
-      setError('Vui lòng nhập email.');
-      setLoading(false);
-      return;
-    }
-
-    const payload = {
-      username:   formData.username.trim(),
-      email:      formData.email.trim(),
-      password:   formData.password,
-      full_name:  formData.fullName.trim(),
-      birth_date: formData.birthday,
-      bio:        formData.biography.trim() || null,
-      avatar_url: null, // nếu muốn upload file, cần endpoint multipart riêng
-    };
-
+    setServerMsg(null);
     try {
+      const payload = {
+        full_name: form.fullName,
+        username: form.username,
+        email: form.email,
+        password: form.password,
+        birth_date: form.birthday,
+        bio: form.biography || null,
+      };
+
       const res = await fetch(API_REGISTER_URL, {
-        method: 'POST',
-        credentials: 'include', // giữ nếu bạn dùng PHP session cookie
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-      // xử lý an toàn: có thể server trả body rỗng hoặc non-JSON
       const text = await res.text();
-      let data = null;
+      let data = {};
       try {
         data = text ? JSON.parse(text) : {};
-      } catch (parseErr) {
-        // non-JSON response
-        console.error('Non-JSON response:', text);
-        throw new Error('Server trả về dữ liệu không hợp lệ (không phải JSON).');
+      } catch {
+        throw new Error("Máy chủ trả dữ liệu không hợp lệ.");
       }
 
-      if (res.ok && data?.status === 'ok') {
-        setSuccess(data.message || 'Đăng ký thành công!');
-        // reset form, navigate sau 700ms để user đọc message
-        setTimeout(() => {
-          setFormData({
-            username: '',
-            fullName: '',
-            email: '',
-            password: '',
-            birthday: '',
-            biography: '',
-            avatar: null,
-          });
-          navigate('/login');
-        }, 700);
+      if (res.ok && data.status === "ok") {
+        setServerMsg({ type: "success", text: data.message || "Đăng ký thành công!" });
+        setTimeout(() => navigate("/login"), 700);
       } else {
-        // ưu tiên message từ body, fallback sang status text
-        const msg = data?.message || data?.error || `Đăng ký thất bại (${res.status})`;
-        setError(msg);
+        setServerMsg({
+          type: "error",
+          text: data?.message || "Đăng ký thất bại. Vui lòng thử lại!",
+        });
       }
     } catch (err) {
-      console.error('Register error:', err);
-      setError(err.message || 'Không thể kết nối đến server. Vui lòng thử lại sau.');
+      setServerMsg({ type: "error", text: err.message });
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="signup-container">
-      <div className="left-panel">
-        <div className="left-content">
-          <h1>Create your free account</h1>
-          <p>Explore our core features for individuals and organizations.</p>
-          <a href="#">Get start now &gt;&gt;</a>
+    <div className="min-h-screen flex flex-col md:flex-row font-sans">
+      {/* LEFT - Image */}
+      <div
+        className="
+          w-full md:w-1/2
+          min-h-screen md:h-screen
+          bg-no-repeat bg-top bg-cover  /* ⬅ ảnh bám TOP */
+          md:sticky md:top-0            /* ⬅ cột trái dính trên đầu khi cuộn (tùy chọn) */
+        "
+        style={{ backgroundImage: `url(${bannerAuth})` }}
+      >
+        <div className="h-full w-full bg-black/40 flex flex-col justify-center px-12 py-20">
+          <h1 className="text-5xl font-extrabold text-white leading-tight">
+            Create your free <br /> account
+          </h1>
+          <p className="mt-5 text-gray-200 text-lg max-w-md">
+            Explore our core features for individuals and organizations.
+          </p>
+          <a
+            href="#"
+            className="mt-6 text-indigo-300 hover:text-indigo-200 text-lg font-medium"
+          >
+            Get start now &gt;&gt;
+          </a>
         </div>
       </div>
 
-      <div className="right-panel">
-        <div className="form-wrapper">
-          <h2>Sign up for ...</h2>
+      {/* RIGHT - Form */}
+      <div className="w-full md:w-1/2 flex items-center justify-center bg-white">
+        <div
+          ref={formRef}
+          className="w-full max-w-lg px-10 py-12 sm:px-12 sm:py-14 text-gray-800"
+        >
+          <h2 className="text-3xl font-bold text-center mb-6">Sign up</h2>
 
-          {error &&   <div className="alert alert-error" role="alert">{error}</div>}
-          {success && <div className="alert alert-success" role="status">{success}</div>}
+          {serverMsg && (
+            <div
+              className={`mb-5 text-base px-4 py-3 rounded-md border ${
+                serverMsg.type === "success"
+                  ? "bg-green-50 text-green-700 border-green-300"
+                  : "bg-red-50 text-red-700 border-red-300"
+              }`}
+            >
+              {serverMsg.text}
+            </div>
+          )}
 
-          <form onSubmit={handleSubmit} noValidate>
-            <div className="form-group">
-              <label htmlFor="fullName">Full name</label>
+          <form onSubmit={handleSubmit} className="space-y-5 text-base">
+            {/* Full Name */}
+            <div>
+              <label className="font-semibold">Full name</label>
               <input
-                type="text"
-                id="fullName"
                 name="fullName"
-                value={formData.fullName}
+                value={form.fullName}
                 onChange={handleChange}
-                required
+                className={`mt-2 w-full rounded-lg border px-4 py-3 text-lg ${
+                  errors.fullName ? "border-red-500" : "border-gray-300"
+                } focus:outline-none focus:ring-2 focus:ring-indigo-200`}
               />
-            </div>
-
-            <div className="form-group">
-              <label htmlFor="username">Username</label>
-              <input
-                type="text"
-                id="username"
-                name="username"
-                value={formData.username}
-                onChange={handleChange}
-                required
-              />
-            </div>
-
-            <div className="form-group">
-              <label htmlFor="email">Email</label>
-              <input
-                type="email"
-                id="email"
-                name="email"
-                value={formData.email}
-                onChange={handleChange}
-                required
-              />
-            </div>
-
-            <div className="form-group">
-              <label htmlFor="password">Password</label>
-              <input
-                type="password"
-                id="password"
-                name="password"
-                value={formData.password}
-                onChange={handleChange}
-                required
-              />
-              <p className="password-hint">
-                Password should be at least 8 characters including a number and a lowercase letter.
-              </p>
-            </div>
-
-            <div className="form-group">
-              <label htmlFor="birthday">Birthday</label>
-              <input
-                type="date"
-                id="birthday"
-                name="birthday"
-                value={formData.birthday}
-                onChange={handleChange}
-                required
-              />
-            </div>
-
-            <div className="form-group">
-              <label htmlFor="biography">Biography</label>
-              <textarea
-                id="biography"
-                name="biography"
-                value={formData.biography}
-                onChange={handleChange}
-              />
-            </div>
-
-            <div className="form-group">
-              <label>Choose your avatar</label>
-              <div className="file-drop-area">
-                <p>Drag & Drop file</p>
-                <span>Or if you prefer</span>
-                <input type="file" id="avatar-upload" hidden onChange={handleFileChange} />
-                <label htmlFor="avatar-upload" className="browse-button">Browse my file</label>
-              </div>
-              {formData.avatar && (
-                <p className="file-name">Selected: {formData.avatar.name}</p>
+              {errors.fullName && (
+                <p className="text-red-600 mt-1 text-sm">{errors.fullName}</p>
               )}
             </div>
 
-            <button type="submit" className="signup-button" disabled={loading}>
-              {loading ? 'Registering...' : 'Sign up'}
+            {/* Username */}
+            <div>
+              <label className="font-semibold">Username</label>
+              <input
+                name="username"
+                value={form.username}
+                onChange={handleChange}
+                className={`mt-2 w-full rounded-lg border px-4 py-3 text-lg ${
+                  errors.username ? "border-red-500" : "border-gray-300"
+                } focus:outline-none focus:ring-2 focus:ring-indigo-200`}
+              />
+              {errors.username && (
+                <p className="text-red-600 mt-1 text-sm">{errors.username}</p>
+              )}
+            </div>
+
+            {/* Email */}
+            <div>
+              <label className="font-semibold">Email</label>
+              <input
+                name="email"
+                value={form.email}
+                onChange={handleChange}
+                className={`mt-2 w-full rounded-lg border px-4 py-3 text-lg ${
+                  errors.email ? "border-red-500" : "border-gray-300"
+                } focus:outline-none focus:ring-2 focus:ring-indigo-200`}
+              />
+              {errors.email && (
+                <p className="text-red-600 mt-1 text-sm">{errors.email}</p>
+              )}
+            </div>
+
+            {/* Password */}
+            <div>
+              <label className="font-semibold">Password</label>
+              <input
+                type="password"
+                name="password"
+                value={form.password}
+                onChange={handleChange}
+                className={`mt-2 w-full rounded-lg border px-4 py-3 text-lg ${
+                  errors.password ? "border-red-500" : "border-gray-300"
+                } focus:outline-none focus:ring-2 focus:ring-indigo-200`}
+              />
+              {errors.password ? (
+                <p className="text-red-600 mt-1 text-sm">{errors.password}</p>
+              ) : (
+                <p className="text-gray-500 text-sm mt-1">
+                  At least 8 characters including a number and a lowercase letter.
+                </p>
+              )}
+            </div>
+
+            {/* Birthday */}
+            <div>
+              <label className="font-semibold">Birthday</label>
+              <input
+                type="date"
+                name="birthday"
+                value={form.birthday}
+                onChange={handleChange}
+                className={`mt-2 w-full rounded-lg border px-4 py-3 text-lg ${
+                  errors.birthday ? "border-red-500" : "border-gray-300"
+                } focus:outline-none focus:ring-2 focus:ring-indigo-200`}
+              />
+              {errors.birthday && (
+                <p className="text-red-600 mt-1 text-sm">{errors.birthday}</p>
+              )}
+            </div>
+
+            {/* Biography */}
+            <div>
+              <label className="font-semibold">Biography</label>
+              <textarea
+                name="biography"
+                value={form.biography}
+                onChange={handleChange}
+                rows={3}
+                className="mt-2 w-full rounded-lg border border-gray-300 px-4 py-3 text-lg focus:outline-none focus:ring-2 focus:ring-indigo-200"
+              />
+            </div>
+
+            {/* Avatar */}
+            <div>
+              <label className="font-semibold">Choose your avatar</label>
+              <input
+                type="file"
+                name="avatar"
+                onChange={handleChange}
+                className="mt-2 block w-full text-gray-700 text-base"
+              />
+            </div>
+
+            {/* Submit */}
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full mt-2 py-3 text-lg rounded-lg bg-gray-900 text-white hover:bg-gray-800 transition disabled:opacity-60"
+            >
+              {loading ? "Registering..." : "Sign up"}
             </button>
           </form>
 
-          <p className="login-link">
-            Already have an account? <a href="/login">Sign in +</a>
+          <p className="text-center text-base text-gray-700 mt-8">
+            Already have an account?{" "}
+            <Link
+              to="/login"
+              className="text-indigo-600 hover:text-indigo-500 font-semibold"
+            >
+              Sign in +
+            </Link>
           </p>
         </div>
       </div>
     </div>
   );
-};
-
-export default RegisterPage;
+}
