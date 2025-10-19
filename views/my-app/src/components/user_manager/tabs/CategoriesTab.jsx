@@ -6,13 +6,14 @@ import ConfirmModal from "../../common/ConfirmModal";
 import ModalEditCategory from "../modals/ModalEditCategories";
 import categoryServices from "../../../services/categoryServices";
 
+// Chuẩn hoá item từ API -> UI
 const mapApiCategory = (c) => ({
   id: c.category_id,
   name: c.category_name,
-  posts: 0,
 });
 
 export default function CategoriesTab() {
+  // ====== STATE ======
   const [data, setData] = React.useState([]);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState(null);
@@ -22,22 +23,36 @@ export default function CategoriesTab() {
   const [page, setPage] = React.useState(1);
   const PAGE_SIZE = 10;
 
+  // Modal
   const [openAdd, setOpenAdd] = React.useState(false);
   const [confirm, setConfirm] = React.useState({ open: false, target: null });
   const [openEdit, setOpenEdit] = React.useState(false);
   const [editCategory, setEditCategory] = React.useState(null);
 
+  // ====== PHÂN TRANG ======
   const totalPages = Math.max(1, Math.ceil(data.length / PAGE_SIZE));
   const pageData = React.useMemo(() => {
     const start = (page - 1) * PAGE_SIZE;
     return data.slice(start, start + PAGE_SIZE);
   }, [data, page]);
 
-  const fetchCategories = async () => {
+  // ====== FETCH LIST ======
+  async function fetchCategories() {
     try {
       setLoading(true);
+      setError(null);
+
       const arr = await categoryServices.list();
-      const mapped = (Array.isArray(arr) ? arr : []).map(mapApiCategory);
+      // Hỗ trợ nhiều định dạng trả về: {categories: [...]}, {data: [...]}, hoặc [...]:
+      const raw = Array.isArray(arr?.categories)
+        ? arr.categories
+        : Array.isArray(arr?.data)
+        ? arr.data
+        : Array.isArray(arr)
+        ? arr
+        : [];
+
+      const mapped = raw.map(mapApiCategory);
       setData(mapped);
       setFetched(true);
       setSelectedId((prev) => prev ?? mapped[0]?.id ?? null);
@@ -46,17 +61,27 @@ export default function CategoriesTab() {
     } finally {
       setLoading(false);
     }
-  };
+  }
 
+  // Lần đầu vào tab -> lấy danh sách
   React.useEffect(() => {
     if (!fetched && !loading) fetchCategories();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const currentCategory =
-    data.find((c) => c.id === selectedId) ?? pageData[0] ?? null;
+  // Khi đổi trang: nếu selectedId không còn thuộc trang hiện tại thì chọn item đầu trang
+  React.useEffect(() => {
+    if (pageData.length && !pageData.some((c) => c.id === selectedId)) {
+      setSelectedId(pageData[0].id);
+    }
+  }, [pageData, selectedId]);
+
+  // ID đang hiển thị cho panel
+  const currentCategoryId = selectedId ?? (pageData[0]?.id ?? null);
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {/* ====== LIST ====== */}
       <div className="lg:col-span-2 space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold text-white">Category List</h2>
@@ -67,7 +92,7 @@ export default function CategoriesTab() {
               disabled={loading}
               title="Refresh"
             >
-              <i className="fa-solid fa-rotate"></i>
+              <i className="fa-solid fa-rotate" />
             </button>
             <button
               className="btn btn-primary"
@@ -100,39 +125,60 @@ export default function CategoriesTab() {
           <div className="panel panel-muted">No categories found.</div>
         )}
 
+        {/* BỌC CategoryItem TRONG DIV CLICKABLE để chắc chắn bắt click */}
         <div className="space-y-3">
           {pageData.map((c) => (
-            <CategoryItem
+            <div
               key={c.id}
-              cat={c}
-              active={c.id === selectedId}
+              role="button"
+              tabIndex={0}
               onClick={() => setSelectedId(c.id)}
-              onEdit={() => {
-                setEditCategory(c);
-                setOpenEdit(true);
-              }}
-              onDelete={() => setConfirm({ open: true, target: c })}
-            />
+              onKeyDown={(e) => e.key === "Enter" && setSelectedId(c.id)}
+              className={`rounded-xl transition ring-0 cursor-pointer ${
+                c.id === selectedId ? "ring-1 ring-white/40 bg-white/5" : "hover:bg-white/5"
+              }`}
+            >
+              <CategoryItem
+                cat={c}
+                active={c.id === selectedId}
+                // Lưu ý: không phụ thuộc CategoryItem.onClick để tránh bị nuốt event
+              />
+            </div>
           ))}
         </div>
 
         {totalPages > 1 && (
           <div className="pagination">
-            <button onClick={() => setPage((p) => Math.max(1, p - 1))}>Prev</button>
-            <div>Page <strong>{page}</strong> / {totalPages}</div>
-            <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))}>Next</button>
+            <button
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page === 1}
+            >
+              Prev
+            </button>
+            <div>
+              Page <strong>{page}</strong> / {totalPages}
+            </div>
+            <button
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={page === totalPages}
+            >
+              Next
+            </button>
           </div>
         )}
       </div>
 
+      {/* ====== PANEL (dùng countPost) ====== */}
       <aside>
-        {currentCategory ? (
-          <CategoryInfoPanel categoryId={selectedId} />
+        {currentCategoryId ? (
+          // key giúp re-mount khi đổi danh mục -> fetch sạch
+          <CategoryInfoPanel categoryId={currentCategoryId} />
         ) : (
           <div className="panel panel-muted">Nothing to show here.</div>
         )}
       </aside>
 
+      {/* ====== MODALS ====== */}
       <AddCategoryModal
         open={openAdd}
         onClose={() => setOpenAdd(false)}

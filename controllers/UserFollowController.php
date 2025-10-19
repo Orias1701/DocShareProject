@@ -35,33 +35,39 @@ class UserFollowController
     }
 
     public function toggleFollow()
-    {
-        if (!isset($_SESSION['user_id'])) {
-            respond_json(['status' => 'error', 'message' => 'Unauthorized'], 401);
-        }
-
-        $followerId = $_SESSION['user_id'];
-        $followingId = $_POST['user_id'] ?? $_GET['user_id'] ?? null;
-
-        if (!$followingId) {
-            respond_json(['status' => 'error', 'message' => 'Missing user_id'], 422);
-        }
-
-        try {
-            $ufModel = new UserFollow();
-            $isFollowing = $ufModel->isFollowing($followerId, $followingId);
-
-            if ($isFollowing) {
-                $ufModel->unfollow($followerId, $followingId);
-                respond_json(['status' => 'success', 'action' => 'unfollowed']);
-            } else {
-                $ufModel->follow($followerId, $followingId);
-                respond_json(['status' => 'success', 'action' => 'followed']);
-            }
-        } catch (Exception $e) {
-            respond_json(['status' => 'error', 'message' => $e->getMessage()], 500);
-        }
+{
+    if (!isset($_SESSION['user_id'])) {
+        return $this->jsonResponse('error', ['message' => 'Unauthorized'], 401);
     }
+
+    $followerId  = $_SESSION['user_id'];
+    $followingId = $_POST['user_id'] ?? $_GET['user_id'] ?? null;
+
+    if (!$followingId) {
+        return $this->jsonResponse('error', ['message' => 'Missing user_id'], 422);
+    }
+
+    if ($followerId === $followingId) {
+        return $this->jsonResponse('error', ['message' => 'Không thể tự theo dõi chính mình'], 422);
+    }
+
+    try {
+        // Nên tái sử dụng $this->model thay vì new UserFollow()
+        $isFollowing = $this->model->isFollowing($followerId, $followingId);
+
+        if ($isFollowing) {
+            $this->model->unfollow($followerId, $followingId);
+            return $this->jsonResponse('success', ['action' => 'unfollowed']);
+        } else {
+            $this->model->follow($followerId, $followingId);
+            return $this->jsonResponse('success', ['action' => 'followed']);
+        }
+    } catch (Throwable $e) {
+        error_log('[toggleFollow] '.$e->getMessage());
+        return $this->jsonResponse('error', ['message' => 'Lỗi máy chủ'], 500);
+    }
+}
+
 
 
     public function topFollowedUsers()

@@ -19,38 +19,64 @@ class UserFollow
     }
 
     public function follow($followerId, $followingId)
-    {
-        $this->pdo->beginTransaction();
-        try {
-            $stmt = $this->pdo->prepare("INSERT INTO user_follows (follower_id, following_id) VALUES (?, ?)");
-            $stmt->execute([$followerId, $followingId]);
-
-            $update = $this->pdo->prepare("UPDATE users SET followers_count = followers_count + 1 WHERE user_id = ?");
-            $update->execute([$followingId]);
-
-            $this->pdo->commit();
-        } catch (Exception $e) {
-            $this->pdo->rollBack();
-            throw $e;
-        }
+{
+    if ($followerId === $followingId) {
+        throw new Exception('Không thể tự theo dõi chính mình');
     }
 
-    public function unfollow($followerId, $followingId)
-    {
-        $this->pdo->beginTransaction();
-        try {
-            $stmt = $this->pdo->prepare("DELETE FROM user_follows WHERE follower_id=? AND following_id=?");
-            $stmt->execute([$followerId, $followingId]);
+    $this->pdo->beginTransaction();
+    try {
+        // chèn quan hệ, nếu đã tồn tại thì bỏ qua
+        $stmt = $this->pdo->prepare("
+            INSERT IGNORE INTO user_follows (follower_id, following_id) VALUES (?, ?)
+        ");
+        $stmt->execute([$followerId, $followingId]);
 
-            $update = $this->pdo->prepare("UPDATE users SET followers_count = GREATEST(followers_count - 1, 0) WHERE user_id = ?");
+        // chỉ tăng nếu thực sự có dòng mới được chèn
+        if ($stmt->rowCount() > 0) {
+            $update = $this->pdo->prepare("
+                UPDATE users
+                SET followers_count = followers_count + 1
+                WHERE user_id = ?
+            ");
             $update->execute([$followingId]);
-
-            $this->pdo->commit();
-        } catch (Exception $e) {
-            $this->pdo->rollBack();
-            throw $e;
         }
+
+        $this->pdo->commit();
+    } catch (Exception $e) {
+        $this->pdo->rollBack();
+        throw $e;
     }
+}
+
+public function unfollow($followerId, $followingId)
+{
+    $this->pdo->beginTransaction();
+    try {
+        // xóa quan hệ, chỉ khi tồn tại
+        $stmt = $this->pdo->prepare("
+            DELETE FROM user_follows
+            WHERE follower_id = ? AND following_id = ?
+        ");
+        $stmt->execute([$followerId, $followingId]);
+
+        // chỉ giảm nếu thực sự có dòng bị xóa
+        if ($stmt->rowCount() > 0) {
+            $update = $this->pdo->prepare("
+                UPDATE users
+                SET followers_count = GREATEST(followers_count - 1, 0)
+                WHERE user_id = ?
+            ");
+            $update->execute([$followingId]);
+        }
+
+        $this->pdo->commit();
+    } catch (Exception $e) {
+        $this->pdo->rollBack();
+        throw $e;
+    }
+}
+
 
     public function getTopFollowedUsers($limit = 10)
     {
