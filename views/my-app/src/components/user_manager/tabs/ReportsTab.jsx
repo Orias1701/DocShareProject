@@ -1,12 +1,9 @@
-// src/pages/user_manager/tabs/ReportsTab.jsx
 import React from "react";
 
 import ReportItem from "../../../components/user_manager/list/ReportItem";
 import ReportInfoPanel from "../../../components/user_manager/panels/ReportInfoPanel";
 import ConfirmModal from "../../common/ConfirmModal";
 
-// Lưu ý: nếu file service của bạn là post_reportService.js (không có chữ 's' cuối),
-// hãy đổi import này lại cho đúng đường dẫn thực tế của dự án bạn.
 import post_reportService from "../../../services/post_reportServices";
 import postService from "../../../services/postService";
 
@@ -26,23 +23,19 @@ export default function ReportsTab() {
   const [error, setError] = React.useState(null);
   const [fetched, setFetched] = React.useState(false);
 
-  // ✅ Không auto-select: mặc định chưa chọn gì
   const [selectedId, setSelectedId] = React.useState(null);
-
   const [page, setPage] = React.useState(1);
   const PAGE_SIZE = 10;
 
   const [confirm, setConfirm] = React.useState({ open: false, target: null });
 
-  // 🔔 banner nhỏ gọn
-  const [banner, setBanner] = React.useState(null); // {type:'success'|'error'|'info', text}
+  const [banner, setBanner] = React.useState(null);
   const showBanner = (type, text, ms = 2200) => {
     setBanner({ type, text });
     window.clearTimeout(showBanner._t);
     showBanner._t = window.setTimeout(() => setBanner(null), ms);
   };
 
-  // dữ liệu post liên quan tới report đang chọn
   const [selectedPost, setSelectedPost] = React.useState(null);
   const [loadingPost, setLoadingPost] = React.useState(false);
   const [downloadBusy, setDownloadBusy] = React.useState(false);
@@ -53,13 +46,11 @@ export default function ReportsTab() {
     return data.slice(start, start + PAGE_SIZE);
   }, [data, page]);
 
-  // ✅ item đang chọn: TÌM theo selectedId, KHÔNG fallback phần tử đầu
   const currentReport = React.useMemo(
     () => data.find((r) => r.id === selectedId) || null,
     [data, selectedId]
   );
 
-  // ====== FETCH LIST ======
   const fetchReports = async () => {
     try {
       setLoading(true);
@@ -69,9 +60,6 @@ export default function ReportsTab() {
         const mapped = res.data.map(mapApiReport);
         setData(mapped);
         setFetched(true);
-
-        // ❌ KHÔNG còn auto-chọn phần tử đầu tiên
-        // setSelectedId(mapped[0]?.id);
       } else {
         throw new Error(res?.error || "Invalid report list response");
       }
@@ -84,11 +72,10 @@ export default function ReportsTab() {
 
   React.useEffect(() => {
     if (!fetched && !loading) fetchReports();
-  }, []); // once
+  }, []);
 
   React.useEffect(() => setPage(1), [fetched]);
 
-  // ====== FETCH POST COMPACT KHI ĐỔI SELECTION ======
   React.useEffect(() => {
     const run = async () => {
       if (!currentReport?.post_id) {
@@ -99,7 +86,7 @@ export default function ReportsTab() {
         setLoadingPost(true);
         const post = await postService.getByIdCompact(currentReport.post_id);
         setSelectedPost(post || null);
-      } catch (_e) {
+      } catch {
         setSelectedPost(null);
       } finally {
         setLoadingPost(false);
@@ -108,49 +95,39 @@ export default function ReportsTab() {
     run();
   }, [currentReport?.post_id]);
 
-  // ====== CẬP NHẬT UI SAU XOÁ (không reload) ======
   const removeFromLocal = (reportId) => {
     setData((prev) => {
       const next = prev.filter((x) => x.id !== reportId);
-
-      // nếu đang trỏ vào report vừa xoá → bỏ chọn
       setSelectedId((prevSel) => (prevSel === reportId ? null : prevSel));
-
-      // điều chỉnh page nếu trang hiện tại rỗng
       const newTotalPages = Math.max(1, Math.ceil(next.length / PAGE_SIZE));
       setPage((p) => Math.min(p, newTotalPages));
       return next;
     });
   };
 
-  // ====== XOÁ BÀI VIẾT BỊ REPORT (dùng postService) ======
   const deleteReportedPost = async (report) => {
     const postId = report?.post_id;
     if (!postId) throw new Error("Missing post_id on report");
-
-    // 1) Thử GET: ?action=delete_post&post_id=...
     try {
       const resGet = await postService.remove(postId);
-      const ok =
+      const okGet =
         resGet?.status === "ok" ||
         resGet?.status === "success" ||
         resGet === true ||
         resGet?.message?.toLowerCase?.().includes("deleted") ||
         resGet?.message?.toLowerCase?.().includes("đã xoá");
-      if (!ok) throw new Error(resGet?.message || "Delete failed");
-    } catch (_) {
-      // 2) Fallback POST body { post_id }: action=delete_post
+      if (!okGet) throw new Error(resGet?.message || "Delete failed");
+    } catch {
       const resPost = await postService.removeViaPost(postId);
-      const ok2 =
+      const okPost =
         resPost?.status === "ok" ||
         resPost?.status === "success" ||
         resPost === true ||
         resPost?.message?.toLowerCase?.().includes("deleted") ||
         resPost?.message?.toLowerCase?.().includes("đã xoá");
-      if (!ok2) throw new Error(resPost?.message || "Delete failed");
+      if (!okPost) throw new Error(resPost?.message || "Delete failed");
     }
 
-    // 3) (Tuỳ chọn) Resolve report nếu BE có API, không chặn UI nếu fail
     try {
       await post_reportService?.resolve?.({
         report_id: report.id,
@@ -159,11 +136,9 @@ export default function ReportsTab() {
       });
     } catch {}
 
-    // 4) Cập nhật UI
     removeFromLocal(report.id);
   };
 
-  // ====== DOWNLOAD POST ======
   const handleDownloadPost = async () => {
     const pid = currentReport?.post_id;
     if (!pid) return;
@@ -179,22 +154,22 @@ export default function ReportsTab() {
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {/* List */}
       <div className="lg:col-span-2 space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold">Report List</h2>
           <div className="flex items-center gap-2">
             <button
-              className="px-3 py-1.5 rounded-md border border-white/20 text-white/90 hover:text-white"
+              className="btn btn-outline"
               onClick={fetchReports}
               disabled={loading}
-              title="Refresh reports"
+              title="Refresh"
             >
               <i className="fa-solid fa-rotate"></i>
             </button>
           </div>
         </div>
 
-        {/* 🔔 banner */}
         {banner && (
           <div
             className={
@@ -213,32 +188,22 @@ export default function ReportsTab() {
         {loading && !fetched && (
           <div className="space-y-3">
             {Array.from({ length: 6 }).map((_, i) => (
-              <div
-                key={i}
-                className="h-14 rounded-xl bg-white/5 border border-white/10 animate-pulse"
-              />
+              <div key={i} className="h-14 rounded-xl bg-white/5 border border-white/10 animate-pulse" />
             ))}
           </div>
         )}
 
-        {error && data.length === 0 && (
-          <div className="text-red-300 bg-red-900/20 border border-red-500/30 rounded-xl p-4">
+        {error && !data.length && (
+          <div className="panel panel-muted text-red-300">
             Failed to load reports: {error}
-            <div className="mt-3">
-              <button
-                onClick={fetchReports}
-                className="px-3 py-1.5 rounded-md bg-white text-black"
-              >
-                Retry
-              </button>
-            </div>
+            <button onClick={fetchReports} className="btn btn-primary mt-3">
+              Retry
+            </button>
           </div>
         )}
 
-        {fetched && data.length === 0 && (
-          <div className="text-white/70 bg-white/5 border border-white/10 rounded-xl p-4">
-            No reports found.
-          </div>
+        {fetched && !data.length && (
+          <div className="panel panel-muted">No reports found.</div>
         )}
 
         <div className="space-y-3">
@@ -249,11 +214,9 @@ export default function ReportsTab() {
                 key={r.id}
                 role="button"
                 tabIndex={0}
-                onClick={() => setSelectedId(r.id)}       // 👈 bấm để chọn
+                onClick={() => setSelectedId(r.id)}
                 onKeyDown={(e) => e.key === "Enter" && setSelectedId(r.id)}
-                className={`rounded-xl transition ring-0 ${
-                  active ? "ring-1 ring-white/40" : ""
-                }`}
+                className={`rounded-xl transition ring-0 ${active ? "ring-1 ring-white/40" : ""}`}
               >
                 <ReportItem
                   report={r}
@@ -268,19 +231,14 @@ export default function ReportsTab() {
         </div>
 
         {totalPages > 1 && (
-          <div className="flex items-center justify-between pt-2">
-            <button
-              className="px-3 py-1.5 rounded-md border border-white/10 text-sm text-white/90 disabled:opacity-40"
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={page === 1}
-            >
+          <div className="pagination">
+            <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1}>
               Prev
             </button>
-            <div className="text-sm text-white/80">
-              Page <span className="font-semibold">{page}</span> / {totalPages}
+            <div>
+              Page <strong>{page}</strong> / {totalPages}
             </div>
             <button
-              className="px-3 py-1.5 rounded-md border border-white/10 text-sm text-white/90 disabled:opacity-40"
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
               disabled={page === totalPages}
             >
@@ -290,6 +248,7 @@ export default function ReportsTab() {
         )}
       </div>
 
+      {/* Detail panel */}
       <aside className="space-y-3">
         {selectedId ? (
           <ReportInfoPanel
@@ -301,8 +260,8 @@ export default function ReportsTab() {
                 <button
                   onClick={handleDownloadPost}
                   disabled={downloadBusy}
-                  className="px-3 py-1.5 rounded-md border border-white/20 text-white/90 hover:text-white disabled:opacity-40"
-                  title="Download reported post (content file/bundle)"
+                  className="btn btn-outline disabled:opacity-40"
+                  title="Download reported post"
                 >
                   {downloadBusy ? "Downloading..." : "Download post"}
                 </button>
@@ -310,15 +269,13 @@ export default function ReportsTab() {
             }
           />
         ) : (
-          <div className="bg-[#1C2028] p-6 rounded-xl border border-[#2d2d33] text-white/70">
-            Chọn một báo cáo để xem chi tiết.
-          </div>
+          <div className="panel panel-muted">Chọn một báo cáo để xem chi tiết.</div>
         )}
       </aside>
 
+      {/* Confirm delete reported post */}
       <ConfirmModal
         open={confirm.open}
-        // rõ nghĩa: đang xoá BÀI VIẾT bị report (không phải record report)
         message={`Delete the REPORTED post (${confirm.target?.post_id || "unknown"})?`}
         onClose={() => setConfirm({ open: false, target: null })}
         onConfirm={async () => {
