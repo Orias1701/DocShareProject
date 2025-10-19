@@ -13,9 +13,13 @@ export default function UserManager() {
   const [activeTab, setActiveTab] = useState("user");
 
   return (
-    <div className="min-h-screen bg-[#0F1218] text-white">
+    <div className="min-h-screen 
+        bg-[var(--color-bg)]
+        text-[var(--color-text)]">
       <div className="max-w-7xl mx-auto px-4 py-8">
-        <h1 className="text-xl font-semibold mb-4">Dashboard Manager</h1>
+        <h1 className="text-2xl font-bold mb-6
+            text-[var(--color-text)]
+            border-b border-[var(--color-border-soft)] pb-3">Dashboard Manager</h1>
 
         <TabBar
           tabs={["user", "posts", "album", "categories", "reports"]}

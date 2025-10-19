@@ -2,15 +2,23 @@ import React from "react";
 import PostCard from "../leaderboard/PostCard";
 
 /**
- * Hiển thị một category gồm tiêu đề + grid các post
+ * Hiển thị 1 Category + danh sách bài viết trong đó
  */
 export default function CategorySection({ title, posts = [] }) {
   return (
-    <section aria-label={title} className="w-full">
-      <h2 className="text-2xl font-bold mb-6 text-white text-start">{title}</h2>
+    <section className="w-full">
+      <h2 className="text-2xl font-bold mb-6 text-[var(--color-text)] text-start">
+        {title}
+      </h2>
 
       {posts.length === 0 ? (
-        <div className="text-start text-gray-400 border border-dashed border-gray-700/60 rounded-xl py-10">
+        <div
+          className="
+            text-start text-[var(--color-text-muted)]
+            border border-dashed border-[var(--color-border-soft)]
+            rounded-xl py-10
+          "
+        >
           Chưa có bài viết.
         </div>
       ) : (

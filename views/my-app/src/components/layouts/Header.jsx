@@ -4,16 +4,14 @@ import { NavLink, useNavigate } from "react-router-dom";
 import "../../assets/font-awesome-6.6.0-pro-full-main/css/all.css";
 import useAuth from "../../hook/useAuth";
 import images from "../../assets/image";
-import SearchBarPanel from "../search/SearchBarPanel.jsx";
+import SearchBarPanel from "../common/SearchBarPanel.jsx";
 import { user_followServices } from "../../services/user_followServices";
 
-// click outside hook (đóng dropdown avatar khi click ra ngoài)
+/* Click outside */
 const useClickOutside = (handler) => {
   const ref = useRef(null);
   useEffect(() => {
-    const fn = (e) => {
-      if (ref.current && !ref.current.contains(e.target)) handler();
-    };
+    const fn = (e) => { if (ref.current && !ref.current.contains(e.target)) handler(); };
     document.addEventListener("mousedown", fn);
     return () => document.removeEventListener("mousedown", fn);
   }, [handler]);
@@ -22,44 +20,40 @@ const useClickOutside = (handler) => {
 
 export default function Header() {
   const navigate = useNavigate();
-  const { user, loading, setUser } = useAuth();
+  const { user, loading } = useAuth();
 
   const [q, setQ] = useState("");
   const [openSearch, setOpenSearch] = useState(false);
   const [isDropdownOpen, setDropdownOpen] = useState(false);
-
   const [followersCount, setFollowersCount] = useState(0);
   const [followingCount, setFollowingCount] = useState(0);
 
+  // ✅ TẠO DUY NHẤT 1 HOOK Ở TOP-LEVEL
   const userMenuRef = useClickOutside(() => setDropdownOpen(false));
 
-  // ESC để đóng search panel
   useEffect(() => {
     const onKey = (e) => {
       if (e.key === "Escape") setOpenSearch(false);
+      if (e.key === "Enter") handleSearch();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [q]);
 
-  // Enter trong ô header => điều hướng sang trang search
-  const onHeaderKeyDown = (e) => {
-    if (e.key === "Enter") {
-      const val = q.trim();
-      if (!val) return;
-      navigate(`/search?type=post&q=${encodeURIComponent(val)}`);
-      setOpenSearch(false);
-    }
+  const handleSearch = () => {
+    const val = q.trim();
+    if (!val) return;
+    navigate(`/search?type=post&q=${encodeURIComponent(val)}`);
+    setOpenSearch(false);
   };
 
-  // Load số follower/following khi user login
   useEffect(() => {
     if (!user) {
       setFollowersCount(0);
       setFollowingCount(0);
       return;
     }
-
     const loadCounts = async () => {
       try {
         const f1 = await user_followServices.countFollowers();
@@ -70,16 +64,14 @@ export default function Header() {
         console.error("Lỗi lấy số follow:", e);
       }
     };
-
     loadCounts();
     window.addEventListener("follow-updated", loadCounts);
-
     return () => window.removeEventListener("follow-updated", loadCounts);
   }, [user]);
 
   if (loading) {
     return (
-      <header className="h-12 flex items-center px-4 bg-[#151a21] text-gray-200 border-y-2 border-[#2a7fff]">
+      <header className="app-header h-12 flex items-center px-4 bg-[var(--color-bg)] text-[var(--color-text)] border-b border-[var(--color-header-border)]">
         <p>Đang tải...</p>
       </header>
     );
@@ -87,137 +79,97 @@ export default function Header() {
 
   return (
     <>
-      <header className="fixed top-0 left-0 w-full h-12 grid grid-cols-[1fr_minmax(320px,600px)_1fr] items-center px-4 bg-[#151a21] text-gray-200 border-y-2 border-[#2a7fff] z-50">
-        <div className="flex items-center font-semibold text-lg">
-          <i className="fa-solid fa-code mr-2"></i> Logo
+      {/* LUÔN 1 HÀNG: 3 cột ngay từ mobile */}
+      <header
+        className="
+          app-header
+          fixed top-0 left-0 w-full
+          h-12 md:h-[var(--header-height)]
+          bg-[var(--color-bg)] text-[var(--color-text)]
+          border-b border-[var(--color-header-border)] z-50
+
+          grid grid-cols-[auto_1fr_auto]
+          sm:grid-cols-[auto_minmax(320px,700px)_auto]
+          items-center gap-2 md:gap-4 px-3 md:px-4
+        "
+      >
+        {/* Cột 1: Logo */}
+        <div className="flex items-center font-semibold text-base md:text-lg justify-start">
+          <i className="fa-solid fa-code text-[color:var(--color-input-primary)] mr-2" />
         </div>
 
-        <div className="relative flex items-center">
-          <i className="fa-solid fa-magnifying-glass absolute left-3 text-gray-400 pointer-events-none" />
-          <input
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            onFocus={() => setOpenSearch(true)}
-            onKeyDown={onHeaderKeyDown}
-            placeholder="Search Posts"
-            className="w-full h-8 pl-9 pr-9 rounded-md bg-[#232a33] text-sm text-gray-200 placeholder:text-gray-400 border border-[#3a4654] focus:border-[#4e9bff] outline-none"
-          />
-          {q ? (
-            <button
-              aria-label="Clear search"
-              title="Clear"
-              onClick={() => {
-                setQ("");
-                setOpenSearch(false);
-              }}
-              className="absolute right-2 h-6 w-6 grid place-items-center rounded-md hover:bg-[#3a4654] transition"
-            >
-              <i className="fa-solid fa-xmark" />
-            </button>
-          ) : (
-            <button
-              aria-label="Open Search Bar"
-              title="Open search"
-              onClick={() => setOpenSearch((v) => !v)}
-              className="absolute right-2 h-6 w-6 grid place-items-center rounded-md bg-[#2b333d] hover:bg-[#3a4654] transition"
-            >
-              <i className="fa-solid fa-arrow-right" />
-            </button>
-          )}
+        {/* Cột 2: Search */}
+        <div className="flex items-center w-full max-w-[600px] min-w-0 mx-auto">
+          <div className="relative flex-1 min-w-0 overflow-hidden">
+            <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-[color:var(--color-text-muted)] pointer-events-none" />
+            <input
+              value={q}
+              onChange={(e) => { setQ(e.target.value); if (!openSearch) setOpenSearch(true); }}
+              onFocus={() => setOpenSearch(true)}
+              placeholder="Tìm kiếm bài viết..."
+              className="
+                w-full h-9 pl-9 pr-9
+                rounded-l-md md:rounded-l-xl
+                bg-[var(--color-input-bg)] text-sm
+                text-[var(--color-text)] placeholder:text-[color:var(--color-text-muted)]
+                border border-r-0 border-[color:var(--color-border-soft)]
+                focus:border-[color:var(--color-input-primary)] outline-none
+              "
+            />
+            {q && (
+              <button
+                aria-label="Xoá"
+                onClick={() => setQ("")}
+                className="absolute right-2 top-1/2 -translate-y-1/2 h-6 w-6 grid place-items-center rounded-md hover:bg-[color:var(--color-hover-bg)] transition"
+              >
+                <i className="fa-solid fa-xmark" />
+              </button>
+            )}
+          </div>
+
+          <button
+            onClick={handleSearch}
+            className="
+              h-9 px-3 md:px-4
+              rounded-r-md md:rounded-r-xl
+              bg-[color:var(--color-border-soft)] hover:bg-[color:var(--color-accent-hover)]
+              border border-l-0 border-[color:var(--color-border-soft)]
+              transition grid place-items-center shrink-0
+            "
+            aria-label="Tìm kiếm"
+            title="Tìm kiếm"
+          >
+            <i className="fa-solid fa-magnifying-glass text-[var(--color-text)]" />
+          </button>
         </div>
 
-        <div className="flex items-center justify-end gap-5 pr-2 text-base">
-          <i className="fa-regular fa-grid-2 cursor-pointer opacity-80 hover:opacity-100"></i>
-
-          <div className="flex items-center gap-1">
+        {/* Cột 3: Actions */}
+        <div className="flex items-center justify-end gap-3 md:gap-5">
+          
+          <div className="hidden sm:flex items-center gap-1">
             <i className="fa-solid fa-blog text-[#ff6a25]" />
             <span className="text-sm">{followersCount}</span>
           </div>
-
-          <div className="flex items-center gap-1">
+          <div className="hidden sm:flex items-center gap-1">
             <i className="fa-solid fa-user-check" style={{ color: "#9625ff" }} />
             <span className="text-sm">{followingCount}</span>
           </div>
 
           {user ? (
-            <div className="relative" ref={userMenuRef}>
-              <button
-                onClick={() => setDropdownOpen((v) => !v)}
-                className="rounded-full overflow-hidden ring-1 ring-[#3a4654] hover:ring-[#4e9bff] transition"
-              >
-                <img
-                  src={user?.avatar_url || images.avtImage}
-                  alt="User Avatar"
-                  className="w-8 h-8 object-cover"
-                />
-              </button>
-
-              <AnimatePresence>
-                {isDropdownOpen && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -6 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -6 }}
-                    transition={{ duration: 0.18 }}
-                    className="absolute right-0 mt-3 w-60 bg-[#232a33] border border-[#3a4654] rounded-lg shadow-xl z-[60]"
-                  >
-                    <div className="flex items-center gap-3 p-3 border-b border-[#3a4654]">
-                      <img
-                        src={user?.avatar_url || images.avtImage}
-                        alt="User Avatar"
-                        className="w-9 h-9 rounded-full"
-                      />
-                      <div>
-                        <p className="font-semibold text-white">{user.full_name || "Real name"}</p>
-                        <p className="text-sm text-gray-400">{user.username || "User name"}</p>
-                      </div>
-                    </div>
-                    <div className="py-2">
-                      <NavLink
-                        to="/profile"
-                        onClick={() => setDropdownOpen(false)}
-                        className="flex items-center gap-3 px-4 py-2 text-gray-300 hover:bg-white/5 hover:text-white"
-                      >
-                        <i className="fa-regular fa-user w-4 text-center" />
-                        <span>Profile</span>
-                      </NavLink>
-                      <button
-                        onClick={() => {
-                          fetch("http://localhost:3000/public/index.php?action=logout", {
-                            method: "POST",
-                            credentials: "include",
-                          })
-                            .then(() => {
-                              setDropdownOpen(false); // đóng dropdown
-                              setTimeout(() => {
-                                window.location.reload(); // reload trang sau 1 giây
-                              }, 1000);
-                            })
-                            .catch((err) => console.error(err));
-                        }}
-                        className="flex items-center gap-3 px-4 py-2 text-red-500 hover:bg-white/5 hover:text-red-400 w-full text-left"
-                      >
-                        <i className="fa-solid fa-arrow-right-from-bracket w-4 text-center" />
-                        <span>Log out</span>
-                      </button>
-
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
+            <UserMenu
+              user={user}
+              isDropdownOpen={isDropdownOpen}
+              setDropdownOpen={setDropdownOpen}
+              userMenuRef={userMenuRef}   
+              followersCount={followersCount}
+              followingCount={followingCount}
+            />
           ) : (
             <div className="flex gap-2">
-              <NavLink
-                to="/login"
-                className="px-3 py-1 rounded bg-[#2b333d] hover:bg-[#3a4654]"
-              >
+              <NavLink to="/login" className="px-2 md:px-3 py-1 rounded bg-[var(--color-surface-alt)] hover:bg-[color:var(--color-hover-bg)]">
                 Đăng nhập
               </NavLink>
-              <NavLink
-                to="/register"
-                className="px-3 py-1 rounded bg-[#2b333d] hover:bg-[#3a4654]"
-              >
+              <NavLink to="/register" className="px-2 md:px-3 py-1 rounded bg-[var(--color-surface-alt)] hover:bg-[color:var(--color-hover-bg)]">
                 Đăng ký
               </NavLink>
             </div>
@@ -234,12 +186,74 @@ export default function Header() {
           const type = (tab || "Post").toLowerCase();
           const keyword = (value ?? q).trim();
           if (!keyword) return;
-          navigate(
-            `/search?type=${encodeURIComponent(type)}&q=${encodeURIComponent(keyword)}`
-          );
+          navigate(`/search?type=${encodeURIComponent(type)}&q=${encodeURIComponent(keyword)}`);
           setOpenSearch(false);
         }}
       />
     </>
+  );
+}
+
+/* ===== UserMenu ===== */
+function UserMenu({ user, isDropdownOpen, setDropdownOpen, userMenuRef, followersCount, followingCount }) {
+  return (
+    <div className="relative" ref={userMenuRef}>
+      <button
+        onClick={() => setDropdownOpen((v) => !v)}
+        className="rounded-full overflow-hidden ring-1 ring-[color:var(--color-border-soft)] hover:ring-[color:var(--color-accent)] transition"
+        aria-label="Mở menu người dùng"
+      >
+        <img src={user?.avatar_url || images.avtImage} alt="User Avatar" className="w-8 h-8 object-cover" />
+      </button>
+
+      <AnimatePresence>
+        {isDropdownOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: -6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -6 }}
+            transition={{ duration: 0.18 }}
+            className="absolute right-0 mt-3 w-56 md:w-60 bg-[var(--color-surface)] border border-[color:var(--color-border-strong)] rounded-lg shadow-[var(--shadow-soft)] z-[60]"
+          >
+            <div className="flex items-center gap-3 p-3 border-b border-[color:var(--color-border-strong)]">
+              <img src={user?.avatar_url || images.avtImage} alt="User Avatar" className="w-9 h-9 rounded-full" />
+              <div className="min-w-0">
+                <p className="font-semibold text-[var(--color-text)] truncate">{user.full_name || "Real name"}</p>
+                <p className="text-xs md:text-sm text-[color:var(--color-text-muted)] truncate">{user.username || "User name"}</p>
+              </div>
+            </div>
+
+            <div className="px-4 py-2 text-[color:var(--color-text-muted)] border-b border-[color:var(--color-border-strong)]">
+              <div className="flex items-center justify-between py-1">
+                <span className="flex items-center gap-2"><i className="fa-solid fa-blog text-[#ff6a25]" /> Followers</span>
+                <span className="text-[var(--color-text)] font-medium">{followersCount}</span>
+              </div>
+              <div className="flex items-center justify-between py-1">
+                <span className="flex items-center gap-2"><i className="fa-solid fa-user-check" style={{ color: "#9625ff" }} /> Following</span>
+                <span className="text-[var(--color-text)] font-medium">{followingCount}</span>
+              </div>
+            </div>
+
+            <div className="py-1">
+              <NavLink to="/profile" onClick={() => setDropdownOpen(false)} className="flex items-center gap-3 px-4 py-2 text-[color:var(--color-text-muted)] hover:bg-[color:var(--color-hover-bg)] hover:text-[var(--color-text)]">
+                <i className="fa-regular fa-user w-4 text-center" />
+                <span>Profile</span>
+              </NavLink>
+              <button
+                onClick={() => {
+                  fetch("http://localhost:3000/public/index.php?action=logout", { method: "POST", credentials: "include" })
+                    .then(() => { setDropdownOpen(false); setTimeout(() => window.location.reload(), 600); })
+                    .catch((err) => console.error(err));
+                }}
+                className="flex items-center gap-3 px-4 py-2 text-red-500 hover:bg-[color:var(--color-hover-bg)] hover:text-red-400 w-full text-left"
+              >
+                <i className="fa-solid fa-arrow-right-from-bracket w-4 text-center" />
+                <span>Log out</span>
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
   );
 }

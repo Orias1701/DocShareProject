@@ -1,14 +1,10 @@
-// src/pages/user_manager/tabs/AlbumsTab.jsx
 import React from "react";
 import { useNavigate } from "react-router-dom";
 
 import AlbumItem from "../../../components/user_manager/list/AlbumItem";
 import AlbumInfoPanel from "../../../components/user_manager/panels/AlbumInfoPanel";
 import ConfirmModal from "../../common/ConfirmModal";
-
-// ❌ Bỏ ModalAddAlbum
 import ModalEditAlbum from "../../../components/user_manager/modals/ModalEditAlbum";
-
 import albumService from "../../../services/albumService";
 
 const mapApiAlbum = (a) => ({
@@ -23,24 +19,19 @@ const mapApiAlbum = (a) => ({
 
 export default function AlbumsTab() {
   const navigate = useNavigate();
-
   const [data, setData] = React.useState([]);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState(null);
   const [fetched, setFetched] = React.useState(false);
-
   const [selectedId, setSelectedId] = React.useState();
   const [page, setPage] = React.useState(1);
   const PAGE_SIZE = 10;
 
   const [confirm, setConfirm] = React.useState({ open: false, target: null });
-
-  // ✨ Chỉ còn Edit
   const [openEdit, setOpenEdit] = React.useState(false);
   const [editAlbum, setEditAlbum] = React.useState(null);
+  const [banner, setBanner] = React.useState(null);
 
-  // 🔔 banner gọn
-  const [banner, setBanner] = React.useState(null); // {type:'success'|'error'|'info', text}
   const showBanner = (type, text, ms = 2200) => {
     setBanner({ type, text });
     window.clearTimeout(showBanner._t);
@@ -66,7 +57,6 @@ export default function AlbumsTab() {
       setFetched(true);
       setSelectedId((prev) => prev ?? mapped[0]?.id);
     } catch (e) {
-      console.error("[AlbumsTab] fetchAlbums error:", e);
       setError(e?.message || "Failed to load albums");
     } finally {
       setLoading(false);
@@ -75,48 +65,31 @@ export default function AlbumsTab() {
 
   React.useEffect(() => {
     if (!fetched && !loading) fetchAlbums();
-  }, []); // once
+  }, []); 
 
   React.useEffect(() => setPage(1), [fetched]);
 
-  // ====== CẬP NHẬT UI SAU XOÁ (không reload) ======
   const removeFromLocal = (albumId) => {
     setData((prev) => {
       const next = prev.filter((x) => x.id !== albumId);
-
-      // sửa selected nếu đang trỏ vào album vừa xoá
-      setSelectedId((prevSel) => {
-        if (prevSel === albumId) {
-          return next[0]?.id;
-        }
-        return prevSel;
-      });
-
-      // điều chỉnh page nếu trang hiện tại rỗng
+      setSelectedId((prevSel) => (prevSel === albumId ? next[0]?.id : prevSel));
       const newTotalPages = Math.max(1, Math.ceil(next.length / PAGE_SIZE));
       setPage((p) => Math.min(p, newTotalPages));
       return next;
     });
   };
 
-  // ====== THỰC THI XOÁ ======
   const doDelete = async (albumId) => {
-    console.log("[AlbumsTab] 🔸 Deleting album:", albumId);
     const res = await albumService.delete(albumId);
-    console.log("[AlbumsTab] ↩ delete response:", res);
-    // Chuẩn hoá check status
     const ok =
       res?.status === "ok" ||
       res?.status === "success" ||
       res?.message?.toLowerCase?.().includes("đã xoá") ||
       res === true;
-    if (!ok) {
-      throw new Error(res?.message || "Delete failed");
-    }
+    if (!ok) throw new Error(res?.message || "Delete failed");
     return res;
   };
 
-  // ====== UPDATE (EDIT) ======
   const handleUpdateAlbum = async ({
     album_id,
     album_name,
@@ -147,64 +120,37 @@ export default function AlbumsTab() {
       <div className="lg:col-span-2 space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold">Album List</h2>
-          <div className="flex items-center gap-2">
-            <button
-              className="px-3 py-1.5 rounded-md border border-white/20 text-white/90 hover:text-white"
-              onClick={fetchAlbums}
-              disabled={loading}
-              title="Refresh albums"
-            >
-              <i className="fa-solid fa-rotate"></i>
-            </button>
-            {/* ❌ ĐÃ BỎ NÚT ADD */}
-          </div>
+          <button
+            className="btn btn-outline"
+            onClick={fetchAlbums}
+            disabled={loading}
+            title="Refresh albums"
+          >
+            <i className="fa-solid fa-rotate"></i>
+          </button>
         </div>
 
-        {/* 🔔 banner */}
-        {banner && (
-          <div
-            className={
-              "px-3 py-2 rounded-md text-sm border " +
-              (banner.type === "success"
-                ? "bg-emerald-900/30 text-emerald-200 border-emerald-700/40"
-                : banner.type === "error"
-                ? "bg-red-900/30 text-red-200 border-red-700/40"
-                : "bg-white/5 text-white/80 border-white/10")
-            }
-          >
-            {banner.text}
-          </div>
-        )}
+        {banner && <div className={`banner banner--${banner.type}`}>{banner.text}</div>}
 
         {loading && !fetched && (
           <div className="space-y-3">
             {Array.from({ length: 6 }).map((_, i) => (
-              <div
-                key={i}
-                className="h-14 rounded-xl bg-white/5 border border-white/10 animate-pulse"
-              />
+              <div key={i} className="h-14 rounded-xl bg-white/5 border border-white/10 animate-pulse" />
             ))}
           </div>
         )}
 
         {error && data.length === 0 && (
-          <div className="text-red-300 bg-red-900/20 border border-red-500/30 rounded-xl p-4">
+          <div className="panel panel-muted text-red-300">
             Failed to load albums: {error}
             <div className="mt-3">
-              <button
-                onClick={fetchAlbums}
-                className="px-3 py-1.5 rounded-md bg-white text-black"
-              >
-                Retry
-              </button>
+              <button onClick={fetchAlbums} className="btn btn-primary">Retry</button>
             </div>
           </div>
         )}
 
         {fetched && data.length === 0 && (
-          <div className="text-white/70 bg-white/5 border border-white/10 rounded-xl p-4">
-            No albums found.
-          </div>
+          <div className="panel panel-muted">No albums found.</div>
         )}
 
         <div className="space-y-3">
@@ -225,24 +171,16 @@ export default function AlbumsTab() {
         </div>
 
         {totalPages > 1 && (
-          <div className="flex items-center justify-between pt-2">
+          <div className="pagination">
             <button
-              className="px-3 py-1.5 rounded-md border border-white/10 text-sm text-white/90 disabled:opacity-40"
               onClick={() => setPage((p) => Math.max(1, p - 1))}
               disabled={page === 1}
-            >
-              Prev
-            </button>
-            <div className="text-sm text-white/80">
-              Page <span className="font-semibold">{page}</span> / {totalPages}
-            </div>
+            >Prev</button>
+            <div>Page <strong>{page}</strong> / {totalPages}</div>
             <button
-              className="px-3 py-1.5 rounded-md border border-white/10 text-sm text-white/90 disabled:opacity-40"
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
               disabled={page === totalPages}
-            >
-              Next
-            </button>
+            >Next</button>
           </div>
         )}
       </div>
@@ -251,13 +189,10 @@ export default function AlbumsTab() {
         {currentAlbum ? (
           <AlbumInfoPanel album={currentAlbum} />
         ) : (
-          <div className="bg-[#1C2028] p-6 rounded-xl border border-[#2d2d33] text-white/70">
-            Nothing to show here.
-          </div>
+          <div className="panel panel-muted">Nothing to show here.</div>
         )}
       </aside>
 
-      {/* ❌ Không còn ModalAddAlbum */}
       <ModalEditAlbum
         open={openEdit}
         onClose={() => setOpenEdit(false)}
@@ -275,14 +210,11 @@ export default function AlbumsTab() {
         onClose={() => setConfirm({ open: false, target: null })}
         onConfirm={async () => {
           const albumId = confirm.target?.id;
-          console.log("[AlbumsTab] ✅ Confirm delete, albumId=", albumId);
           try {
-            const res = await doDelete(albumId);
+            await doDelete(albumId);
             removeFromLocal(albumId);
             showBanner("success", "Đã xoá album.");
-            console.log("[AlbumsTab] 🟢 Xoá thành công:", res);
           } catch (e) {
-            console.error("[AlbumsTab] 🔴 Delete failed:", e);
             showBanner("error", e?.message || "Delete failed");
           } finally {
             setConfirm({ open: false, target: null });

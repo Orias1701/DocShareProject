@@ -15,7 +15,6 @@ import AuthLayout from "../layouts/AuthLayout";
 // Pages
 import ExplorePage from "../pages/explore/ExplorePage";
 import FollowingPage from "../pages/following/FollowingPage";
-import HistoryPage from "../pages/history/HistoryPage";
 import MyPostsPage from "../pages/myposts/MyPostsPage";
 import BookmarksPage from "../pages/bookmarks/BookmarksPage";
 import MyAlbumPage from "../pages/myalbum/MyAlbumPage";
@@ -78,14 +77,6 @@ function MainLayout({ isCollapsed, setIsCollapsed, isNewAlbumModalOpen, setNewAl
               element={
                 <RequireAuth>
                   <FollowingPage />
-                </RequireAuth>
-              }
-            />
-            <Route
-              path="history"
-              element={
-                <RequireAuth>
-                  <HistoryPage />
                 </RequireAuth>
               }
             />

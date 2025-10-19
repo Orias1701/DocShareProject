@@ -1,34 +1,36 @@
-import React from 'react';
+import React from "react";
 
 /**
- * Component `CategoryInfoCard`
- * @description Hiển thị một card chứa thông tin tóm tắt về một category.
- * @param {{
- * icon: string,        // Class Font Awesome cho icon (ví dụ: "fa-solid fa-house")
- * title: string,       // Tiêu đề chính của category
- * subtitle: string,    // Phụ đề ngắn (tối đa 2 dòng)
- * description: string  // Đoạn mô tả dài hơn
- * }} props
+ * Thẻ hiển thị thông tin tóm tắt 1 Category.
  */
-function CategoryInfoCard({ icon, title, subtitle, description }) {
+export default function CategoryInfoCard({ icon, title, subtitle, description }) {
   return (
-    // Thẻ `a` (link) chính cho toàn bộ card
-    <a href="#" className="block bg-[#1C2028] rounded-xl p-6 border border-gray-700/80 text-white text-center hover:border-gray-500 transition-colors">
-      
-      {/* Vòng tròn chứa icon */}
+    <div
+      className="
+        bg-[var(--color-card-bg)]
+        border border-[var(--color-card-border)]
+        rounded-xl p-6 text-center
+        hover:border-[var(--color-border-soft)]
+        hover:bg-[var(--color-card-hover)]
+        transition-colors
+      "
+    >
+      {/* Icon */}
       <div className="flex justify-center mb-4">
-        <div className="w-16 h-16 rounded-full bg-gray-700 flex items-center justify-center">
-          <i className={`${icon} text-3xl text-white`}></i>
+        <div
+          className="
+            w-16 h-16 rounded-full flex items-center justify-center
+            bg-[var(--color-muted-bg)]
+          "
+        >
+          <i className={`${icon} text-3xl text-[var(--color-icon-default)]`} />
         </div>
       </div>
-      
-      {/* Nội dung text */}
-      <h3 className="font-bold text-lg text-white">{title}</h3>
-      {/* `h-10` để giữ chỗ cho 2 dòng, tránh layout bị giật */}
-      <p className="text-sm text-gray-400 mb-3 h-10">{subtitle}</p> 
-      <p className="text-sm text-gray-400">{description}</p>
-    </a>
+
+      {/* Text */}
+      <h3 className="font-bold text-lg text-[var(--color-text)]">{title}</h3>
+      <p className="text-sm text-[var(--color-text-muted)] mb-3 h-10">{subtitle}</p>
+      <p className="text-sm text-[var(--color-text-secondary)]">{description}</p>
+    </div>
   );
 }
-
-export default CategoryInfoCard;

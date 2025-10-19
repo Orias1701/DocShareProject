@@ -1,26 +1,24 @@
-import React from 'react';
-import Header from '../components/layouts/Header';
-import Footer from '../components/layouts/Footer';
-import NavBar from '../components/layouts/NavBar';
+import { useEffect } from "react";
+import NavBar from "../components/layouts/NavBar";
+import Footer from "../components/layouts/Footer";
 
 export default function MainLayout() {
+  useEffect(() => {
+    document.body.classList.add("main-page");
+    return () => document.body.classList.remove("main-page");
+  }, []);
+
   return (
-    <div className="layout-container">
-      {/* Header */}
-      <div className="layout-header">
-        <Header />
-      </div>
+    <div className="app-shell">
+      <NavBar />
 
-      {/* Body */}
-      <div className="layout-body">
-        <NavBar />
-        <main>
-          <h1>N Bài viết mới nhất của mỗi category</h1>
-          <p>Mỗi hàng là 1 category</p>
-        </main>
-      </div>
+      <main>
+        <h1 className="text-xl font-semibold mb-2">
+          N Bài viết mới nhất của mỗi category
+        </h1>
+        <p className="text-sm opacity-80">Mỗi hàng là 1 category</p>
+      </main>
 
-      {/* Footer */}
       <Footer />
     </div>
   );

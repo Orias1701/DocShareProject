@@ -51,12 +51,11 @@ const NewAlbumForm = ({ onClose, onCreated }) => {
       const res = await albumService.create({
         album_name: albumName.trim(),
         description: "",
-        thumbnail, // nếu BE chưa hỗ trợ cũng không sao
+        thumbnail,
       });
 
       const createdAlbum = normalizeCreatedAlbum(res, albumName);
 
-      // ✅ Báo về cha để cập nhật list & đóng modal ngay
       onCreated?.(createdAlbum);
       onClose?.();
 
@@ -79,7 +78,7 @@ const NewAlbumForm = ({ onClose, onCreated }) => {
 
   return (
     <div className="flex flex-col gap-6">
-      <h2 className="text-xl font-bold text-white">Album title</h2>
+      <h2 className="text-xl font-bold text-[var(--color-text)]">Album title</h2>
 
       <FormField
         label="Album title"
@@ -97,14 +96,16 @@ const NewAlbumForm = ({ onClose, onCreated }) => {
         onFileSelect={setThumbnail}
       />
       {thumbnail && (
-        <p className="text-xs text-gray-400 -mt-4">Đã chọn: {thumbnail.name}</p>
+        <p className="text-xs text-[var(--color-text-muted)] -mt-4">
+          Đã chọn: {thumbnail.name}
+        </p>
       )}
 
       <div className="flex justify-end mt-2">
         <button
           onClick={handleSubmit}
           disabled={submitting}
-          className="bg-gray-200 hover:bg-white disabled:opacity-60 text-black font-bold py-2 px-8 rounded-lg transition-colors"
+          className="bg-[var(--color-text)] hover:bg-white disabled:opacity-60 text-black font-bold py-2 px-8 rounded-lg transition-colors"
         >
           {submitting ? "Submitting..." : "Submit"}
         </button>

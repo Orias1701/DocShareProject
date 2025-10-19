@@ -1,8 +1,12 @@
-// src/components/leaderboard/RankItem.jsx
 import React from "react";
 import PropTypes from "prop-types";
 
-const RankItem = ({
+/**
+ * Một dòng user trong bảng xếp hạng.
+ * - Click vào dòng để chọn user
+ * - Click avatar để đi tới trang profile
+ */
+export default function RankItem({
   rank,
   avatar,
   realName,
@@ -10,8 +14,9 @@ const RankItem = ({
   score,
   isSelected,
   onClick,
-  onAvatarClick, // 👈 thêm prop ở đây
-}) => {
+  onAvatarClick,
+}) {
+  // Màu ô thứ hạng 1/2/3
   const rankColors = {
     1: "bg-yellow-500 border-yellow-400",
     2: "bg-gray-400 border-gray-300",
@@ -22,39 +27,47 @@ const RankItem = ({
   return (
     <div
       onClick={onClick}
-      className={`flex items-center p-3 rounded-lg border transition-all cursor-pointer
-        ${
-          isSelected
-            ? "bg-[#2C323B] border-[#4A515B]"
-            : "bg-transparent border-transparent hover:bg-[#2C323B]/50"
-        }
-      `}
+      className={[
+        "flex items-center p-3 rounded-lg border cursor-pointer transition-colors",
+        isSelected
+          ? "bg-[var(--color-surface-alt)] border-[var(--color-border-soft)]"
+          : "bg-transparent border-transparent hover:bg-[var(--color-hover-bg)]",
+      ].join(" ")}
     >
+      {/* Ô thứ hạng */}
       <div
-        className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm mr-4 border ${rankColor}`}
+        className={[
+          "w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm mr-4 border",
+          rankColor,
+        ].join(" ")}
       >
         {rank}
       </div>
 
+      {/* Avatar (bấm vào đi profile) */}
       <img
         src={avatar}
         alt={realName}
         className="w-10 h-10 rounded-full object-cover cursor-pointer"
         onClick={(e) => {
-          e.stopPropagation(); // để click avatar không trigger onClick item
-          if (onAvatarClick) onAvatarClick();
+          e.stopPropagation(); // tránh kích hoạt chọn dòng
+          onAvatarClick?.();
         }}
       />
 
-      <div className="flex-grow">
-        <p className="font-semibold text-white">{realName}</p>
-        <p className="text-sm text-gray-400">{userName}</p>
+      {/* Tên + username */}
+      <div className="flex-grow min-w-0 ml-3">
+        <p className="font-semibold text-[var(--color-text)] truncate">{realName}</p>
+        <p className="text-sm text-[var(--color-text-muted)] truncate">{userName}</p>
       </div>
 
-      <div className="text-sm font-semibold text-gray-300">{score}</div>
+      {/* Điểm */}
+      <div className="text-sm font-semibold text-[var(--color-text-secondary)]">
+        {score}
+      </div>
     </div>
   );
-};
+}
 
 RankItem.propTypes = {
   rank: PropTypes.number.isRequired,
@@ -64,7 +77,5 @@ RankItem.propTypes = {
   score: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
   isSelected: PropTypes.bool,
   onClick: PropTypes.func,
-  onAvatarClick: PropTypes.func, // 👈 thêm vào propTypes
+  onAvatarClick: PropTypes.func,
 };
-
-export default RankItem;

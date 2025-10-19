@@ -10,6 +10,7 @@ const FALLBACK_URL =
 const FALLBACK_AVATAR =
   "https://cdn2.fptshop.com.vn/small/avatar_trang_1_cd729c335b.jpg";
 
+/** Chuẩn hoá hashtag sang dạng #tag */
 function normalizeHashtags(hx) {
   const toDisplay = (s) => {
     const t = String(s || "").trim();
@@ -37,6 +38,7 @@ function normalizeHashtags(hx) {
   return [];
 }
 
+/** Kiểm tra URL ảnh hợp lệ */
 function isImageUrl(url, type) {
   const u = String(url || "");
   if (!u) return false;
@@ -77,16 +79,14 @@ export default function PostCard({
   const stats = {
     likes: Number(post?.stats?.likes ?? post?.reaction_like_count ?? 0),
     dislikes: Number(post?.stats?.dislikes ?? post?.reaction_dislike_count ?? 0),
-    comments: Number(post?.stats?.comments ?? post?.comment_count ?? 0),
-    views: post?.stats?.views ?? post?.view_count ?? 0,
   };
 
   const rawBanner = post?.banner || post?.banner_url || post?.bannerUrl || "";
   const bannerUrl = rawBanner && isImageUrl(rawBanner) ? rawBanner : "";
   const displayImage = bannerUrl || placeholderImage;
-
   const fileUrl = (post?.file?.url || post?.file_url || "").trim();
 
+  // ---- Ảnh preview ----
   const contentEl = (
     <div className="w-full rounded-lg overflow-hidden">
       <img
@@ -94,23 +94,29 @@ export default function PostCard({
         alt={bannerUrl ? "Banner" : "Placeholder"}
         className="w-full h-auto aspect-video object-cover"
         loading="lazy"
-        onError={(e) => {
-          e.currentTarget.src = FALLBACK_URL;
-        }}
+        onError={(e) => (e.currentTarget.src = FALLBACK_URL)}
       />
     </div>
   );
 
   const preview = fileUrl ? (
     <Link
-      to={`/viewer/file?url=${encodeURIComponent(fileUrl)}&title=${encodeURIComponent(title)}${postId ? `&post_id=${encodeURIComponent(postId)}` : ""}`}
+      to={`/viewer/file?url=${encodeURIComponent(fileUrl)}&title=${encodeURIComponent(title)}${
+        postId ? `&post_id=${encodeURIComponent(postId)}` : ""
+      }`}
       className="block"
       aria-label="Xem nội dung"
     >
       {contentEl}
     </Link>
   ) : bannerUrl ? (
-    <a href={bannerUrl} target="_blank" rel="noopener noreferrer" className="block" aria-label="Mở banner">
+    <a
+      href={bannerUrl}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="block"
+      aria-label="Mở banner"
+    >
       {contentEl}
     </a>
   ) : (
@@ -119,19 +125,33 @@ export default function PostCard({
     </Link>
   );
 
-  const initialBM = typeof initiallyBookmarked === "boolean" ? initiallyBookmarked : !!post?.is_bookmarked;
+  const initialBM =
+    typeof initiallyBookmarked === "boolean" ? initiallyBookmarked : !!post?.is_bookmarked;
   const initialThumbReaction =
     post?.my_reaction === "like" || post?.my_reaction === "dislike"
       ? post.my_reaction
       : null;
 
+  // ---- UI ----
   return (
-    <div className="bg-[#1C2028] border border-gray-700/80 rounded-xl p-4 flex flex-col h-full text-white">
+    <div
+      className="
+        bg-[var(--color-card-bg)]
+        border border-[var(--color-card-border)]
+        rounded-xl p-4 flex flex-col h-full
+        text-[var(--color-text)]
+        hover:bg-[var(--color-card-hover)]
+        transition-colors
+      "
+    >
       {/* Header */}
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2 min-w-0">
           {authorId ? (
-            <Link to={`/profile/${encodeURIComponent(authorId)}`} className="flex items-center gap-2 min-w-0">
+            <Link
+              to={`/profile/${encodeURIComponent(authorId)}`}
+              className="flex items-center gap-2 min-w-0"
+            >
               <img
                 src={authorAvatar}
                 alt={authorName}
@@ -167,32 +187,71 @@ export default function PostCard({
           {title}
         </h3>
 
+        {/* Album & Hashtags */}
         <div className="min-h-[28px] mb-2">
           <div className="flex flex-wrap gap-2">
+            {/* Album Chip — nổi bật hơn hashtag */}
             {showAlbum && albumName && (
-              <span className="bg-blue-600/30 text-blue-200 text-[11px] font-semibold px-2 py-1 rounded max-w-[180px] truncate" title={albumName}>
+              <span
+                className="
+                  inline-flex items-center gap-1
+                  text-[11px] font-semibold px-2 py-1 rounded
+                  max-w-[220px] truncate
+                  bg-[var(--color-accent)]
+                  hover:bg-[var(--color-accent-hover)]
+                  text-[var(--color-text)]
+                  border border-[var(--color-border-strong)]
+                  transition-colors
+                "
+                title={albumName}
+              >
+                <i className="fa-regular fa-folder-open text-[12px]"></i>
                 {albumName}
               </span>
             )}
+
+            {/* Hashtags */}
             {displayTags.map((tag) => (
-              <span key={tag} className="bg-gray-700/50 text-gray-300 text-xs font-medium px-2 py-1 rounded max-w-[140px] truncate" title={tag}>
+              <span
+                key={tag}
+                className="
+                  text-xs font-medium px-2 py-1 rounded
+                  max-w-[160px] truncate
+                  bg-[var(--color-muted-bg)]
+                  text-[var(--color-text-muted)]
+                  border border-[var(--color-border-soft)]
+                "
+                title={tag}
+              >
                 {tag}
               </span>
             ))}
+
             {extraTags > 0 && (
-              <span className="bg-gray-700/50 text-gray-300 text-xs font-semibold px-2 py-1 rounded">
+              <span
+                className="
+                  text-xs font-semibold px-2 py-1 rounded
+                  bg-[var(--color-muted-bg)]
+                  text-[var(--color-text-muted)]
+                  border border-[var(--color-border-soft)]
+                "
+              >
                 +{extraTags}
               </span>
             )}
           </div>
         </div>
 
-        {uploadTime && <p className="text-xs text-gray-500 mb-3">{uploadTime}</p>}
+        {uploadTime && (
+          <p className="text-xs text-[var(--color-info)] mb-3">{uploadTime}</p>
+        )}
+
         <div className="mb-3">{preview}</div>
       </div>
 
+      {/* Reactions + Bookmark */}
       {!hideReactions && (
-        <div className="border-t border-gray-700/80 pt-3 flex items-center justify-between">
+        <div className="border-t border-[var(--color-border-soft)] pt-3 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <ReactionThumbs
               postId={postId}
@@ -201,7 +260,11 @@ export default function PostCard({
               autoRefresh={true}
             />
           </div>
-          <BookmarkButton postId={postId} initiallyBookmarked={initialBM} onChange={onBookmarkChange} />
+          <BookmarkButton
+            postId={postId}
+            initiallyBookmarked={initialBM}
+            onChange={onBookmarkChange}
+          />
         </div>
       )}
     </div>

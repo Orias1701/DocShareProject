@@ -1,10 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
 
-/**
- * FilePreview
- * - Nếu có htmlContent: render HTML (ưu tiên)
- * - Nếu có file: image/pdf/docx
- */
 const FilePreview = ({ file, htmlContent, html, onDocxHtml }) => {
   const [previewUrl, setPreviewUrl] = useState(null);
   const [docxHtml, setDocxHtml] = useState(null);
@@ -44,8 +39,7 @@ const FilePreview = ({ file, htmlContent, html, onDocxHtml }) => {
     if (!file) return;
 
     const isDocx =
-      file.type ===
-        "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
+      file.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
       (file.name && file.name.toLowerCase().endsWith(".docx"));
 
     if (!isDocx) return;
@@ -87,8 +81,7 @@ const FilePreview = ({ file, htmlContent, html, onDocxHtml }) => {
       if (docxHtml) setDocxHtml(null);
       if (docxError) setDocxError(null);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [htmlContent, html]);
+  }, [htmlContent, html]); // đơn giản hoá: không cần eslint-disable
 
   const renderPreview = () => {
     if (effectiveHtml) {
@@ -116,7 +109,7 @@ const FilePreview = ({ file, htmlContent, html, onDocxHtml }) => {
             }
 
             .preview-html code {
-              font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+              font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Courier New", monospace;
               background: rgba(255,255,255,0.06);
               padding: 0.15rem 0.35rem;
               border-radius: 0.25rem;
@@ -133,20 +126,6 @@ const FilePreview = ({ file, htmlContent, html, onDocxHtml }) => {
             .preview-html .ql-align-center { text-align: center; }
             .preview-html .ql-align-right { text-align: right; }
             .preview-html .ql-align-justify { text-align: justify; }
-
-            .preview-html .ql-size-small { font-size: 0.85em; }
-            .preview-html .ql-size-large { font-size: 1.25em; }
-            .preview-html .ql-size-huge { font-size: 1.5em; }
-
-            ${Array.from({length: 9}).map((_,i)=>`.preview-html .ql-indent-${i+1}{ margin-left: ${(i+1)*1.5}rem; }`).join("\n")}
-
-            .preview-html .ql-code-block {
-              font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-              background: rgba(255,255,255,0.06);
-              padding: 0.6rem 0.75rem;
-              border-radius: 0.5rem;
-              white-space: pre-wrap;
-            }
           `}</style>
 
           <div
@@ -158,10 +137,10 @@ const FilePreview = ({ file, htmlContent, html, onDocxHtml }) => {
       );
     }
 
-    if (loadingDocx) return <p className="text-gray-400">Đang convert file Word sang HTML...</p>;
+    if (loadingDocx) return <p className="text-[var(--color-info)]">Đang convert file Word sang HTML...</p>;
     if (docxError) return <p className="text-red-400">{docxError}</p>;
 
-    if (!file || !previewUrl) return <p className="text-gray-500">File uploaded will be shown here</p>;
+    if (!file || !previewUrl) return <p className="text-[var(--color-text-muted)]">File uploaded will be shown here</p>;
 
     if (file.type.startsWith("image/")) {
       return <img src={previewUrl} alt="File preview" className="max-w-full max-h-full object-contain rounded-lg" />;
@@ -179,7 +158,7 @@ const FilePreview = ({ file, htmlContent, html, onDocxHtml }) => {
     }
 
     return (
-      <div className="text-left text-gray-400">
+      <div className="text-left text-[var(--color-text-secondary)]">
         <i className="fa-solid fa-file text-5xl mb-4"></i>
         <p className="font-semibold break-all">{file.name}</p>
       </div>
@@ -187,7 +166,7 @@ const FilePreview = ({ file, htmlContent, html, onDocxHtml }) => {
   };
 
   return (
-    <div className="bg-[#1C2028] border-2 border-dashed border-gray-700 rounded-lg flex-grow min-h-[250px] h-full p-4 overflow-auto text-left">
+    <div className="bg-[var(--color-surface-alt)] border-2 border-dashed border-[var(--color-border-strong)] rounded-lg flex-grow min-h-[250px] h-full p-4 overflow-auto text-left">
       {renderPreview()}
     </div>
   );

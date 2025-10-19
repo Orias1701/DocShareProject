@@ -3,17 +3,18 @@ import { Link } from "react-router-dom";
 
 const FALLBACK_IMG =
   "https://play-lh.googleusercontent.com/YkKvpRk6awQCkSi2oVDRBH7BAWpp0QBUWV9Pf-BVDTvJqwH8q3naROPyZET99DvO1HWq=w240-h480-rw";
-const FALLBACK_AVATAR = "https://cdn2.fptshop.com.vn/small/avatar_trang_1_cd729c335b.jpg";
+const FALLBACK_AVATAR =
+  "https://cdn2.fptshop.com.vn/small/avatar_trang_1_cd729c335b.jpg";
 
 /**
  * PostItem
- * - compact=true: hiển thị dạng hàng (row) nhỏ gọn để quản trị
+ * - compact=true: hiển thị dạng hàng (row) nhỏ gọn cho quản trị
  * - compact=false: dạng thẻ có ảnh lớn
  */
 export default function PostItem({
   post,
   compact = false,
-  onOpen,        // optional: nếu truyền vào thì View sẽ gọi hàm này
+  onOpen,
   onEdit,
   onDelete,
   onAuthorClick,
@@ -23,7 +24,6 @@ export default function PostItem({
   const {
     id,
     title,
-    authorId,
     authorName,
     authorAvatar,
     uploadTime,
@@ -32,28 +32,19 @@ export default function PostItem({
     fileUrl,
   } = post;
 
-  const hasFile = !!(fileUrl && String(fileUrl).trim());
-  const fileTarget = hasFile
-    ? `/viewer/file?url=${encodeURIComponent(fileUrl)}&title=${encodeURIComponent(
-        title || ""
-      )}${id ? `&post_id=${encodeURIComponent(id)}` : ""}`
-    : null;
-  const contentTarget = id ? `/viewer/content/${encodeURIComponent(id)}` : null;
+  const viewerTarget = id ? `/viewer/content/${encodeURIComponent(id)}` : "#";
 
-  // 👉 View luôn đi tới viewer: ưu tiên file → content
-  const viewerTarget = fileTarget || contentTarget;
-
-  // 🎨 nút View tông tối (đồng bộ dark theme)
+  // Style nút View với biến CSS
   const viewBtnClass =
     "inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium " +
-    "bg-[#262B33] text-white/90 hover:text-white hover:bg-[#2F3540] active:bg-[#262B33] " +
-    "border border-white/10 focus:outline-none focus:ring-2 focus:ring-white/10 " +
+    "bg-[var(--color-surface-alt)] text-[var(--color-text-secondary)] " +
+    "hover:text-[var(--color-text)] hover:bg-[var(--color-card-hover)] active:bg-[var(--color-surface-alt)] " +
+    "border border-[var(--color-border-soft)] focus:outline-none focus:ring-2 focus:ring-[var(--color-border-strong)] " +
     "shadow-sm transition";
   const viewBtnDisabled =
     "inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium " +
-    "bg-white/5 text-white/45 border border-white/10 cursor-not-allowed";
+    "bg-[var(--color-disabled-bg)] text-[var(--color-text-muted)] border border-[var(--color-border-soft)] cursor-not-allowed";
 
-  // ✅ Nút View: điều hướng tới viewer; chặn bubble để không trigger click ở thẻ cha
   const ViewButton = () => {
     if (onOpen) {
       return (
@@ -63,8 +54,6 @@ export default function PostItem({
             e.stopPropagation();
             onOpen();
           }}
-          title="View"
-          aria-label="View"
         >
           <i className="fa-regular fa-eye text-[11px]" />
           <span className="hidden sm:inline">View</span>
@@ -77,18 +66,14 @@ export default function PostItem({
           to={viewerTarget}
           className={viewBtnClass}
           onClick={(e) => e.stopPropagation()}
-          title="View"
-          aria-label="View"
         >
           <i className="fa-regular fa-eye text-[11px]" />
-          {/* <span className="hidden sm:inline">View</span> */}
         </Link>
       );
     }
     return (
-      <button className={viewBtnDisabled} disabled title="No content">
+      <button className={viewBtnDisabled} disabled>
         <i className="fa-regular fa-eye text-[11px]" />
-        {/* <span className="hidden sm:inline">View</span> */}
       </button>
     );
   };
@@ -116,66 +101,31 @@ export default function PostItem({
   /** --------- COMPACT (row) --------- */
   if (compact) {
     return (
-      <div className="bg-[#1C2028] border border-white/10 rounded-xl p-3 text-white">
+      <div className="bg-[var(--color-card-bg)] border border-[var(--color-border-soft)] rounded-xl p-3 text-[var(--color-text)]">
         <div className="flex items-start gap-3">
-          {/* thumb nhỏ → viewer */}
-          <Thumb className="block w-[160px] h-[100px] md:w-[180px] md:h-[110px] rounded-lg overflow-hidden border border-white/10 flex-shrink-0" />
+          <Thumb className="block w-[160px] h-[100px] rounded-lg overflow-hidden border border-[var(--color-border-soft)] flex-shrink-0" />
 
-          {/* nội dung */}
           <div className="min-w-0 flex-1">
-            {/* author + time */}
+            {/* author */}
             <div className="flex items-center gap-2 mb-1">
-              {authorId ? (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onAuthorClick && onAuthorClick();
-                  }}
-                  className="flex items-center gap-2 min-w-0"
-                  title="Xem tác giả"
-                >
-                  <img
-                    src={authorAvatar || FALLBACK_AVATAR}
-                    alt={authorName || "author"}
-                    className="w-7 h-7 rounded-full object-cover"
-                    onError={(e) => (e.currentTarget.src = FALLBACK_AVATAR)}
-                  />
-                  <span className="text-sm font-semibold truncate max-w-[160px] md:max-w-[220px]">
-                    {authorName || "Unknown"}
-                  </span>
-                </button>
-              ) : (
-                <div className="flex items-center gap-2 min-w-0">
-                  <img
-                    src={authorAvatar || FALLBACK_AVATAR}
-                    className="w-7 h-7 rounded-full object-cover"
-                    alt=""
-                  />
-                  <span className="text-sm font-semibold truncate">
-                    {authorName || "Unknown"}
-                  </span>
-                </div>
-              )}
+              <img
+                src={authorAvatar || FALLBACK_AVATAR}
+                alt={authorName}
+                className="w-7 h-7 rounded-full object-cover"
+                onError={(e) => (e.currentTarget.src = FALLBACK_AVATAR)}
+              />
+              <span className="text-sm font-semibold truncate">
+                {authorName || "Unknown"}
+              </span>
               {uploadTime && (
-                <span className="text-[11px] text-white/60 truncate">• {uploadTime}</span>
+                <span className="text-[11px] text-[var(--color-text-muted)]">
+                  • {uploadTime}
+                </span>
               )}
             </div>
 
-            {/* title → viewer */}
-            {viewerTarget ? (
-              <Link
-                to={viewerTarget}
-                onClick={(e) => e.stopPropagation()}
-                className="block font-semibold leading-snug line-clamp-2 mb-1"
-                title={title}
-              >
-                {title || "Untitled"}
-              </Link>
-            ) : (
-              <div className="font-semibold leading-snug line-clamp-2 mb-1">
-                {title || "Untitled"}
-              </div>
-            )}
+            {/* title */}
+            <div className="font-semibold line-clamp-2 mb-1">{title}</div>
 
             {/* tags */}
             {Array.isArray(hashtags) && hashtags.length > 0 && (
@@ -188,11 +138,6 @@ export default function PostItem({
                     {tag}
                   </span>
                 ))}
-                {hashtags.length > 3 && (
-                  <span className="text-[11px] text-white/60">
-                    +{hashtags.length - 3}
-                  </span>
-                )}
               </div>
             )}
           </div>
@@ -200,27 +145,21 @@ export default function PostItem({
           {/* actions */}
           <div className="flex flex-col gap-2 ml-1">
             <ViewButton />
-
             <button
-              className="px-2 py-1 rounded-md border border-white/10 text-xs text-white/80 hover:text-white"
+              className="px-2 py-1 rounded-md border border-[var(--color-border-soft)] text-xs text-[var(--color-text-secondary)] hover:text-[var(--color-text)]"
               onClick={(e) => {
                 e.stopPropagation();
                 onEdit && onEdit();
               }}
-              title="Edit"
-              aria-label="Edit post"
             >
               <i className="fa-regular fa-pen-to-square" />
             </button>
-
             <button
               className="px-2 py-1 rounded-md border border-red-500/30 text-xs text-red-300 hover:text-red-200"
               onClick={(e) => {
                 e.stopPropagation();
                 onDelete && onDelete();
               }}
-              title="Delete"
-              aria-label="Delete post"
             >
               <i className="fa-regular fa-trash-can" />
             </button>
@@ -230,41 +169,34 @@ export default function PostItem({
     );
   }
 
-  /** --------- NORMAL (thẻ lớn) --------- */
+  /** --------- NORMAL (card) --------- */
   return (
-    <div className="bg-[#1C2028] border border-white/10 rounded-xl p-4 text-white">
+    <div className="bg-[var(--color-card-bg)] border border-[var(--color-border-soft)] rounded-xl p-4 text-[var(--color-text)]">
       <div className="flex items-center justify-between mb-3">
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onAuthorClick && onAuthorClick();
-          }}
-          className="flex items-center gap-2 min-w-0"
-        >
+        <div className="flex items-center gap-2">
           <img
             src={authorAvatar || FALLBACK_AVATAR}
-            alt={authorName || "author"}
+            alt={authorName}
             className="w-8 h-8 rounded-full object-cover"
-            onError={(e) => (e.currentTarget.src = FALLBACK_AVATAR)}
           />
           <div className="min-w-0">
-            <div className="font-semibold text-sm truncate">{authorName || "Unknown"}</div>
-            {uploadTime && <div className="text-[11px] text-white/60 truncate">{uploadTime}</div>}
+            <div className="font-semibold text-sm truncate">{authorName}</div>
+            <div className="text-[11px] text-[var(--color-text-muted)]">
+              {uploadTime}
+            </div>
           </div>
-        </button>
+        </div>
 
         <div className="flex items-center gap-2">
           <ViewButton />
-
           <button
-            className="px-2 py-1 rounded-md border border-white/10 text-xs text-white/80 hover:text-white"
+            className="px-2 py-1 rounded-md border border-[var(--color-border-soft)] text-xs text-[var(--color-text-secondary)] hover:text-[var(--color-text)]"
             onClick={(e) => {
               e.stopPropagation();
               onEdit && onEdit();
             }}
           >
-            <i className="fa-regular fa-pen-to-square mr-1" />
-            Edit
+            <i className="fa-regular fa-pen-to-square mr-1" /> Edit
           </button>
           <button
             className="px-2 py-1 rounded-md border border-red-500/30 text-xs text-red-300 hover:text-red-200"
@@ -273,31 +205,13 @@ export default function PostItem({
               onDelete && onDelete();
             }}
           >
-            <i className="fa-regular fa-trash-can mr-1" />
-            Delete
+            <i className="fa-regular fa-trash-can mr-1" /> Delete
           </button>
         </div>
       </div>
 
-      <h3 className="font-bold text-base mb-2 leading-snug line-clamp-2">
-        {title || "Untitled"}
-      </h3>
-
-      {Array.isArray(hashtags) && hashtags.length > 0 && (
-        <div className="flex flex-wrap gap-2 mb-3">
-          {hashtags.slice(0, 3).map((tag) => (
-            <span
-              key={tag}
-              className="bg-blue-600/30 text-blue-200 text-[11px] font-semibold px-2 py-1 rounded"
-            >
-              {tag}
-            </span>
-          ))}
-        </div>
-      )}
-
-      {/* ảnh lớn → viewer */}
-      <Thumb className="block rounded-lg overflow-hidden border border-white/10 w-full h-[220px] sm:h-[240px] md:h-[260px] lg:h-[320px]" />
+      <h3 className="font-bold text-base mb-2">{title}</h3>
+      <Thumb className="block rounded-lg overflow-hidden border border-[var(--color-border-soft)] w-full h-[240px]" />
     </div>
   );
 }

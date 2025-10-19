@@ -1,4 +1,3 @@
-// src/pages/leaderboard/LeaderboardPage.jsx
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import LeaderboardTabs from "../../components/leaderboard/LeaderboardTabs";
@@ -8,7 +7,8 @@ import user_followServices from "../../services/user_followServices";
 import postService from "../../services/postService";
 
 const tabs = ["Criterion 1", "Criterion 2"];
-const FALLBACK_AVATAR = "https://cdn2.fptshop.com.vn/small/avatar_trang_1_cd729c335b.jpg";
+const FALLBACK_AVATAR =
+  "https://cdn2.fptshop.com.vn/small/avatar_trang_1_cd729c335b.jpg";
 
 export default function LeaderboardPage() {
   const [activeTab, setActiveTab] = useState(tabs[0]);
@@ -16,19 +16,22 @@ export default function LeaderboardPage() {
   const [selectedUserId, setSelectedUserId] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // 👉 state riêng cho số liệu phụ thuộc user đang chọn (không ăn theo session)
+  // Số liệu phụ thuộc user đang chọn (không dựa vào session hiện tại)
   const [selectedFollowingCount, setSelectedFollowingCount] = useState("-");
   const [selectedTotalPosts, setSelectedTotalPosts] = useState("-");
 
   const navigate = useNavigate();
 
+  // Lấy top user
   useEffect(() => {
-    (async () => {
+    async function loadTopUsers() {
       setLoading(true);
       try {
         const { status, data } = await user_followServices.top(10);
         const arr = status === "success" && Array.isArray(data) ? data : [];
-        arr.sort((a, b) => (b.followers_count ?? 0) - (a.followers_count ?? 0));
+        arr.sort(
+          (a, b) => Number(b.followers_count ?? 0) - Number(a.followers_count ?? 0)
+        );
         setAllRankings(arr);
         if (arr.length > 0) setSelectedUserId(arr[0].user_id);
       } catch (e) {
@@ -38,10 +41,11 @@ export default function LeaderboardPage() {
       } finally {
         setLoading(false);
       }
-    })();
+    }
+    loadTopUsers();
   }, []);
 
-  // 👉 Khi đổi user đang chọn, fetch đúng counts theo selectedUserId (tránh ăn theo session)
+  // Khi đổi selectedUserId → lấy đúng chỉ số của user đó
   useEffect(() => {
     let alive = true;
     if (!selectedUserId) {
@@ -49,28 +53,29 @@ export default function LeaderboardPage() {
       setSelectedTotalPosts("-");
       return;
     }
+
     (async () => {
       try {
-        // countFollowing cho user đang xem
         const fRes = await user_followServices.countFollowing(selectedUserId);
         if (alive) setSelectedFollowingCount(Number(fRes?.data?.count ?? 0));
 
-        // countPostsByUser cho user đang xem
         const pCnt = await postService.countPostsByUser(selectedUserId);
         if (alive) setSelectedTotalPosts(Number(pCnt ?? 0));
       } catch (err) {
-        console.error("[Leaderboard] fetch selected user's counts failed:", err);
+        console.error("[Leaderboard] fetch counts failed:", err);
         if (alive) {
           setSelectedFollowingCount("-");
           setSelectedTotalPosts("-");
         }
       }
     })();
+
     return () => {
       alive = false;
     };
   }, [selectedUserId]);
 
+  // Chia tab: mỗi tab hiển thị 5 người
   const rankings = useMemo(() => {
     if (allRankings.length === 0) return [];
     const tabIndex = tabs.indexOf(activeTab);
@@ -83,20 +88,28 @@ export default function LeaderboardPage() {
     [allRankings, selectedUserId]
   );
 
-  if (loading) return <div className="text-white p-4">Đang tải...</div>;
+  if (loading) {
+    return (
+      <div className="p-4 text-[var(--color-text-secondary)]">Đang tải...</div>
+    );
+  }
 
   return (
-    <div className="text-white p-4">
+    <div className="p-4 text-[var(--color-text)]">
       <h1 className="text-2xl font-bold mb-6">Leaderboard</h1>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Cột trái */}
+        {/* Cột trái: Tabs + danh sách top */}
         <div className="lg:col-span-2 flex flex-col gap-4">
-          <LeaderboardTabs tabs={tabs} activeTab={activeTab} setActiveTab={setActiveTab} />
+          <LeaderboardTabs
+            tabs={tabs}
+            activeTab={activeTab}
+            setActiveTab={setActiveTab}
+          />
 
-          <div className="bg-[#1C2028] p-4 rounded-lg border border-[#2d2d33] flex flex-col gap-3">
+          <div className="p-4 rounded-lg border bg-[var(--color-card-bg)] border-[var(--color-card-border)] flex flex-col gap-3">
             {rankings.length === 0 ? (
-              <div className="text-gray-400">Chưa có dữ liệu.</div>
+              <div className="text-[var(--color-text-muted)]">Chưa có dữ liệu.</div>
             ) : (
               rankings.map((user, idx) => (
                 <RankItem
@@ -115,7 +128,7 @@ export default function LeaderboardPage() {
           </div>
         </div>
 
-        {/* Cột phải */}
+        {/* Cột phải: Hồ sơ của người đang chọn */}
         <div className="lg:col-span-1">
           <UserProfileCard
             user={
@@ -127,10 +140,9 @@ export default function LeaderboardPage() {
                     followerCount: selectedUser.followers_count ?? 0,
                     biography: selectedUser.bio || "",
                     birthday: selectedUser.birth_date || "",
-                    // 👇 hai số này là từ API theo selectedUserId, không ăn theo session
+                    // 2 số này lấy từ API theo selectedUserId
                     followingCount: selectedFollowingCount,
                     totalPosts: selectedTotalPosts,
-                    recentPosts: [],
                   }
                 : {
                     avatar: FALLBACK_AVATAR,
@@ -141,7 +153,6 @@ export default function LeaderboardPage() {
                     birthday: "",
                     followingCount: "-",
                     totalPosts: "-",
-                    recentPosts: [],
                   }
             }
           />

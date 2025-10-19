@@ -1,87 +1,136 @@
-import { memo, useEffect, useState } from "react";
+// src/components/layouts/NavBar.jsx
+import { memo, useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { NavLink } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
 import "../../assets/font-awesome-6.6.0-pro-full-main/css/all.css";
 import useCurrentUser from "../../hook/useCurrentUser";
-import authApi from "../../services/usersServices"; // service admin
+import authApi from "../../services/usersServices";
 
 const FALLBACK_AVATAR =
   "https://cdn2.fptshop.com.vn/small/avatar_trang_1_cd729c335b.jpg";
 
-function NavBar({ isCollapsed, setIsCollapsed, onNewAlbumClick }) {
+/* --------- Icon map (dễ đổi về sau) --------- */
+const ICONS = {
+  newPost: "fa-solid fa-square-plus",
+  newAlbum: "fa-solid fa-photo-film",
+
+  explore: "fa-solid fa-compass",
+  following: "fa-solid fa-user-group",
+
+  myPosts: "fa-solid fa-pencil",
+  myAlbums: "fa-solid fa-photo-film",
+  bookmarks: "fa-solid fa-bookmark",
+
+  leaderboard: "fa-solid fa-trophy",
+  categories: "fa-solid fa-tags",
+
+  admin: "fa-solid fa-shield-halved",
+};
+
+function NavBar({ isCollapsed = false, setIsCollapsed, onNewAlbumClick }) {
   const { user, loading } = useCurrentUser();
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isMobile, setIsMobile] = useState(
+    typeof window !== "undefined" &&
+      window.matchMedia("(max-width: 639.98px)").matches
+  );
+  const navigate = useNavigate();
 
-  // Kiểm tra admin và reset khi logout
+  // đảm bảo theme class
   useEffect(() => {
-    async function checkAdmin() {
-      if (!user) {
-        setIsAdmin(false);
-        return;
-      }
+    document.body.classList.add("main-page");
+    return () => document.body.classList.remove("main-page");
+  }, []);
+
+  // theo dõi breakpoint để khóa collapsed ở mobile
+  useEffect(() => {
+    const mql = window.matchMedia("(max-width: 639.98px)");
+    const onChange = (e) => setIsMobile(e.matches);
+    mql.addEventListener?.("change", onChange) ?? mql.addListener(onChange);
+    return () => {
+      mql.removeEventListener?.("change", onChange) ?? mql.removeListener(onChange);
+    };
+  }, []);
+
+  const collapsed = useMemo(() => (isMobile ? true : !!isCollapsed), [isMobile, isCollapsed]);
+
+  useEffect(() => {
+    document.body.classList.toggle("sidebar--collapsed", collapsed);
+  }, [collapsed]);
+
+  // admin?
+  useEffect(() => {
+    (async () => {
+      if (!user) return setIsAdmin(false);
       try {
         const res = await authApi.admin();
         setIsAdmin(res?.isAdmin === true);
-      } catch (err) {
-        console.error(err);
+      } catch {
         setIsAdmin(false);
       }
-    }
-    checkAdmin();
+    })();
   }, [user]);
 
   const displayAvatar = user?.__display?.avatar || FALLBACK_AVATAR;
   const displayName = user?.__display?.name || "User name";
 
-  // Action buttons
+  const handleNewAlbum = () => {
+    if (typeof onNewAlbumClick === "function") onNewAlbumClick();
+    else navigate("/new-album");
+  };
+
   const actionButtons = [
-    { icon: "fa-solid fa-plus", text: "New Post", path: "/new-post" },
-    { icon: "fa-solid fa-images", text: "New Album", path: "/new-album" },
+    { icon: ICONS.newPost, text: "New Post", path: "/new-post" },
   ];
 
-  // Nav sections
   const navSections = [
     {
       key: "user",
       items: [
         { avatar: displayAvatar, text: displayName, path: "/profile" },
-        { icon: "fa-regular fa-compass", text: "Explore", path: "/" },
-        { icon: "fa-regular fa-user", text: "Following", path: "/following" },
+        { icon: ICONS.explore, text: "Explore", path: "/" },
+        { icon: ICONS.following, text: "Following", path: "/following" },
       ],
     },
     {
       key: "library",
       title: "My library",
       items: [
-        { icon: "fa-regular fa-pen-to-square", text: "My posts", path: "/my-posts" },
-        { icon: "fa-regular fa-folder", text: "My Albums", path: "/my-albums" },
+        { icon: ICONS.myPosts, text: "My posts", path: "/my-posts" },
+        { icon: ICONS.myAlbums, text: "My Albums", path: "/my-albums" },
+        { icon: ICONS.bookmarks, text: "Bookmarks", path: "/bookmarks" },
       ],
     },
     {
       key: "feeds",
       title: "Custom feeds",
       items: [
-        { icon: "fa-solid fa-ranking-star", text: "Leaderboard", path: "/leaderboard" },
-        { icon: "fa-solid fa-list", text: "Categories", path: "/categories" },
-        { icon: "fa-regular fa-bookmark", text: "Bookmarks", path: "/bookmarks" },
+        { icon: ICONS.leaderboard, text: "Leaderboard", path: "/leaderboard" },
+        { icon: ICONS.categories, text: "Categories", path: "/categories" },
       ],
     },
   ];
 
   return (
     <motion.nav
-      animate={{ width: isCollapsed ? 80 : 250 }}
-      transition={{ duration: 0.3, ease: "easeInOut" }}
-      className="fixed top-[60px] left-0 h-[calc(100%-60px)] bg-[#0E1217] border-r border-[#444] text-white flex flex-col overflow-hidden z-[999]"
+      animate={{ width: collapsed ? 80 : 250 }}
+      transition={{ duration: 0.25 }}
+      className="
+        fixed left-0 top-[var(--header-height)]
+        h-[calc(100%-var(--header-height))]
+        bg-[var(--color-bg)] border-r border-[var(--color-header-border)]
+        text-[var(--color-text)] flex flex-col overflow-hidden
+        z-[var(--z-sidebar)]
+      "
     >
-      {/* Header */}
-      <div className="flex items-center justify-between px-6 py-3 text-gray-400 flex-shrink-0">
+      {/* Header nhỏ trong sidebar */}
+      <div className="flex items-center justify-between px-6 py-3 text-[var(--color-text-muted)]">
         <AnimatePresence>
-          {!isCollapsed && (
+          {!collapsed && (
             <motion.span
               key="menu-title"
               initial={{ opacity: 0 }}
-              animate={{ opacity: 1, transition: { delay: 0.15 } }}
+              animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               className="font-semibold"
             >
@@ -89,69 +138,49 @@ function NavBar({ isCollapsed, setIsCollapsed, onNewAlbumClick }) {
             </motion.span>
           )}
         </AnimatePresence>
+        {/* Ẩn hoàn toàn toggle để user không thay đổi */}
+        <div aria-hidden className="w-8 h-8" />
+      </div>
+
+      {/* Action */}
+      <div className="px-3 space-y-2">
+        {actionButtons.map(({ icon, text, path }) => (
+          <ActionButton key={text} icon={icon} text={text} path={path} collapsed={collapsed} />
+        ))}
+
+        {/* New Album */}
         <button
-          onClick={() => setIsCollapsed(!isCollapsed)}
-          aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-          className="text-gray-400 hover:text-white"
           type="button"
+          onClick={handleNewAlbum}
+          className="add-btn flex items-center justify-center gap-3 w-full py-2 text-sm rounded-lg overflow-hidden"
         >
-          <i className={`fa-solid fa-${isCollapsed ? "chevron-right" : "chevron-left"}`} />
+          <i className={ICONS.newAlbum} aria-hidden="true" />
+          {!collapsed && <span className="whitespace-nowrap">New Album</span>}
         </button>
       </div>
 
-      {/* Content */}
-      <div className="px-4 overflow-y-auto flex-grow">
-        {/* Action buttons */}
-        <div className="flex flex-col gap-2">
-          {actionButtons.map(({ icon, text, path }) =>
-            text === "New Album" ? (
-              <button
-                key={text}
-                type="button"
-                onClick={onNewAlbumClick}
-                className="bg-white/10 hover:bg-white/20 rounded-lg py-2 text-sm w-full flex items-center justify-center gap-3 overflow-hidden"
-              >
-                <i className={`${icon} flex-shrink-0`} aria-hidden="true" />
-                <AnimatePresence>
-                  {!isCollapsed && (
-                    <motion.span
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1, transition: { delay: 0.08 } }}
-                      exit={{ opacity: 0 }}
-                      className="whitespace-nowrap"
-                    >
-                      {text}
-                    </motion.span>
-                  )}
-                </AnimatePresence>
-              </button>
-            ) : (
-              <ActionButton key={text} icon={icon} text={text} path={path} collapsed={isCollapsed} />
-            )
-          )}
-        </div>
+      <div className="my-3 h-px bg-[var(--color-border-strong)]" />
 
-        <div className="w-full h-px bg-[#444] my-4" />
-
-        {/* Nav sections */}
+      {/* Sections */}
+      <div className="px-2 overflow-y-auto flex-1">
         {navSections.map((section) => (
-          <NavSection key={section.key} section={section} collapsed={isCollapsed} loading={loading} />
+          <NavSection key={section.key} section={section} collapsed={collapsed} loading={loading} />
         ))}
 
-        {/* Admin Section */}
+        {/* Admin */}
         {isAdmin && (
-          <div key="admin" className="mb-2">
-            {!isCollapsed && (
+          <div className="mb-2">
+            {!collapsed && (
               <motion.p
                 initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0, transition: { duration: 0.2 } }}
+                animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -10 }}
-                className="text-xs uppercase tracking-wide text-gray-400 mb-2 text-left pl-2"
+                className="text-xs uppercase tracking-wide text-[var(--color-info)] mb-2 text-left pl-2"
               >
                 Admin Panel
               </motion.p>
             )}
-            <NavItem icon="fa-solid fa-user-shield" text="Management" path="/user-manager" collapsed={isCollapsed} />
+            <NavItem icon={ICONS.admin} text="Management" path="/user-manager" collapsed={collapsed} />
           </div>
         )}
       </div>
@@ -159,7 +188,8 @@ function NavBar({ isCollapsed, setIsCollapsed, onNewAlbumClick }) {
   );
 }
 
-/* --- Sub-components --- */
+/* ---------- Sub-components ---------- */
+
 function NavSection({ section, collapsed, loading }) {
   return (
     <div className="mb-2">
@@ -167,14 +197,15 @@ function NavSection({ section, collapsed, loading }) {
         {section.title && !collapsed && (
           <motion.p
             initial={{ opacity: 0, x: -10 }}
-            animate={{ opacity: 1, x: 0, transition: { duration: 0.2 } }}
+            animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -10 }}
-            className="text-xs uppercase tracking-wide text-gray-400 mb-2 text-left pl-2"
+            className="text-xs uppercase tracking-wide text-[var(--color-info)] mb-2 text-left pl-2"
           >
             {section.title}
           </motion.p>
         )}
       </AnimatePresence>
+
       {section.items.map(({ icon, avatar, text, path }) =>
         avatar ? (
           <UserNavItem
@@ -194,24 +225,22 @@ function NavSection({ section, collapsed, loading }) {
 function UserNavItem({ avatar, text, collapsed }) {
   const src = avatar || FALLBACK_AVATAR;
   return (
-    <div className="flex items-center gap-4 py-2 px-2 rounded-md overflow-hidden text-gray-300 bg-white/5">
+    <div className="flex items-center gap-4 py-2 px-2 rounded-md overflow-hidden text-[var(--color-text-secondary)] bg-[var(--color-surface-alt)]/30">
       <img
         src={src}
         alt="User Avatar"
-        className="w-8 h-8 rounded-full flex-shrink-0 object-cover"
+        className="w-8 h-8 rounded-full object-cover flex-shrink-0"
         onError={(e) => {
-          if (e.currentTarget.src !== FALLBACK_AVATAR) {
-            e.currentTarget.src = FALLBACK_AVATAR;
-          }
+          if (e.currentTarget.src !== FALLBACK_AVATAR) e.currentTarget.src = FALLBACK_AVATAR;
         }}
       />
       <AnimatePresence>
         {!collapsed && (
           <motion.span
             initial={{ opacity: 0, x: -10 }}
-            animate={{ opacity: 1, x: 0, transition: { duration: 0.2, delay: 0.08 } }}
-            exit={{ opacity: 0, x: -10, transition: { duration: 0.15 } }}
-            className="whitespace-nowrap font-semibold text-blue-400"
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -10 }}
+            className="whitespace-nowrap font-semibold text-[var(--color-link)]"
           >
             {text}
           </motion.span>
@@ -223,21 +252,15 @@ function UserNavItem({ avatar, text, collapsed }) {
 
 function NavItem({ icon, text, path, collapsed }) {
   const base =
-    "flex items-center gap-4 py-2 px-2 rounded-md overflow-hidden text-gray-300 hover:text-white hover:bg-white/5";
+    "flex items-center gap-4 py-2 px-2 rounded-md overflow-hidden text-[var(--color-text-secondary)] hover:text-[var(--color-text)] hover:bg-[var(--color-hover-bg)]";
   const active =
-    "flex items-center gap-4 py-2 px-2 rounded-md overflow-hidden text-gray-300 hover:text-white bg-white/10";
-
+    "flex items-center gap-4 py-2 px-2 rounded-md overflow-hidden text-[var(--color-text)] bg-[var(--color-surface-alt)]/40";
   return (
     <NavLink to={path} className={({ isActive }) => (isActive ? active : base)}>
       <i className={`${icon} text-lg w-[20px] text-center flex-shrink-0`} aria-hidden="true" />
       <AnimatePresence>
         {!collapsed && (
-          <motion.span
-            initial={{ opacity: 0, x: -10 }}
-            animate={{ opacity: 1, x: 0, transition: { duration: 0.2, delay: 0.08 } }}
-            exit={{ opacity: 0, x: -10, transition: { duration: 0.15 } }}
-            className="whitespace-nowrap"
-          >
+          <motion.span initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }}>
             {text}
           </motion.span>
         )}
@@ -250,21 +273,10 @@ function ActionButton({ icon, text, path, collapsed }) {
   return (
     <NavLink
       to={path}
-      className="bg-white/10 hover:bg-white/20 rounded-lg py-2 text-sm w-full flex items-center justify-center gap-3 overflow-hidden"
+      className="add-btn flex items-center justify-center gap-3 w-full py-2 text-sm rounded-lg overflow-hidden"
     >
-      <i className={`${icon} flex-shrink-0`} aria-hidden="true" />
-      <AnimatePresence>
-        {!collapsed && (
-          <motion.span
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1, transition: { delay: 0.08 } }}
-            exit={{ opacity: 0 }}
-            className="whitespace-nowrap"
-          >
-            {text}
-          </motion.span>
-        )}
-      </AnimatePresence>
+      <i className={icon} aria-hidden="true" />
+      {!collapsed && <span className="whitespace-nowrap">{text}</span>}
     </NavLink>
   );
 }

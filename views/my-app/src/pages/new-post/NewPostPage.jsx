@@ -8,7 +8,7 @@ import hashtagService from "../../services/hashtagService";
 import Toast from "../../components/common/Toast";
 import RichTextEditor from "../../components/new-post/RichTextEditor";
 import categoryServices from "../../services/categoryServices";
-import aiService from "../../services/aiService"; // ✅ tích hợp AI
+import aiService from "../../services/aiService";
 
 const NewPostPage = () => {
   const [mode, setMode] = useState("pdf");
@@ -39,52 +39,75 @@ const NewPostPage = () => {
 
   const handleChange = (name, value) => setNewPost((prev) => ({ ...prev, [name]: value }));
 
-  // Hashtag input
-  const [hashtagInput, setHashtagInput] = useState("");
-  const formatHashtagInput = (raw) => {
-    const s = String(raw ?? "");
-    const endsWithDelim = /[,\s]$/.test(s);
-    const parts = s
-      .split(/[,\s]+/)
-      .map((x) => x.trim())
-      .filter(Boolean)
-      .map((x) => x.replace(/^#+/, ""))
-      .map((x) => x.toLowerCase())
-      .map((x) => (x ? `#${x}` : ""));
-    let out = parts.filter(Boolean).join(" ");
-    if (endsWithDelim) out += " ";
-    return out;
-  };
-  const parseHashtagForSubmit = (raw) =>
-    Array.from(
-      new Set(
-        String(raw || "")
-          .split(/[,\s]+/)
-          .map((s) => s.trim())
-          .filter(Boolean)
-          .map((s) => s.toLowerCase())
-          .map((s) => s.replace(/^#+/, ""))
-          .map((s) => s.replace(/\s+/g, "-"))
-          .map((s) => s.replace(/[^\p{L}\p{N}_-]/gu, ""))
-          .filter(Boolean)
-          .map((s) => `#${s}`)
-      )
-    );
+  /* ---------------- Hashtags: mỗi khoảng trắng hoặc dấu phẩy => tạo 1 hashtag ---------------- */
+  const [hashtagInput, setHashtagInput] = useState(""); // token đang gõ
+  const [tags, setTags] = useState([]); // danh sách hashtag đã “đóng”
 
-  // === Load dropdown options
+  // Chuẩn hoá hashtag: bỏ dấu #, bỏ dấu tiếng Việt, thường hoá, thay khoảng trắng -> "-", bỏ ký tự lạ
+  const normalizeTag = (raw = "") => {
+    const s = String(raw || "")
+      .trim()
+      .replace(/^#+/, "");
+    // bỏ dấu tiếng Việt (nếu cần)
+    const noAccent = s.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    const cleaned = noAccent
+      .toLowerCase()
+      .replace(/\s+/g, "-")
+      .replace(/[^\p{L}\p{N}_-]/gu, "");
+    return cleaned;
+  };
+
+  const addTag = (raw) => {
+    const t = normalizeTag(raw);
+    if (!t) return;
+    if (!tags.includes(t)) setTags((prev) => [...prev, t]);
+  };
+
+  const removeTag = (t) => setTags((prev) => prev.filter((x) => x !== t));
+
+  // Khi người dùng gõ: nếu ký tự cuối là " " hoặc "," => tạo hashtag mới
+  const onHashtagChange = (e) => {
+    const v = e.target.value;
+    if (/[,\s]$/.test(v)) {
+      addTag(v.slice(0, -1));
+      setHashtagInput("");
+    } else {
+      setHashtagInput(v);
+    }
+  };
+
+  // Enter hoặc Tab cũng sẽ “đóng” hashtag
+  const onHashtagKeyDown = (e) => {
+    if (e.key === "Enter" || e.key === "Tab" || e.key === ",") {
+      e.preventDefault();
+      if (hashtagInput.trim()) {
+        addTag(hashtagInput);
+        setHashtagInput("");
+      }
+    } else if (e.key === "Backspace" && !hashtagInput && tags.length > 0) {
+      // backspace khi input trống -> pop tag cuối
+      e.preventDefault();
+      setTags((prev) => prev.slice(0, -1));
+    }
+  };
+
+  // Blur cũng “đóng” hashtag nếu còn token
+  const onHashtagBlur = () => {
+    if (hashtagInput.trim()) {
+      addTag(hashtagInput);
+      setHashtagInput("");
+    }
+  };
+  /* ------------------------------------------------------------------------------------------- */
+
+  // load options
   useEffect(() => {
     const loadAll = async () => {
       try {
         const [cats, albs, tags] = await Promise.all([
-          categoryServices
-            .list()
-            .catch((e) => (setOptErrors((p) => ({ ...p, categories: e.message })), [])),
-          albumService
-            .listMyAlbums()
-            .catch((e) => (setOptErrors((p) => ({ ...p, albums: e.message })), [])),
-          hashtagService
-            .list()
-            .catch((e) => (setOptErrors((p) => ({ ...p, hashtags: e.message })), [])),
+          categoryServices.list().catch((e) => (setOptErrors((p) => ({ ...p, categories: e.message })), [])),
+          albumService.listMyAlbums().catch((e) => (setOptErrors((p) => ({ ...p, albums: e.message })), [])),
+          hashtagService.list().catch((e) => (setOptErrors((p) => ({ ...p, hashtags: e.message })), [])),
         ]);
 
         const normCats = (Array.isArray(cats) ? cats : [])
@@ -108,14 +131,11 @@ const NewPostPage = () => {
     loadAll();
   }, []);
 
-  // === Khi đổi mode
   useEffect(() => {
     setErrors({});
-    if (mode === "pdf") setEditorHtml((h) => h);
-    else setMainFile(null);
+    if (mode !== "pdf") setMainFile(null);
   }, [mode]);
 
-  // === Validate
   const validate = () => {
     const e = {};
     if (!newPost.title.trim()) e.title = "Title là bắt buộc";
@@ -127,33 +147,23 @@ const NewPostPage = () => {
       const html = (editorHtml || "").replace(/<[^>]*>/g, "").trim();
       if (!html) e.editor = "Nội dung bài viết không được để trống";
     }
-    if (thumbnailFile && !/^image\//.test(thumbnailFile.type))
-      e.thumbnailFile = "Thumbnail phải là ảnh";
+    if (thumbnailFile && !/^image\//.test(thumbnailFile.type)) e.thumbnailFile = "Thumbnail phải là ảnh";
     setErrors(e);
     return Object.keys(e).length === 0;
   };
-  // Chuẩn hoá chuỗi: bỏ dấu, lowercase, gộp khoảng trắng
-const normalizeName = (s = "") =>
-  s
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/\s+/g, " ")
-    .trim();
 
-// Lấy tên category từ response AI (hỗ trợ cả 'category' lẫn 'category_name')
-const getAiCategoryName = (data = {}) => data.category ?? data.category_name ?? "";
+  // chuẩn hoá tên để map category từ AI
+  const normalizeName = (s = "") =>
+    s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\s+/g, " ").trim();
 
-  // ====== AI summarize + chọn category ======
+  const getAiCategoryName = (data = {}) => data.category ?? data.category_name ?? "";
   const findCategoryIdByName = (name) => {
     const norm = normalizeName(name);
     if (!norm) return "";
     const found = categories.find((c) => normalizeName(c.name) === norm);
     return found?.id || "";
   };
-  
 
-  // Lưu lại tên category AI trả về, để map sang ID khi categories đã tải xong
   const [aiCategoryName, setAiCategoryName] = useState("");
 
   const handleSummarize = async (file) => {
@@ -167,61 +177,45 @@ const getAiCategoryName = (data = {}) => data.category ?? data.category_name ?? 
     try {
       const ctrl = new AbortController();
       const data = await aiService.summarizePDF(file, ctrl.signal);
-  
-      console.log("📄 AI trả về:", data);
-  
-      // Lấy tên category từ AI: ưu tiên category, fallback category_name
+
       const aiCatName = getAiCategoryName(data);
-      console.log("🏷️ AI category name:", aiCatName);
-  
-      let next = {
-        ...newPost,
-        summary: data.summary || "",
-      };
-  
+      let next = { ...newPost, summary: data.summary || "" };
+
       const mappedId = findCategoryIdByName(aiCatName);
-      if (mappedId) {
-        console.log("✅ Tìm thấy category ID:", mappedId, "←", aiCatName);
-        next.category = mappedId;
-      } else {
-        console.warn("⚠️ Không khớp category AI:", aiCatName);
-        setAiCategoryName(aiCatName || "");
-      }
-  
+      if (mappedId) next.category = mappedId;
+      else setAiCategoryName(aiCatName || "");
+
       setNewPost(next);
       showToast("✅ Đã tóm tắt tự động!", "success");
     } catch (err) {
-      console.error("❌ AI summarize error:", err);
+      console.error("AI summarize error:", err);
       showToast("❌ Lỗi tóm tắt tự động", "error");
       setNewPost((p) => ({ ...p, summary: "(Không thể kết nối AI)" }));
     } finally {
       setIsSummarizing(false);
     }
   };
-  
 
-  // Khi categories đã tải xong, nếu AI có tên category mà chưa set ID thì map ngay
   useEffect(() => {
     if (!loadingOpts.categories && aiCategoryName && !newPost.category) {
       const id = findCategoryIdByName(aiCategoryName);
-      if (id) {
-        console.log("🔁 Map lại category từ AI:", aiCategoryName, "→", id);
-        setNewPost((p) => ({ ...p, category: id }));
-      } else {
-        console.warn("⚠️ Không tìm thấy category tương ứng:", aiCategoryName);
-      }
+      if (id) setNewPost((p) => ({ ...p, category: id }));
     }
-  }, [loadingOpts.categories, aiCategoryName, categories]); // eslint-disable-line
-  
+  }, [loadingOpts.categories, aiCategoryName, categories, newPost.category]);
 
-  // === Submit post
   const handleSubmit = async () => {
+    // chốt token còn lại trước khi submit
+    if (hashtagInput.trim()) {
+      addTag(hashtagInput);
+      setHashtagInput("");
+    }
     if (!validate()) return;
+
     try {
       setSubmitting(true);
-      const hashtagsForSubmit = parseHashtagForSubmit(hashtagInput)
-        .map((tag) => tag.substring(1))
-        .join(",");
+
+      const hashtagsForSubmit = tags.join(","); // gửi dạng "ai,ml,react"
+
       const basePayload = {
         title: newPost.title,
         description: newPost.summary || "",
@@ -232,18 +226,20 @@ const getAiCategoryName = (data = {}) => data.category ?? data.category_name ?? 
         hashtags: hashtagsForSubmit,
         banner: thumbnailFile || undefined,
       };
-      let payload = { ...basePayload };
-      if (mode === "pdf") payload.content_file = mainFile || undefined;
-      else {
-        payload.content = editorHtml || "";
-        payload.content_file = undefined;
-      }
+
+      const payload =
+        mode === "pdf"
+          ? { ...basePayload, content_file: mainFile || undefined }
+          : { ...basePayload, content: editorHtml || "", content_file: undefined };
+
       const res = await postService.create(payload);
       const postId = res?.post_id ?? res?.data?.post_id;
       if (!postId) throw new Error(res?.message || "Không tạo được post, postId rỗng");
+
       showToast("Tạo bài viết thành công!", "success");
       // reset
       setNewPost({ title: "", category: "", album: "", hashtagIds: [], summary: "", description: "" });
+      setTags([]);
       setHashtagInput("");
       setMainFile(null);
       setThumbnailFile(null);
@@ -277,17 +273,17 @@ const getAiCategoryName = (data = {}) => data.category ?? data.category_name ?? 
   }, [loadingOpts.albums, optErrors.albums, albums]);
 
   return (
-    <div className="bg-[#0D1117] p-8 rounded-lg border border-[#2d2d33] text-white">
+    <div className="bg-[var(--color-bg)] p-8 rounded-lg border border-[var(--color-header-border)] text-[var(--color-text)]">
       <div className="mb-4 flex gap-3">
         <button
-          className={`px-4 py-1 rounded-lg border ${mode === "pdf" ? "bg-white text-black" : "text-white border-white/10"}`}
+          className={`px-4 py-1 rounded-lg border ${mode === "pdf" ? "bg-[var(--color-text)] text-black" : "text-[var(--color-text)] border-white/10"}`}
           onClick={() => setMode("pdf")}
           type="button"
         >
           PDF
         </button>
         <button
-          className={`px-4 py-1 rounded-lg border ${mode === "word" ? "bg-white text-black" : "text-white border-white/10"}`}
+          className={`px-4 py-1 rounded-lg border ${mode === "word" ? "bg-[var(--color-text)] text-black" : "text-[var(--color-text)] border-white/10"}`}
           onClick={() => setMode("word")}
           type="button"
         >
@@ -336,15 +332,13 @@ const getAiCategoryName = (data = {}) => data.category ?? data.category_name ?? 
                     subtitle="Chọn file PDF"
                     buttonText="Browse my file"
                     note="Only support .pdf file"
-                    // Nếu component FileUpload hỗ trợ accept, nên thêm:
-                    // accept=".pdf,application/pdf"
                     onFileSelect={(file) => {
                       setMainFile(file);
                       if (file && file.type === "application/pdf") handleSummarize(file);
                     }}
                   />
                   {errors.mainFile && <p className="text-sm text-red-400 mt-2">{errors.mainFile}</p>}
-                  {mainFile && <p className="text-xs text-gray-400 mt-1">Đã chọn: {mainFile.name}</p>}
+                  {mainFile && <p className="text-xs text-[var(--color-text-muted)] mt-1">Đã chọn: {mainFile.name}</p>}
                 </div>
 
                 <div>
@@ -353,11 +347,10 @@ const getAiCategoryName = (data = {}) => data.category ?? data.category_name ?? 
                     subtitle="Chọn ảnh thumbnail"
                     buttonText="Browse my file"
                     note="Hỗ trợ .jpeg, .jpg, .png"
-                    // accept="image/*"
                     onFileSelect={(file) => setThumbnailFile(file)}
                   />
                   {errors.thumbnailFile && <p className="text-sm text-red-400 mt-2">{errors.thumbnailFile}</p>}
-                  {thumbnailFile && <p className="text-xs text-gray-400 mt-1">Đã chọn: {thumbnailFile.name}</p>}
+                  {thumbnailFile && <p className="text-xs text-[var(--color-text-muted)] mt-1">Đã chọn: {thumbnailFile.name}</p>}
                 </div>
               </div>
 
@@ -381,7 +374,7 @@ const getAiCategoryName = (data = {}) => data.category ?? data.category_name ?? 
           ) : (
             <>
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
+                <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-2">
                   Write content
                 </label>
                 <RichTextEditor value={editorHtml} onChange={setEditorHtml} />
@@ -393,7 +386,6 @@ const getAiCategoryName = (data = {}) => data.category ?? data.category_name ?? 
                   subtitle="Chọn ảnh thumbnail"
                   buttonText="Browse"
                   note="Hỗ trợ .jpeg, .jpg, .png"
-                  // accept="image/*"
                   onFileSelect={(file) => setThumbnailFile(file)}
                 />
               </div>
@@ -403,19 +395,52 @@ const getAiCategoryName = (data = {}) => data.category ?? data.category_name ?? 
 
         {/* RIGHT */}
         <div className="flex flex-col gap-8">
-          <FormField
-            label="Hashtags"
-            placeholder="#ai, #ml"
-            value={hashtagInput}
-            onChange={(e) => setHashtagInput(formatHashtagInput(e.target.value))}
-          />
+          {/* Hashtags as chips + input */}
+          <div>
+            <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-2">
+              Hashtags
+            </label>
+
+            <div className="w-full bg-[var(--color-input-bg)] border border-[var(--color-header-border)] rounded-lg p-2 flex flex-wrap gap-2">
+              {tags.map((t) => (
+                <span
+                  key={t}
+                  className="inline-flex items-center gap-2 px-2 py-1 rounded-md bg-[var(--color-surface)] text-sm"
+                >
+                  #{t}
+                  <button
+                    type="button"
+                    className="text-[var(--color-text-muted)] hover:text-[var(--color-accent)]"
+                    onClick={() => removeTag(t)}
+                    aria-label={`Remove ${t}`}
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+
+              <input
+                value={hashtagInput}
+                onChange={onHashtagChange}
+                onKeyDown={onHashtagKeyDown}
+                onBlur={onHashtagBlur}
+                placeholder={tags.length ? "Thêm hashtag..." : "#ai (gõ dấu cách hoặc phẩy để tạo)"}
+                className="flex-1 min-w-[140px] bg-transparent outline-none text-[var(--color-text)] placeholder-[var(--color-text-muted)] p-1"
+              />
+            </div>
+
+            <p className="text-xs text-[var(--color-info)] mt-1">
+              Mẹo: gõ <kbd>Space</kbd>, <kbd>,</kbd>, <kbd>Enter</kbd> hoặc <kbd>Tab</kbd> để tạo 1 hashtag.
+            </p>
+          </div>
+
           {mode === "pdf" ? (
             <div className="flex-grow">
-              <label className="block text-sm font-medium text-gray-300 mb-2">File Preview</label>
+              <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-2">File Preview</label>
               <FilePreview file={mainFile} />
             </div>
           ) : (
-            <div className="text-white/70 text-sm">WORD mode – preview disabled</div>
+            <div className="text-[var(--color-text-muted)] text-sm">WORD mode – preview disabled</div>
           )}
         </div>
       </div>
@@ -424,7 +449,7 @@ const getAiCategoryName = (data = {}) => data.category ?? data.category_name ?? 
         <button
           onClick={handleSubmit}
           disabled={submitting || isSummarizing || loadingOpts.categories || loadingOpts.albums}
-          className="bg-gray-200 hover:bg-white disabled:opacity-60 text-black font-bold py-2 px-8 rounded-lg transition-colors"
+          className="bg-[var(--color-text)] hover:bg-white disabled:opacity-60 text-black font-bold py-2 px-8 rounded-lg transition-colors"
         >
           {submitting ? "Submitting..." : isSummarizing ? "Summarizing..." : "Submit"}
         </button>

@@ -1,77 +1,108 @@
-// src/pages/bookmarks/BookmarksPage.jsx
 import React, { useEffect, useState } from "react";
 import PostSection from "../../components/post/PostSection";
 import bookmarkService from "../../services/bookmarkService";
 
+/**
+ * Trang Bookmarks (Bài viết đã lưu)
+ * - Gọi API để lấy danh sách bài viết người dùng đã lưu
+ * - Hiển thị qua component PostSection
+ * - Dùng biến màu từ file CSS chính (main-page)
+ */
 export default function BookmarksPage() {
-  const [bookmarks, setBookmarks] = useState([]);
+  const [bookmarks, setBookmarks] = useState([]); // danh sách bài lưu
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Map dữ liệu từ API về shape PostCard
-  const mapToCard = (p = {}) => ({
-    id: p.post_id,
-    post_id: p.post_id, // ✅ đảm bảo có post_id
-    title: p.title || "Untitled",
-  
-    // 🔑 Ưu tiên dữ liệu từ join users
-    authorName: p.full_name || p.username || p.author_name || "Ẩn danh",
-    authorAvatar:
-      p.avatar_url || p.author_avatar || "https://via.placeholder.com/80?text=User",
-  
-    uploadTime: p.created_at,
-  
-    banner: p.banner_url || null,
-    file: p.file_url ? { url: p.file_url, type: p.file_type || "" } : null,
-  
-    // có thể là array hoặc string
-    hashtags: p.hashtags || [],
-  
-    stats: {
-      likes: p.reaction_count || 0,
-      comments: p.comment_count || 0,
-      views: p.view_count || 0,
-    },
-  
-    // 🔑 từ join albums
-    album_name: p.album_name || "",
-  
-    // ✅ Vì đây là trang Bookmarks
-    is_bookmarked: true,
-  });
-  
+  // Hàm chuyển dữ liệu từ API sang cấu trúc PostCard
+  function mapToCard(p = {}) {
+    return {
+      id: p.post_id,
+      post_id: p.post_id,
+      title: p.title || "Untitled",
 
+      // thông tin tác giả
+      authorName: p.full_name || p.username || p.author_name || "Ẩn danh",
+      authorAvatar:
+        p.avatar_url ||
+        p.author_avatar ||
+        "https://via.placeholder.com/80?text=User",
+
+      uploadTime: p.created_at,
+
+      // ảnh bìa hoặc file đính kèm
+      banner: p.banner_url || null,
+      file: p.file_url ? { url: p.file_url, type: p.file_type || "" } : null,
+
+      hashtags: p.hashtags || [],
+
+      stats: {
+        likes: p.reaction_count || 0,
+        comments: p.comment_count || 0,
+        views: p.view_count || 0,
+      },
+
+      album_name: p.album_name || "",
+      is_bookmarked: true, // vì đây là trang bookmarks
+    };
+  }
+
+  // Gọi API khi load trang
   useEffect(() => {
-    (async () => {
+    async function fetchBookmarks() {
       setLoading(true);
       setError(null);
       try {
-        const rows = await bookmarkService.list(); // gọi API
+        const rows = await bookmarkService.list();
         setBookmarks((rows || []).map(mapToCard));
       } catch (err) {
         console.error(err);
-        setError(err?.message || "Không thể tải bookmarks.");
+        setError(err?.message || "Không thể tải danh sách bookmarks.");
       } finally {
         setLoading(false);
       }
-    })();
+    }
+
+    fetchBookmarks();
   }, []);
 
-  if (loading) return <div className="text-white p-4">Đang tải bookmarks...</div>;
-  if (error) {
+  // Trạng thái đang tải
+  if (loading) {
     return (
-      <div className="text-white p-4 bg-red-900/40 border border-red-700 rounded-lg">
-        <strong>Lỗi:</strong> {error}
+      <div className="p-4 text-[var(--color-text-secondary)]">
+        Đang tải bookmarks...
       </div>
     );
   }
 
+  // Trạng thái lỗi
+  if (error) {
+    return (
+      <div
+        className="
+          p-4 rounded-lg border
+          bg-[rgba(255,0,0,0.1)]
+          border-[var(--color-border-strong)]
+          text-[var(--color-text)]
+        "
+      >
+        <strong className="text-red-400">Lỗi:</strong> {error}
+      </div>
+    );
+  }
+
+  // Giao diện chính
   return (
     <div className="w-full">
-      <h2 className="text-xl font-bold text-white mb-6">Your bookmarks</h2>
+      {/* Tiêu đề */}
+      <h2 className="text-xl font-bold text-[var(--color-text)] mb-6">
+        Your bookmarks
+      </h2>
 
+      {/* Nếu chưa có bài lưu */}
       {bookmarks.length === 0 ? (
-        <div className="text-gray-400">Bạn chưa lưu bài viết nào.</div>
+        <div className="text-[var(--color-text-muted)]">
+          Bạn chưa lưu bài viết nào.
+        </div>
       ) : (
         <PostSection
           title="Bookmarks"
@@ -79,8 +110,10 @@ export default function BookmarksPage() {
           showAlbum={false}
           onBookmarkChange={(next, postId) => {
             if (!next) {
-              // xoá ngay trong state
-              setBookmarks((prev) => prev.filter((x) => (x.post_id || x.id) !== postId));
+              // Khi bỏ lưu → xóa bài đó khỏi giao diện ngay
+              setBookmarks((prev) =>
+                prev.filter((x) => (x.post_id || x.id) !== postId)
+              );
             }
           }}
         />

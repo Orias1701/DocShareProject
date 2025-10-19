@@ -1,169 +1,99 @@
 @import "tailwindcss";
 
-/* --- Root Variables (relative units) --- */
-/* Chỉ áp dụng khi body có class "main-page" */
+/* ---------------- Tokens ---------------- */
 .main-page {
-  /* MÀU CƠ BẢN */
+  /* Colors */
   --color-bg: #0E1217;
-  --color-header-border: #444;
-  --color-input-bg: #222;
-  --color-input-primary: #53d4ff;
-  --color-text: #FFF;
-  --color-text-darker: #DDD;
-  --color-user: #ffde4b;
-  --color-info: #AAA;
+  --color-surface: #161B22;
+  --color-surface-alt: #1D222A;
+  --color-header-border: #2B2F35;
+  --color-input-bg: #1A1F26;
+  --color-input-primary: #505B67;
 
-  /* MÀU BỔ SUNG (thêm cho đầy đủ) */
-  --color-link: #FFF;            /* link, hover */
-  --color-link-hover:#abd3fb;
-  --color-muted-bg: #0c1118;        /* nền blockquote nhẹ */
-  --color-code-bg: #0b1220;         /* nền code/pre */
-  --color-border-soft: #233045;     /* viền pre/khối */
-  --color-focus-ring: rgba(59,130,246,.35); /* focus ring */
+  --color-text: #F4F6F8;
+  --color-text-secondary: #D0D4D8;
+  --color-text-muted: #9CA2A9;
+  --color-info: #B2B8BF;
+  --color-user: #9CBAD4;
 
-  /* KÍCH THƯỚC & KHOẢNG CÁCH (giữ nguyên format) */
-  --header-height: 3.75rem; /* 60px */
-  --header-font-size: 1.6em;
-  --icon-font-size: 1.7em;
-  --small-font-size: 0.8em;
-  --input-height: 65%;
-  --input-radius: 0.5rem;
+  --color-accent: #0e589d;
+  --color-accent-hover: #8FAAC2;
+  --color-link: #AFC5D8;
+  --color-link-hover: #D1E0F0;
 
-  --padding-header: 5%;
-  --gap-header-right: 1rem;
-  --gap-header-span: 0.3125rem 0.9375rem 0 0.3125rem;
+  --color-modal-bg: #1B2028;              /* nền chính của modal */
+  --color-modal-border: #2E343C;          /* viền xung quanh modal */
+  --color-overlay-bg: rgba(17, 17, 17, 0.163);/* nền mờ phía sau modal */
 
-  /* BỔ SUNG: thiếu trong code gốc (được dùng ở header/main) */
-  --padding-main: 1.25rem;          /* 20px */
+  --color-muted-bg: #12161C;
+  --color-border-soft: #2E3339;
+  --color-border-strong: #3F444B;
+  --color-focus-ring: rgba(167, 197, 225, 0.4);
+  --color-hover-bg: rgba(118,146,172,.12);
+   /* --- Buttons & Icons --- */
+   --color-icon-default: #9CA2A9;
+   --color-icon-hover: #F4F6F8;
+   --color-icon-active: #0e589d;
+ 
+   --color-btn-bg: var(--color-text);
+   --color-btn-text: #000;
+   --color-btn-hover-bg: #fff;
+   --color-btn-disabled: rgba(255, 255, 255, 0.4);
+ 
+   /* --- Post card / menu --- */
+   --color-card-bg: var(--color-surface);
+   --color-card-border: var(--color-border-soft);
+   --color-card-hover: var(--color-surface-alt);
+   --color-menu-bg: var(--color-surface-alt);
+   --color-menu-border: var(--color-border-soft);
+   --color-menu-hover: rgba(255, 255, 255, 0.05);
+ 
+   /* --- Reactions --- */
+   --color-reaction-bg: #2A303C;
+   --color-reaction-border: #3F444B;
+   --color-like: #3b82f6;
+   --color-dislike: #ef4444;
+  /* Layout */
+  --header-height: 3.75rem;     /* 60px */
+  --padding-main: 1.25rem;      /* 20px */
+  --input-radius: .5rem;
+  --button-radius: .6rem;
+
+  /* Z-index map */
+  --z-header: 50;
+  --z-dropdown: 60;
+  --z-sidebar: 40;
+  --z-overlay: 1100;
+
+  /* Effects */
+  --shadow-soft: 0 2px 8px rgba(0,0,0,.35);
+  --transition-fast: .25s ease;
 }
 
-/* Đặt sidebar-width theo trạng thái body */
-body {
-  --sidebar-width: 15.625rem;           /* 250px: trạng thái mặc định */
-}
+/* Sidebar width states (desktop) */
+body { --sidebar-width: 15.625rem; }          /* 250px */
+body.sidebar--collapsed { --sidebar-width: 5rem; } /* ~80px */
 
-body.sidebar--collapsed {
-  --sidebar-width: 5rem;                /* ~80px khi thu gọn */
-}
+/* ---------------- App shell ---------------- */
+html, body, #root { background: var(--color-bg); color: var(--color-text); }
+html, body { overflow-x: hidden; }
+.app-shell { background: var(--color-bg); min-height: 100vh; }
 
-html, body, #root { background-color: var(--color-bg); }
-
-/* Vùng bọc Nav + Main */
-.app-shell {
-  background-color: var(--color-bg);
-  min-height: 100vh;
-}
-
-/* --- Header --- */
+/* ---------------- Header (đặt ở component Header.jsx) ---------------- */
 header {
-  color: var(--color-text);
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  align-items: center;
   position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
+  inset: 0 auto auto 0;
   height: var(--header-height);
-  background-color: var(--color-bg);
-  border-bottom: 0.0625rem solid var(--color-header-border); /* 1px */
-  z-index: 1000;
-}
-
-.header-logo {
-  height: 100%;
-  display: flex;
+  display: grid; grid-template-columns: repeat(3, 1fr);
   align-items: center;
-  padding: 0 var(--padding-header);
-  font-size: var(--header-font-size);
-  font-weight: bold;
-}
-
-.header-search {
-  height: 100%;
-  display: grid;
-  grid-template-columns: 1fr auto;
-  align-items: center;
-  padding: 0 var(--padding-main);
-}
-
-.header-search input {
-  width: 90%;
-  height: var(--input-height);
-  border: none;
-  border-radius: var(--input-radius);
-  padding: 0 3%;
-  font-size: 1em;
-  background-color: var(--color-input-bg);
+  background: var(--color-bg);
   color: var(--color-text);
+  border-bottom: 1px solid var(--color-header-border);
+  z-index: var(--z-header);
 }
 
-.header-search button {
-  font-size: 1.5em;
-  background-color: transparent;
-  border: none;
-  color: var(--color-text);
-  width: 100%;
-  height: 100%;
-}
-
-.auth-btn{
-  font-size: 18px !important;
-}
-
-.header-right {
-  height: 100%;
-  align-items: center;
-  display: flex;
-  justify-content: flex-end;
-  font-size: var(--icon-font-size);
-}
-
-.header-right > div {
-  text-align: right;
-  padding: 0 var(--gap-header-right);
-  cursor: pointer;
-}
-
-.header-right span {
-  text-align: right;
-  padding: var(--gap-header-span);
-  font-size: var(--small-font-size);
-  font-weight: 500;
-  cursor: pointer;
-}
-
-.header-right .header-user {
-  font-size: 1.5em;
-  padding: 0 1.25rem;                /* 0 20px */
-  color: var(--color-user);
-}
-
-/* --- Main --- */
-main {
-  /* nằm dưới header cố định */
-  margin-top: var(--header-height);
-
-  /* chừa chỗ cho sidebar và CHIẾM HẾT phần còn lại */
-  margin-left: calc(-8% + var(--sidebar-width));
-  width: calc(118% - var(--sidebar-width));
-
-  /* layout */
-  padding: var(--padding-main);
-  min-height: calc(100vh - var(--header-height));
-  background-color: var(--color-bg);
-  color: var(--color-text);
-
-  /* mượt khi thu/giãn sidebar */
-  transition: margin-left 0.4s ease, width 0.4s ease;
-
-  /* tránh tràn ngang do grid/padding */
-  box-sizing: border-box;
-  overflow-x: hidden;
-}
-
-/* --- Sidebar --- */
-nav {
+/* ---------------- Sidebar ---------------- */
+.desktop-sidebar {
   display: flex;
   flex-direction: column;
   position: fixed;
@@ -171,407 +101,152 @@ nav {
   left: 0;
   width: var(--sidebar-width);
   height: calc(100% - var(--header-height));
-  background-color: var(--color-bg);
-  border-right: 0.0625rem solid var(--color-header-border);
+  background: var(--color-bg);
+  border-right: 1px solid var(--color-header-border);
   color: var(--color-text);
-  font-size: 0.95em;
-  z-index: 999;
   overflow-y: auto;
-  transition: width 0.2s ease;        /* 👈 mượt khi đổi sidebar-width */
+  transition: width var(--transition-fast);
+  z-index: var(--z-sidebar);
 }
 
-/* Header trong sidebar */
-nav .nav-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 1rem;
-  font-weight: 600;
-  font-size: 1em;
-  color: var(--color-text-darker);
-  border-bottom: 0.0625rem solid var(--color-header-border); /* 1px */
-}
-
-.nav-btn {
-  cursor: pointer;
-  color: var(--color-text);
-}
-
-/* Action buttons */
+/* Buttons in sidebar (reused) */
 .add-btn {
   background: var(--color-input-bg);
   color: var(--color-text);
-  border: none;
-  padding: 0.625rem;                 /* 10px */
-  margin: 0.5rem 1rem;               /* 8px 16px */
-  border-radius: 0.5rem;             /* 8px */
-  font-size: 0.9em;
-  cursor: pointer;
-  text-align: left;
-  transition: background 0.2s ease;
+  border: 1px solid var(--color-border-soft);
+  border-radius: .5rem;
+  padding: .5rem .75rem;
+  transition: background var(--transition-fast), border-color var(--transition-fast);
 }
 .add-btn:hover {
-  background: #333;
+  background: var(--color-surface-alt);
+  border-color: var(--color-border-strong);
 }
 
-/* Section trong sidebar */
-.nav-section {
-  margin-top: 1rem;
-  padding: 0 1rem;
+/* ---------------- Main ---------------- */
+main{
+  margin-top: var(--header-height);
+  margin-left: calc(-8% + var(--sidebar-width));
+  width: calc(118% - var(--sidebar-width));
+  padding: var(--padding-main);
+  min-height: calc(100vh - var(--header-height));
+  background: var(--color-bg);
+  color: var(--color-text);
+  transition: margin-left var(--transition-fast), width var(--transition-fast);
+  box-sizing: border-box;
+}
+body.sidebar--collapsed main{
+  margin-left: calc(-8% + var(--sidebar-width));
+  width: calc(118% - var(--sidebar-width));
 }
 
-.nav-title {
-  font-size: 0.8em;
-  font-weight: 600;
-  color: var(--color-info);
-  margin: 0.8rem 0 0.5rem;
-  text-transform: uppercase;
+/* ---------------- Search panel (optional) ---------------- */
+.search-panel{
+  position:absolute; top:var(--header-height); left:var(--sidebar-width); right:0;
+  background:var(--color-bg); border-bottom:1px solid var(--color-header-border);
+  z-index: var(--z-sidebar);
+  padding:1rem;
 }
 
-/* Item trong sidebar */
-.nav-item {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;                      /* 12px */
-  padding: 0.375rem 0;               /* 6px 0 */
-  color: var(--color-text-darker);
+/* ---------------- Links & focus ---------------- */
+a{ color:var(--color-link); text-decoration:none; }
+a:hover{ color:var(--color-link-hover); text-decoration:underline; }
+a:focus-visible, button:focus-visible, input:focus-visible{
+  outline:none; box-shadow:0 0 0 px var(--color-focus-ring);
+}
+/* ---------- Panels ---------- */
+.panel {
+  background: var(--color-surface-alt);
+  border: 1px solid var(--color-border-soft);
+  border-radius: 0.75rem;
+  padding: 1.5rem;
+  color: var(--color-text);
+  box-shadow: var(--shadow-soft);
+}
+
+.panel-muted {
+  background: var(--color-muted-bg);
+  color: var(--color-text-secondary);
+}
+
+/* ---------- Banners (success/error/info) ---------- */
+.banner {
+  border-radius: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  border: 1px solid transparent;
+}
+.banner--success {
+  background: rgba(16, 185, 129, 0.15);
+  color: #A7F3D0;
+  border-color: rgba(5, 150, 105, 0.4);
+}
+.banner--error {
+  background: rgba(239, 68, 68, 0.15);
+  color: #FCA5A5;
+  border-color: rgba(220, 38, 38, 0.4);
+}
+.banner--info {
+  background: rgba(255,255,255,0.05);
+  color: var(--color-text-secondary);
+  border-color: var(--color-border-soft);
+}
+
+/* ---------- Buttons ---------- */
+.btn {
+  padding: 0.375rem 0.75rem;
+  border-radius: var(--button-radius);
+  font-size: 0.875rem;
+  transition: background var(--transition-fast), color var(--transition-fast);
   cursor: pointer;
-  transition: color 0.2s ease;
 }
-
-.nav-item:hover {
+.btn-primary {
+  background: var(--color-btn-bg);
+  color: var(--color-btn-text);
+}
+.btn-primary:hover {
+  background: var(--color-btn-hover-bg);
+}
+.btn-outline {
+  border: 1px solid var(--color-border-soft);
+  background: transparent;
   color: var(--color-text);
 }
+.btn-outline:hover {
+  background: var(--color-hover-bg);
+}
 
-/* User info */
-.nav-user {
+/* ---------- Pagination ---------- */
+.pagination {
   display: flex;
   align-items: center;
-  gap: 0.625rem;                     /* 10px */
-  font-weight: 500;
-  color: var(--color-user);
-  margin: 1rem 0;
+  justify-content: space-between;
+  gap: 0.5rem;
 }
-
-/* Scope toàn bộ CSS cho trang register */
-.register-page #root {
-  max-width: none;
-  margin: 0;
-  padding: 0;
-  text-align: initial;
-  font-family: "Inter", system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+.pagination button {
+  background: transparent;
+  border: 1px solid var(--color-border-soft);
+  color: var(--color-text);
+  border-radius: 0.4rem;
+  padding: 0.35rem 0.8rem;
 }
-
-/* --- Layout --- */
-.register-page .signup-container {
-  display: flex;
-  width: 100%;
-  min-height: 100vh;
-  background-color: #fff;
+.pagination button:hover {
+  background: var(--color-hover-bg);
 }
-
-/* --- Left Panel --- */
-.register-page .left-panel {
-  /* flex: 1;
-  background: #0c0a1a url('https://www.transparenttextures.com/patterns/stardust.png');
-  color: #fff;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  text-align: left;
-  padding: 50px;
-  position: relative;
-  overflow: hidden; */
-}
-
-.register-page .left-content {
-  z-index: 2;
-  max-width: 400px;
-}
-
-.register-page .left-panel h1 {
-  font-size: 2.8rem;
-  font-weight: 700;
-  margin-bottom: 20px;
-}
-
-.register-page .left-panel p {
-  font-size: 1.1rem;
-  line-height: 1.6;
-  color: #ccc;
-  margin-bottom: 30px;
-}
-
-.register-page .left-panel a {
-  color: #fff;
-  text-decoration: none;
-  font-weight: 500;
-  font-size: 1.1rem;
-  transition: letter-spacing 0.3s ease;
-}
-
-.register-page .left-panel a:hover {
-  letter-spacing: 1px;
-}
-
-.register-page .floating-icon {
-  position: absolute;
-  z-index: 1;
-  animation: float 6s ease-in-out infinite;
-}
-
-.register-page .floating-icon img {
-  width: 100%;
-}
-
-.register-page .icon1 { width: 150px; bottom: 10%; left: 15%; animation-delay: 0s; }
-.register-page .icon2 { width: 120px; top: 15%; left: 30%; animation-delay: 2s; }
-.register-page .icon3 { width: 100px; bottom: 25%; left: 60%; animation-delay: 4s; }
-
-@keyframes float {
-  0% { transform: translateY(0px); }
-  50% { transform: translateY(-20px); }
-  100% { transform: translateY(0px); }
-}
-
-/* --- Right Panel --- */
-.register-page .right-panel {
-  flex: 1;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  padding: 40px;
-  background-color: #fff;
-  overflow-y: auto;
-}
-
-.register-page .form-wrapper {
-  width: 100%;
-  max-width: 450px;
-}
-
-.register-page .right-panel h2 {
-  font-size: 1.8rem;
-  color: #333;
-  margin-bottom: 30px;
-}
-
-/* --- Form --- */
-.register-page .form-group {
-  margin-bottom: 20px;
-}
-
-.register-page .form-group label {
-  display: block;
-  font-size: 0.9rem;
-  font-weight: 500;
-  color: #555;
-  margin-bottom: 8px;
-}
-
-.register-page .form-group input,
-.register-page .form-group textarea {
-  width: 100%;
-  padding: 12px 15px;
-  border: 1px solid #ddd;
-  border-radius: 8px;
-  font-size: 1rem;
-  box-sizing: border-box;
-  transition: border-color 0.3s ease;
-}
-
-.register-page .form-group input:focus,
-.register-page .form-group textarea:focus {
-  outline: none;
-  border-color: #6d28d9;
-}
-
-.register-page textarea {
-  resize: vertical;
-  min-height: 80px;
-}
-
-.register-page .password-hint {
-  font-size: 0.8rem;
-  color: #888;
-  margin-top: 5px;
-}
-
-.register-page .file-drop-area {
-  border: 2px dashed #ddd;
-  border-radius: 8px;
-  padding: 25px;
-  text-align: center;
-  cursor: pointer;
-  transition: border-color 0.3s ease;
-}
-
-.register-page .file-drop-area:hover {
-  border-color: #6d28d9;
-}
-
-.register-page .upload-icon {
-  font-size: 3rem;
-  color: #555;
-}
-
-.register-page .file-drop-area p { margin: 10px 0 5px 0; font-weight: 500; color: #333; }
-.register-page .file-drop-area span { font-size: 0.9rem; color: #888; display: block; margin-bottom: 15px; }
-.register-page .browse-button { background-color: #f0f0f0; border: 1px solid #ccc; border-radius: 5px; padding: 8px 16px; font-weight: 500; cursor: pointer; display: inline-block; }
-
-.register-page .signup-button {
-  width: 100%;
-  padding: 15px;
-  background-color: #222;
-  color: #fff;
-  border: none;
-  border-radius: 8px;
-  font-size: 1rem;
-  font-weight: 700;
-  cursor: pointer;
-  transition: background-color 0.3s ease;
-}
-
-.register-page .signup-button:hover { background-color: #444; }
-.register-page .signup-button:disabled {
-  background-color: #ccc;
+.pagination button:disabled {
+  opacity: 0.4;
   cursor: not-allowed;
 }
 
-.register-page .login-link { text-align: center; margin-top: 20px; font-size: 0.9rem; color: #555; }
-.register-page .login-link a { color: #6d28d9; text-decoration: none; font-weight: 500; }
-
-/* --- Alerts --- */
-.register-page .alert {
-  padding: 15px;
-  margin-bottom: 20px;
-  border-radius: 8px;
-  font-weight: 500;
-  text-align: center;
-}
-
-.register-page .alert-error {
-  background-color: #f8d7da;
-  color: #721c24;
-  border: 1px solid #f5c6cb;
-}
-
-.register-page .alert-success {
-  background-color: #d4edda;
-  color: #155724;
-  border: 1px solid #c3e6cb;
-}
-
-/* Wrapper của thanh search mở rộng */
-.search-panel {
-  position: absolute;
-  top: var(--header-height);
-  left: var(--sidebar-width);
-  right: 0;
-  max-width: 1200px;
-  margin: 0 auto;
-  background-color: var(--color-bg);
-  border-bottom: 1px solid var(--color-header-border);
-  z-index: 999;
-  padding: 1rem;
-}
-
-/* --- Nội dung HTML render --- */
-.content-html {
-  background: #0F172A;
-  color: #fff;
-  border-radius: 12px;
-  overflow: auto;
-  min-height: 480px;
-  text-align: left; /* quan trọng: tất cả text left-aligned */
-}
-
-/* Reset margin của thẻ p, h1-h6 */
-.content-html p,
-.content-html h1,
-.content-html h2,
-.content-html h3,
-.content-html h4,
-.content-html h5,
-.content-html h6 {
-  margin: 0 0 1em 0;
-  text-align: left; /* đảm bảo thẻ p tuân theo content HTML */
-}
-
-/* Các thẻ khác (blockquote, code, ul, ol) */
-.content-html blockquote {
-  border-left: 3px solid var(--color-link);
-  padding-left: 0.75rem;
-  color: #f3f4f6;
-  background: var(--color-muted-bg);
-  margin: 0.5rem 0;
-  border-radius: 6px;
-}
-
-.content-html ul,
-.content-html ol {
-  padding-left: 1.25rem;
-  margin: 0.5rem 0;
-}
-
-.content-html code {
-  background: var(--color-code-bg);
-  padding: 2px 6px;
-  border-radius: 6px;
-  font-size: 0.9rem;
-}
-
-.content-html pre {
-  background: var(--color-code-bg);
-  padding: 12px;
-  border-radius: 10px;
-  border: 1px solid var(--color-border-soft);
-  overflow: auto;
-}
-
-/* Đảm bảo hiển thị đúng trong vùng soạn thảo */
-.ProseMirror strong { font-weight: 700; }
-.ProseMirror em { font-style: italic; }
-.ProseMirror code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: .95em; }
-.ProseMirror h1, .ProseMirror h2, .ProseMirror h3 { text-align: left; margin-top: 1em; margin-bottom: .5em; }
-.ProseMirror p { margin: 0.5em 0; text-align: left; }
-
-/* --- Focus & Link (màu bổ sung) --- */
-a { color: var(--color-link); text-decoration: none; }
-a:hover { color: var(--color-link-hover); text-decoration: underline; }
-
-a:focus-visible,
-button:focus-visible,
-.header-search input:focus-visible,
-.register-page .form-group input:focus-visible,
-.register-page .form-group textarea:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 3px var(--color-focus-ring);
-  border-color: var(--color-link);
-}
-
-/* --- Responsive --- */
-@media (max-width: 48rem) {          /* 768px */
-  header {
-    grid-template-columns: 1fr;      /* Stack header content on small screens */
+/* ---------------- Mobile (≤ 640px) ---------------- */
+@media (max-width: 40rem){
+  header{
+    grid-template-columns: auto 1fr auto !important;
+    height: 3.25rem; /* nếu muốn header nhỏ hơn trên mobile */
   }
-
-  /* Nav chuyển sang dạng đẩy nội dung (không đè lên header) */
-  nav {
-    position: static;
-    width: 100%;
-    height: auto;
-    border-right: none;
-    border-bottom: 0.0625rem solid var(--color-header-border);
-  }
-
-  main {
-    margin-left: 0;                  /* Sidebar full width -> content full width */
+  main{
+    margin-left: 0;
     width: 100%;
   }
-
-  .search-panel {
-    left: 0;                         /* vì nav không còn cố định */
-    right: 0;
-  }
+  .search-panel{ left:0; right:0; }
 }
