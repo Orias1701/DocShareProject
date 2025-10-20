@@ -6,6 +6,7 @@ import useAuth from "../../hook/useAuth";
 import images from "../../assets/image";
 import SearchBarPanel from "../common/SearchBarPanel.jsx";
 import { user_followServices } from "../../services/user_followServices";
+import authApi from "../../services/usersServices.js"; // ✅ dùng authApi (fetchJson) cho logout
 
 /* Click outside */
 const useClickOutside = (handler) => {
@@ -28,7 +29,6 @@ export default function Header() {
   const [followersCount, setFollowersCount] = useState(0);
   const [followingCount, setFollowingCount] = useState(0);
 
-  // ✅ TẠO DUY NHẤT 1 HOOK Ở TOP-LEVEL
   const userMenuRef = useClickOutside(() => setDropdownOpen(false));
 
   useEffect(() => {
@@ -79,7 +79,7 @@ export default function Header() {
 
   return (
     <>
-      {/* LUÔN 1 HÀNG: 3 cột ngay từ mobile */}
+      {/* Header */}
       <header
         className="
           app-header
@@ -93,12 +93,12 @@ export default function Header() {
           items-center gap-2 md:gap-4 px-3 md:px-4
         "
       >
-        {/* Cột 1: Logo */}
+        {/* Logo */}
         <div className="flex items-center font-semibold text-base md:text-lg justify-start">
           <i className="fa-solid fa-code text-[color:var(--color-input-primary)] mr-2" />
         </div>
 
-        {/* Cột 2: Search */}
+        {/* Search */}
         <div className="flex items-center w-full max-w-[600px] min-w-0 mx-auto">
           <div className="relative flex-1 min-w-0 overflow-hidden">
             <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-[color:var(--color-text-muted)] pointer-events-none" />
@@ -143,9 +143,8 @@ export default function Header() {
           </button>
         </div>
 
-        {/* Cột 3: Actions */}
+        {/* Actions */}
         <div className="flex items-center justify-end gap-3 md:gap-5">
-          
           <div className="hidden sm:flex items-center gap-1">
             <i className="fa-solid fa-blog text-[#ff6a25]" />
             <span className="text-sm">{followersCount}</span>
@@ -160,7 +159,7 @@ export default function Header() {
               user={user}
               isDropdownOpen={isDropdownOpen}
               setDropdownOpen={setDropdownOpen}
-              userMenuRef={userMenuRef}   
+              userMenuRef={userMenuRef}
               followersCount={followersCount}
               followingCount={followingCount}
             />
@@ -196,6 +195,21 @@ export default function Header() {
 
 /* ===== UserMenu ===== */
 function UserMenu({ user, isDropdownOpen, setDropdownOpen, userMenuRef, followersCount, followingCount }) {
+  const handleLogout = async () => {
+    try {
+      const res = await authApi.logout();              // ✅ gọi API qua fetchJson (không URL cứng)
+      if (!res || res.status !== "ok") {
+        console.warn("Logout response:", res);
+      }
+    } catch (e) {
+      console.error("Logout error:", e);
+    } finally {
+      setDropdownOpen(false);
+      // tuỳ bạn: reload để xoá state/auth cookie
+      setTimeout(() => window.location.reload(), 300);
+    }
+  };
+
   return (
     <div className="relative" ref={userMenuRef}>
       <button
@@ -239,12 +253,10 @@ function UserMenu({ user, isDropdownOpen, setDropdownOpen, userMenuRef, follower
                 <i className="fa-regular fa-user w-4 text-center" />
                 <span>Profile</span>
               </NavLink>
+
+              {/* ✅ Logout dùng fetchJson qua authApi */}
               <button
-                onClick={() => {
-                  fetch("http://localhost:3000/public/index.php?action=logout", { method: "POST", credentials: "include" })
-                    .then(() => { setDropdownOpen(false); setTimeout(() => window.location.reload(), 600); })
-                    .catch((err) => console.error(err));
-                }}
+                onClick={handleLogout}
                 className="flex items-center gap-3 px-4 py-2 text-red-500 hover:bg-[color:var(--color-hover-bg)] hover:text-red-400 w-full text-left"
               >
                 <i className="fa-solid fa-arrow-right-from-bracket w-4 text-center" />
