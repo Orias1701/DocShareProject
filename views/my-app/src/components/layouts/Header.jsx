@@ -7,7 +7,7 @@ import useAuth from "../../hook/useAuth";
 import images from "../../assets/image";
 import SearchBarPanel from "../common/SearchBarPanel.jsx";
 import { user_followServices } from "../../services/user_followServices";
-import { fetchJson } from "../../services/fetchJson"; 
+import fetchJson from "../../services/fetchJson";
 
 /* Click outside */
 const useClickOutside = (handler) => {
@@ -196,6 +196,18 @@ export default function Header() {
 
 /* ===== UserMenu ===== */
 function UserMenu({ user, isDropdownOpen, setDropdownOpen, userMenuRef, followersCount, followingCount }) {
+
+  const onLogout = async () => {
+    try {
+      await fetchJson('logout', { method: 'POST' }); // dùng fetchJson thay vì buildActionUrl
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setDropdownOpen(false);
+      setTimeout(() => window.location.reload(), 300);
+    }
+  };
+
   return (
     <div className="relative" ref={userMenuRef}>
       <button
@@ -235,16 +247,17 @@ function UserMenu({ user, isDropdownOpen, setDropdownOpen, userMenuRef, follower
             </div>
 
             <div className="py-1">
-              <NavLink to="/profile" onClick={() => setDropdownOpen(false)} className="flex items-center gap-3 px-4 py-2 text-[color:var(--color-text-muted)] hover:bg-[color:var(--color-hover-bg)] hover:text-[var(--color-text)]">
+              <NavLink
+                to="/profile"
+                onClick={() => setDropdownOpen(false)}
+                className="flex items-center gap-3 px-4 py-2 text-[color:var(--color-text-muted)] hover:bg-[color:var(--color-hover-bg)] hover:text-[var(--color-text)]"
+              >
                 <i className="fa-regular fa-user w-4 text-center" />
                 <span>Profile</span>
               </NavLink>
+
               <button
-                onClick={() => {
-                  fetch(buildActionUrl("logout"), { method: "POST", credentials: "include" })
-                    .then(() => { setDropdownOpen(false); setTimeout(() => window.location.reload(), 600); })
-                    .catch((err) => console.error(err));
-                }}
+                onClick={onLogout}
                 className="flex items-center gap-3 px-4 py-2 text-red-500 hover:bg-[color:var(--color-hover-bg)] hover:text-red-400 w-full text-left"
               >
                 <i className="fa-solid fa-arrow-right-from-bracket w-4 text-center" />

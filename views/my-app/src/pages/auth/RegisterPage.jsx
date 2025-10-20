@@ -1,7 +1,7 @@
 import React, { useRef, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import bannerAuth from "../../assets/image/banner_auth.png";
-import { fetchJson } from "../../services/fetchJson"; ; // <-- dùng helper
+import fetchJson from "../../services/fetchJson"; // default import, KHÔNG dùng {}
 
 export default function RegisterPage() {
   const [form, setForm] = useState({
@@ -30,12 +30,9 @@ export default function RegisterPage() {
     if (!/^[a-zA-Z0-9_]{3,20}$/.test(form.username))
       e.username = "Tên người dùng 3–20 ký tự, chỉ gồm chữ, số và dấu gạch dưới.";
     if (!/^[^@]+@[^@]+\.[^@]+$/.test(form.email)) e.email = "Email không hợp lệ.";
-    if (form.password.length < 8)
-      e.password = "Mật khẩu phải có ít nhất 8 ký tự.";
-    else if (!/[0-9]/.test(form.password))
-      e.password = "Mật khẩu phải chứa ít nhất 1 số.";
-    else if (!/[a-z]/.test(form.password))
-      e.password = "Mật khẩu phải chứa ít nhất 1 chữ thường.";
+    if (form.password.length < 8) e.password = "Mật khẩu phải có ít nhất 8 ký tự.";
+    else if (!/[0-9]/.test(form.password)) e.password = "Mật khẩu phải chứa ít nhất 1 số.";
+    else if (!/[a-z]/.test(form.password)) e.password = "Mật khẩu phải chứa ít nhất 1 chữ thường.";
     if (!form.birthday) e.birthday = "Vui lòng chọn ngày sinh.";
     return e;
   };
@@ -53,21 +50,39 @@ export default function RegisterPage() {
     setLoading(true);
     setServerMsg(null);
     try {
-      const payload = {
-        full_name: form.fullName,
-        username: form.username,
-        email: form.email,
-        password: form.password,
-        birth_date: form.birthday,
-        bio: form.biography || null,
-        // avatar: form.avatar  // Nếu backend nhận multipart, chuyển sang FormData (ghi chú phía dưới)
-      };
+      let data;
 
-      const data = await fetchJson("api_register", {
-        method: "POST",
-        body: payload, // helper sẽ stringify JSON
-        timeoutMs: 20000,
-      });
+      // Nếu có avatar -> gửi FormData; nếu không -> JSON
+      if (form.avatar) {
+        const fd = new FormData();
+        fd.append("full_name", form.fullName);
+        fd.append("username", form.username);
+        fd.append("email", form.email);
+        fd.append("password", form.password);
+        fd.append("birth_date", form.birthday);
+        if (form.biography) fd.append("bio", form.biography);
+        fd.append("avatar", form.avatar);
+
+        data = await fetchJson("api_register", {
+          method: "POST",
+          body: fd,                 // helper sẽ KHÔNG set Content-Type cho FormData
+          timeoutMs: 20000,
+        });
+      } else {
+        const payload = {
+          full_name: form.fullName,
+          username: form.username,
+          email: form.email,
+          password: form.password,
+          birth_date: form.birthday,
+          bio: form.biography || null,
+        };
+        data = await fetchJson("api_register", {
+          method: "POST",
+          body: payload,           // helper sẽ tự JSON.stringify + set Content-Type
+          timeoutMs: 20000,
+        });
+      }
 
       if (data?.status === "ok") {
         setServerMsg({ type: "success", text: data.message || "Đăng ký thành công!" });
@@ -160,6 +175,7 @@ export default function RegisterPage() {
             <div>
               <label className="font-semibold">Email</label>
               <input
+                type="email"
                 name="email"
                 value={form.email}
                 onChange={handleChange}
@@ -218,7 +234,7 @@ export default function RegisterPage() {
               />
             </div>
 
-            {/* Avatar (nếu backend nhận multipart, xem ghi chú dưới) */}
+            {/* Avatar */}
             <div>
               <label className="font-semibold">Choose your avatar</label>
               <input

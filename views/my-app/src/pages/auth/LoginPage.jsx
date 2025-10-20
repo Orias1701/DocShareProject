@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useNavigate, useLocation, Link } from "react-router-dom";
 import useAuth from "../../hook/useAuth";
 import bannerAuth from "../../assets/image/banner_auth.png";
-import { fetchJson } from "../../services/fetchJson"; // <-- dùng helper
+import fetchJson from "../../services/fetchJson"; // <-- default import (KHÔNG dùng {})
 
 export default function LoginPage() {
   const [formData, setFormData] = useState({ identifier: "", password: "" });
@@ -20,11 +20,14 @@ export default function LoginPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true); setError(null); setSuccess(null);
+    setLoading(true);
+    setError(null);
+    setSuccess(null);
+
     try {
       const data = await fetchJson("api_login", {
         method: "POST",
-        body: formData,        // sẽ tự stringify JSON trong helper
+        body: formData, // helper sẽ tự JSON.stringify + set Content-Type
         timeoutMs: 15000,
       });
 
@@ -32,6 +35,7 @@ export default function LoginPage() {
         setSuccess("Đăng nhập thành công!");
         if (data.user) setUser(data.user);
         if (data.token) localStorage.setItem("token", data.token);
+
         const from = location.state?.from?.pathname;
         navigate(from && from !== "/login" ? from : "/", { replace: true });
       } else {
@@ -58,7 +62,9 @@ export default function LoginPage() {
       >
         <div className="h-full w-full bg-black/40 flex flex-col justify-center px-10 py-20">
           <h1 className="text-5xl font-bold text-white leading-tight">
-            Explore our<br />newest features
+            Explore our
+            <br />
+            newest features
           </h1>
           <p className="mt-4 text-gray-300 text-lg max-w-md">
             Get updated posts and news from many individuals and organizations.

@@ -1,113 +1,155 @@
-// src/services/fetchJson.js
+// [Mục đích] Gọi API theo action, hỗ trợ JSON / FormData, timeout, và "cứu hộ" JSON khi body lẫn HTML.
 
-export const API_ORIGIN = (import.meta.env.VITE_API_URL || '').replace(/\/+$/, '');
-export const API_ENTRY  = (import.meta.env.VITE_API_ENTRY || '/public/index.php');
-const DEFAULT_TIMEOUT_MS = 15000;
+// Ưu tiên dùng VITE_API_BASE. Nếu không có, fallback từ VITE_API_URL + VITE_API_ENTRY
+const FALLBACK_URL   = import.meta.env.VITE_API_URL   || window.location.origin;      // ví dụ: https://baotest.wuaze.com/DocShareProject
+const FALLBACK_ENTRY = import.meta.env.VITE_API_ENTRY || "/public/index.php";         // ví dụ: /DocShareProject/public/index.php
 
-// Lấy origin (ưu tiên ENV, fallback window)
-function getBaseOrigin() {
-  if (API_ORIGIN) return API_ORIGIN;
-  if (typeof window !== 'undefined' && window.location?.origin) {
-    return window.location.origin.replace(/\/+$/, '');
+const API_BASE = import.meta.env.VITE_API_BASE
+  ? String(import.meta.env.VITE_API_BASE)
+  : new URL(FALLBACK_ENTRY, FALLBACK_URL).toString(); // -> https://.../public/index.php
+
+// (tuỳ chọn) log 1 lần để xác nhận env khi chạy thực tế
+if (import.meta.env.DEV) {
+  // eslint-disable-next-line no-console
+  console.log("[fetchJson] API_BASE =", API_BASE);
+}
+
+export function buildActionUrl(action, extraParams) {
+  const url = new URL(API_BASE);
+  // Cho phép action có kèm query (vd: "get_posts_by_album&album_id=123")
+  // -> tách phần sau & và append vào URL
+  const idx = action.indexOf("&");
+  if (idx !== -1) {
+    const name = action.slice(0, idx);
+    const rest = action.slice(idx + 1);
+    url.searchParams.set("action", name);
+    new URLSearchParams(rest).forEach((v, k) => url.searchParams.set(k, String(v)));
+  } else {
+    url.searchParams.set("action", action);
   }
-  return '';
-}
 
-// Biến entry thành URL tuyệt đối
-function toAbsoluteUrlLike(origin, entry) {
-  if (/^https?:\/\//i.test(entry)) return entry; // absolute rồi
-  const base = origin || (typeof window !== 'undefined' ? window.location.origin : '');
-  return new URL(entry.replace(/^\/+/, '/'), base || 'http://localhost').toString();
-}
-
-// Build URL: ?action=...&query=...
-export function buildActionUrl(action, extraQuery = {}) {
-  const base = getBaseOrigin();
-  const entryAbs = toAbsoluteUrlLike(base, API_ENTRY);
-
-  const url = new URL(entryAbs);
-  url.searchParams.set('action', action);
-
-  for (const [k, v] of Object.entries(extraQuery || {})) {
-    if (v === undefined || v === null) continue;
-    if (Array.isArray(v)) v.forEach(item => url.searchParams.append(k, String(item)));
-    else url.searchParams.set(k, String(v));
+  if (extraParams && typeof extraParams === "object") {
+    Object.entries(extraParams).forEach(([k, v]) => {
+      if (v !== undefined && v !== null) url.searchParams.set(k, String(v));
+    });
   }
   return url.toString();
 }
 
-// fetch JSON có timeout + "cứu hộ" parse JSON lẫn HTML
-async function fetchJson(action, options = {}) {
-  const {
-    query,
-    timeoutMs,
-    method = 'GET',
-    headers: headersIn = {},
-    body: bodyIn,
-    credentials = 'include',
-    ...rest
-  } = options;
+function ensureJsonBodyAndHeaders(options = {}) {
+  const opts = { ...options };
+  const hasBody = opts.body !== undefined && opts.body !== null;
 
-  const url = buildActionUrl(action, query);
-  const headers = { Accept: 'application/json', ...headersIn };
-
-  // Tự stringify body nếu là object thường
-  let body = bodyIn;
-  if (body && typeof body === 'object' && !(body instanceof FormData) && !(body instanceof URLSearchParams)) {
-    if (!headers['Content-Type'] && !headers['content-type']) {
-      headers['Content-Type'] = 'application/json';
-    }
-    body = JSON.stringify(body);
+  // Nếu body là object thường: stringify + set header JSON
+  if (hasBody && !(opts.body instanceof FormData) && typeof opts.body !== "string") {
+    opts.body = JSON.stringify(opts.body);
+    opts.headers = {
+      "Content-Type": "application/json",
+      ...(opts.headers || {}),
+    };
   }
-
-  const controller = new AbortController();
-  const id = setTimeout(() => controller.abort(), timeoutMs ?? DEFAULT_TIMEOUT_MS);
-
-  let res, text;
-  try {
-    res = await fetch(url, {
-      method,
-      credentials,
-      headers,
-      body,
-      signal: controller.signal,
-      ...rest,
-    });
-    text = await res.text();
-  } catch (err) {
-    clearTimeout(id);
-    if (err?.name === 'AbortError') throw new Error('Yêu cầu quá thời gian (timeout).');
-    throw err;
-  } finally {
-    clearTimeout(id);
+  // Nếu body là string mà caller chưa set Content-Type, mặc định coi là JSON
+  if (hasBody && typeof opts.body === "string" && !(opts.body instanceof FormData)) {
+    opts.headers = {
+      "Content-Type": opts.headers?.["Content-Type"] || "application/json",
+      ...(opts.headers || {}),
+    };
   }
-
-  const ct = res.headers.get('content-type') || '';
-  if (!res.ok) {
-    const snippet = (text || '').slice(0, 300);
-    throw new Error(`HTTP ${res.status}: ${snippet}`);
-  }
-
-  // Trường hợp chuẩn
-  if (ct.includes('application/json')) {
-    try { return text ? JSON.parse(text) : {}; }
-    catch { throw new Error('Phản hồi JSON không hợp lệ từ API.'); }
-  }
-
-  // Cứu hộ khi phản hồi lẫn HTML/warning
-  const firstCurly = text.indexOf('{');
-  const firstBracket = text.indexOf('[');
-  const starts = [firstCurly, firstBracket].filter(i => i >= 0);
-  const start = starts.length ? Math.min(...starts) : -1;
-  const end = Math.max(text.lastIndexOf('}'), text.lastIndexOf(']'));
-  if (start >= 0 && end > start) {
-    const slice = text.slice(start, end + 1);
-    try { return JSON.parse(slice); } catch {}
-  }
-
-  throw new Error('Không parse được JSON từ API.');
+  // Nếu là FormData thì KHÔNG tự set Content-Type
+  return opts;
 }
 
-// 👉 Xuất cả named & default
-export { fetchJson };
-export default fetchJson;
+async function safeParseJson(res) {
+  if (res.status === 204) return null;
+
+  const ctype =
+    res.headers.get("Content-Type") ||
+    res.headers.get("content-type") ||
+    "";
+
+  const raw = await res.text();
+  const txt = raw.replace(/^\uFEFF/, "").trim(); // strip BOM + trim
+
+  // Server báo JSON -> parse trực tiếp
+  if (ctype.includes("application/json")) {
+    return txt ? JSON.parse(txt) : {};
+  }
+
+  // Cứu hộ: response lẫn HTML — cố gắng cắt phần JSON ({} hoặc [])
+  const firstCurly = txt.indexOf("{");
+  const firstBracket = txt.indexOf("[");
+  let start = -1, end = -1;
+
+  if (firstCurly !== -1 && (firstBracket === -1 || firstCurly < firstBracket)) {
+    start = firstCurly;
+    end = txt.lastIndexOf("}");
+  } else if (firstBracket !== -1) {
+    start = firstBracket;
+    end = txt.lastIndexOf("]");
+  }
+
+  if (start !== -1 && end !== -1 && end > start) {
+    const jsonSlice = txt.slice(start, end + 1);
+    try {
+      return JSON.parse(jsonSlice);
+    } catch {}
+  }
+
+  // Không parse nổi -> ném lỗi có snippet
+  const snippet = txt.slice(0, 200).replace(/\s+/g, " ");
+  throw new Error(
+    `Không parse được JSON từ API. Content-Type: ${ctype || "N/A"}. Snippet: "${snippet}..."`
+  );
+}
+
+/**
+ * fetchJson:
+ * - action: string, ví dụ "api_register" hoặc "get_posts_by_album&album_id=ALBUM123"
+ * - options: { method, headers, body, credentials, signal, cache, timeoutMs, extraParams, mode }
+ *   - extraParams: object -> append vào query (?action=...&k=v)
+ */
+export default async function fetchJson(action, options = {}) {
+  const { timeoutMs, extraParams, ...rest } = options;
+  const url = buildActionUrl(action, extraParams);
+
+  // Chuẩn hóa body/headers (JSON vs FormData)
+  const fetchOpts = ensureJsonBodyAndHeaders({
+    method: rest.method || "GET",
+    credentials: rest.credentials ?? "include",
+    headers: { Accept: "application/json, text/plain, */*", ...(rest.headers || {}) },
+    body: rest.body,
+    signal: rest.signal,
+    cache: rest.cache,
+    mode: rest.mode || "cors",
+  });
+
+  // Timeout qua AbortController
+  let controller;
+  let timer;
+  if (timeoutMs && Number.isFinite(timeoutMs)) {
+    controller = new AbortController();
+    fetchOpts.signal = controller.signal;
+    timer = setTimeout(() => controller.abort(new Error("Request timeout")), timeoutMs);
+  }
+
+  let res;
+  try {
+    res = await fetch(url, fetchOpts);
+  } catch (e) {
+    if (timer) clearTimeout(timer);
+    throw e.name === "AbortError" ? new Error("Kết nối hết thời gian chờ.") : e;
+  }
+  if (timer) clearTimeout(timer);
+
+  if (!res.ok) {
+    let details = "";
+    try {
+      const raw = await res.text();
+      const snippet = raw.replace(/^\uFEFF/, "").trim().slice(0, 200).replace(/\s+/g, " ");
+      details = snippet ? `; body="${snippet}..."` : "";
+    } catch {}
+    throw new Error(`HTTP ${res.status}${details}`);
+  }
+
+  return safeParseJson(res);
+}
