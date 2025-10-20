@@ -17,10 +17,10 @@ class Database {
                 throw new Exception("Unable to parse config.properties");
             }
 
-            $host = $cfg['db_host'] ?? '127.0.0.1';
-            $db   = $cfg['db_name'] ?? 'doc_share';
-            $user = $cfg['db_user'] ?? 'root';
-            $pass = $cfg['db_pass'] ?? '';
+            $host = $cfg['db_host'] ?? 'sql104.infinityfree.com';
+            $db   = $cfg['db_name'] ?? 'if0_39692334_doc_share';
+            $user = $cfg['db_user'] ?? 'if0_39692334';
+            $pass = $cfg['db_pass'] ?? 'XqXbv5AlBJD4';
 
             $dsn = "mysql:host={$host};dbname={$db};charset=utf8mb4";
             $options = [

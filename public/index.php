@@ -90,7 +90,7 @@ require_once __DIR__ . '/../models/PostHashtag.php';
 require_once __DIR__ . '/../models/PostComment.php';
 require_once __DIR__ . '/../models/PostReaction.php';
 require_once __DIR__ . '/../models/PostReport.php';
-require_once __DIR__ . '/../models/bookmark.php';
+require_once __DIR__ . '/../models/Bookmark.php';
 require_once __DIR__ . '/../models/Search.php';
 
 require_once __DIR__ . '/../controllers/PostController.php';
