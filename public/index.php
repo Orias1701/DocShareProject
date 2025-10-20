@@ -1,20 +1,23 @@
 <?php
-// public/index.php - single entry point
+// public/index.php - single entry point (merged, standardized)
 
 /*************************************************
- * 1) CORS & PRE-FLIGHT (hỗ trợ origin động + credentials)
+ * 1) CORS & PRE-FLIGHT (động + credentials)
  *************************************************/
 $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
 $allowedOrigins = [
-    'http://localhost:5173', // Đảm bảo đây là domain frontend của bạn
+    'https://baotest.wuaze.com', // production FE/BE
+    'http://localhost:5173',     // dev Vite
 ];
 
-// Chỉ cho phép các origin hợp lệ trong danh sách allowedOrigins
-if (in_array($origin, $allowedOrigins, strict: true)) {
+// Chỉ phản hồi lại đúng Origin hợp lệ (và set Vary: Origin để cache đúng)
+if ($origin && in_array($origin, $allowedOrigins, true)) {
     header("Access-Control-Allow-Origin: $origin");
+    header("Vary: Origin");
 } else {
-    // Fallback cho môi trường localhost (nếu không có trong danh sách)
+    // fallback an toàn cho dev local (giữ hành vi bản đầu)
     header("Access-Control-Allow-Origin: http://localhost:5173");
+    header("Vary: Origin");
 }
 
 header("Access-Control-Allow-Credentials: true");
@@ -22,26 +25,25 @@ header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With, Accept");
 header("Access-Control-Expose-Headers: Content-Type, Authorization");
 
-// Nếu là preflight request (OPTIONS), trả về mã trạng thái 204
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+// Preflight
+if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') {
     http_response_code(204); // No Content
     exit;
 }
 
-
 /*************************************************
- * 2) SESSION COOKIE CHO CROSS-ORIGIN
+ * 2) SESSION COOKIE (cross-origin friendly)
  *************************************************/
 $lifetime = 60 * 60 * 24 * 7; // 7 ngày
+$secure = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off'); // auto theo môi trường
 
-// Thiết lập cookie session tương thích cross-origin (frontend khác origin)
 session_set_cookie_params([
     'lifetime' => $lifetime,
     'path'     => '/',
-    'domain'   => '',        // để rỗng cho localhost
-    'secure'   => true,      // nên bật; Chrome coi localhost là secure context
+    'domain'   => '',       // để rỗng cho localhost / same host
+    'secure'   => $secure,  // nên true khi https
     'httponly' => true,
-    'samesite' => 'None',    // QUAN TRỌNG khi gọi từ origin khác
+    'samesite' => 'None',   // cần khi FE khác origin
 ]);
 
 if (session_status() === PHP_SESSION_NONE) {
@@ -50,6 +52,7 @@ if (session_status() === PHP_SESSION_NONE) {
 
 /*************************************************
  * 3) INCLUDE MODEL + CONTROLLER
+ *    (giữ đúng tên file/tên case theo code đầu)
  *************************************************/
 require_once __DIR__ . '/../config/Database.php';
 require_once __DIR__ . '/../models/Post.php';
@@ -64,11 +67,8 @@ require_once __DIR__ . '/../models/PostHashtag.php';
 require_once __DIR__ . '/../models/PostComment.php';
 require_once __DIR__ . '/../models/PostReaction.php';
 require_once __DIR__ . '/../models/PostReport.php';
-require_once __DIR__ . '/../models/Bookmark.php';
+require_once __DIR__ . '/../models/bookmark.php'; // giữ đúng theo code đầu (lowercase)
 require_once __DIR__ . '/../models/Search.php';
-
-
-
 
 require_once __DIR__ . '/../controllers/PostController.php';
 require_once __DIR__ . '/../controllers/HomeController.php';
@@ -87,8 +87,6 @@ require_once __DIR__ . '/../controllers/BookmarkController.php';
 require_once __DIR__ . '/../controllers/SearchController.php';
 require_once __DIR__ . '/../controllers/PdfProxyController.php';
 
-
-
 /*************************************************
  * 4) KHỞI TẠO CONTROLLER
  *************************************************/
@@ -104,29 +102,18 @@ $commentController     = new CommentController();
 $reactionController    = new ReactionController();
 $reportController      = new ReportController();
 $userFollowController  = new UserFollowController();
-$bookmarkController = new BookmarkController();
-$searchController = new SearchController();
-$pdfProxyController = new PdfProxyController();
-
-
+$bookmarkController    = new BookmarkController();
+$searchController      = new SearchController();
+$pdfProxyController    = new PdfProxyController();
 
 /*************************************************
- * 5) TIỆN ÍCH NHỎ
+ * 5) TIỆN ÍCH
  *************************************************/
 function wants_json(): bool
 {
-    // Ưu tiên Accept: application/json
-    if (isset($_SERVER['HTTP_ACCEPT']) && stripos($_SERVER['HTTP_ACCEPT'], 'application/json') !== false) {
-        return true;
-    }
-    // Hoặc là AJAX
-    if (isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest') {
-        return true;
-    }
-    // Hoặc Content-Type là JSON
-    if (isset($_SERVER['CONTENT_TYPE']) && stripos($_SERVER['CONTENT_TYPE'], 'application/json') !== false) {
-        return true;
-    }
+    if (isset($_SERVER['HTTP_ACCEPT']) && stripos($_SERVER['HTTP_ACCEPT'], 'application/json') !== false) return true;
+    if (isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest') return true;
+    if (isset($_SERVER['CONTENT_TYPE']) && stripos($_SERVER['CONTENT_TYPE'], 'application/json') !== false) return true;
     return false;
 }
 
@@ -146,27 +133,25 @@ function respond_json($payload, int $status = 200): void
 }
 
 /*************************************************
- * 6) ROUTER
+ * 5.1) Guard: client muốn JSON nhưng không có action
+ *************************************************/
+if (wants_json() && !isset($_GET['action'])) {
+    respond_json(['status' => 'error', 'message' => 'Missing action'], 400);
+}
+
+/*************************************************
+ * 6) ROUTER (giữ nguyên tên case theo code đầu)
  *************************************************/
 if (isset($_GET['action'])) {
     $action = $_GET['action'];
 
     switch ($action) {
-        /*************** AUTH (VIEW) ****************/
-        // case 'login':
-        //     include __DIR__ . '/../views/login.php';
-        //     exit;
-
+        /*************** AUTH (VIEW-LIKE LEGACY) ****************/
         case 'login_post':
             if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-                // Đường cũ: xử lý theo AuthController (view/redirect)
                 $auth->apiLogin($_POST['email'] ?? $_POST['identifier'] ?? '', $_POST['password'] ?? '');
             }
             exit;
-
-            // case 'register':
-            //     include __DIR__ . '/../views/register.php';
-            //     exit;
 
         case 'register_post':
             if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -186,10 +171,7 @@ if (isset($_GET['action'])) {
             $auth->apiLogout();
             exit;
 
-
-        /*************** AUTH (API JSON) ************
-             * Dùng cho frontend fetch, không redirect
-             ********************************************/
+        /*************** AUTH (API JSON) ***************/
         case 'api_login':
             if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
                 respond_json(['status' => 'error', 'message' => 'Method Not Allowed'], 405);
@@ -269,41 +251,28 @@ if (isset($_GET['action'])) {
             }
             exit;
 
-            // Lấy thông tin user đang đăng nhập theo session (tiện cho FE)
         case 'api_me':
             (new AuthController())->apiMe();
             exit;
 
-            // public/index.php
         case 'api_delete_user': {
-                $method = strtoupper($_SERVER['REQUEST_METHOD'] ?? 'GET');
-                if (!in_array($method, ['DELETE', 'POST'], true)) {
-                    respond_json(['status' => 'error', 'message' => 'Method Not Allowed', 'allowed' => 'DELETE, POST'], 405);
-                }
-                $auth->deleteAccount(); // ✅ dùng $auth, không phải $AuthController
-                exit;
+            $method = strtoupper($_SERVER['REQUEST_METHOD'] ?? 'GET');
+            if (!in_array($method, ['DELETE', 'POST'], true)) {
+                respond_json(['status' => 'error', 'message' => 'Method Not Allowed', 'allowed' => 'DELETE, POST'], 405);
             }
+            $auth->deleteAccount();
+            exit;
+        }
+
         case 'api_update_account':
             $auth->updateAccount();
-            break;
-
-
-
+            exit;
 
         /*************** API POSTS ***************/
-        case 'latest_posts':
-            $postController->getLatestPosts();
-            exit;
-        case 'popular_posts':
-            $postController->getPopularPosts();
-            exit;
-        case 'post_detail_api':
-            $postController->postDetail($_GET['post_id'] ?? null);
-            exit;
-        case 'get_posts_by_album':
-            $postController->getPostsByAlbum();
-            exit;
-
+        case 'latest_posts':            $postController->getLatestPosts();                exit;
+        case 'popular_posts':           $postController->getPopularPosts();               exit;
+        case 'post_detail_api':         $postController->postDetail($_GET['post_id'] ?? null); exit;
+        case 'get_posts_by_album':      $postController->getPostsByAlbum();               exit;
 
         /*************** POST DETAIL (VIEW) ***************/
         case 'post_detail':
@@ -311,397 +280,216 @@ if (isset($_GET['action'])) {
             exit;
 
         /*************** POST CRUD ***************/
-        case 'list_all_posts':
-            $postController->listAllPosts();
-            exit;
-        case 'create_post':
-            $postController->create();
-            exit;
-        case 'update_post':
-            $postController->update();
-            exit;
-        case 'delete_post':
-            $postController->delete();
-            exit;
-        case 'list_posts_by_category':
-            $postController->getPostsByCategory();
-            exit;
-        case 'posts_by_hashtag':
-            $postHashtagController->getPostsByHashtagId($_GET['hashtag_id'] ?? null);
-            exit;
+        case 'list_all_posts':          $postController->listAllPosts();                  exit;
+        case 'create_post':             $postController->create();                        exit;
+        case 'update_post':             $postController->update();                        exit;
+        case 'delete_post':             $postController->delete();                        exit;
+        case 'list_posts_by_category':  $postController->getPostsByCategory();            exit;
+        case 'posts_by_hashtag':        $postHashtagController->getPostsByHashtagId($_GET['hashtag_id'] ?? null); exit;
 
         case 'list_posts_by_user':
-            $userId = $_GET['user_id'] ?? null;
-            $postController->getPostsByUserId($userId);
+            $postController->getPostsByUserId($_GET['user_id'] ?? null);
             exit;
-        case 'get_album_detail':
-            $albumController->albumDetail();
-            exit;
+
+        case 'get_album_detail':        $albumController->albumDetail();                  exit;
+
         case 'list_posts_by_following':
             if (!isset($_SESSION['user_id'])) {
-                http_response_code(401);
-                echo json_encode([
-                    "status" => "error",
-                    "message" => "Unauthorized"
-                ]);
-                exit;
+                respond_json(["status" => "error", "message" => "Unauthorized"], 401);
             }
             $postController->getPostsFromFollowedUsers($_SESSION['user_id']);
             exit;
-        case 'count_posts_all':
-            (new PostController())->countAllPosts();
-            break;
 
-        case 'count_posts_by_user':
-            (new PostController())->countPostsByUser(); // ?user_id=... (hoặc session)
-            break;
-
-        case 'count_posts_by_album':
-            (new PostController())->countPostsByAlbum(); // ?album_id=...
-            break;
-
-
-
+        case 'count_posts_all':         (new PostController())->countAllPosts();          exit;
+        case 'count_posts_by_user':     (new PostController())->countPostsByUser();       exit;
+        case 'count_posts_by_album':    (new PostController())->countPostsByAlbum();      exit;
 
         /*************** ALBUM CRUD ***************/
-        case 'list_user_albums':
-            $albumController->listUserAlbums();
-            exit;
-        case 'create_album':
-            $albumController->create();
-            exit;
-        case 'update_album':
-            $albumController->update();
-            exit;
-        case 'delete_album':
-            $albumController->delete();
-            exit;
-        case 'list_albums':
-            $albumController->listAllAlbums();
-            exit;
-        case 'list_albums_by_user':
-            $albumController->listAlbumsByUserId();
-            exit;
+        case 'list_user_albums':        $albumController->listUserAlbums();               exit;
+        case 'create_album':            $albumController->create();                       exit;
+        case 'update_album':            $albumController->update();                       exit;
+        case 'delete_album':            $albumController->delete();                       exit;
+        case 'list_albums':             $albumController->listAllAlbums();                exit;
+        case 'list_albums_by_user':     $albumController->listAlbumsByUserId();           exit;
 
         /*************** CATEGORY CRUD ***************/
-        case 'list_categories':
-            $categoryController->listCategories();
-            exit;
-        case 'create_category':
-            $categoryController->create();
-            exit;
-        case 'update_category':
-            $categoryController->update();
-            exit;
-        case 'delete_category':
-            $categoryController->delete();
-            exit;
+        case 'list_categories':         $categoryController->listCategories();            exit;
+        case 'create_category':         $categoryController->create();                    exit;
+        case 'update_category':         $categoryController->update();                    exit;
+        case 'delete_category':         $categoryController->delete();                    exit;
         case 'category_post_counts':
-            // ✅ Lấy category_id (nếu có) từ query string
-            $category_id = $_GET['category_id'] ?? null;
-
-            // ✅ Gọi controller, truyền id
-            $categoryController->listCategoryWithPostCounts($category_id);
+            $categoryController->listCategoryWithPostCounts($_GET['category_id'] ?? null);
             exit;
 
         /*************** HASHTAG CRUD ***************/
-        case 'list_hashtags':
-            $hashtagController->listHashtags();
-            exit;
-        case 'create_hashtag':
-            $hashtagController->create();
-            exit;
-        case 'update_hashtag':
-            $hashtagController->update();
-            exit;
-        case 'delete_hashtag':
-            $hashtagController->delete();
-            exit;
-        case 'hashtag_detail':
-            $hashtagController->detail();
-            exit;
-        case 'my_hashtags':
-            $hashtagController->getUserHashtags();
-            exit;
+        case 'create_hashtag':          $hashtagController->create();                     exit;
+        case 'update_hashtag':          $hashtagController->update();                     exit;
+        case 'delete_hashtag':          $hashtagController->delete();                     exit;
+        case 'list_hashtags':           $hashtagController->listHashtags();               exit;
+        case 'hashtag_detail':          $hashtagController->detail();                     exit;
+        case 'my_hashtags':             $hashtagController->getUserHashtags();            exit;
 
         /*************** Search ***************/
-
-        case 'search':
-            $searchController->search();
-            exit;
-
+        case 'search':                  $searchController->search();                      exit;
 
         /*************** USER INFO (API JSON) ***************/
-        case 'list_user_infos':            // GET
-            if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
-                respond_json(['status' => 'error', 'message' => 'Method Not Allowed'], 405);
-            }
-            $userInfoController->listUserInfos(); // controller đã respond_json
-            exit;
-
-        case 'create_user_info_form':      // GET: trả danh sách user còn trống user_info (nếu FE cần)
-            if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
-                respond_json(['status' => 'error', 'message' => 'Method Not Allowed'], 405);
-            }
-            $userInfoController->showCreateForm();
-            exit;
-
-        case 'create_user_info':           // POST
-            if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-                respond_json(['status' => 'error', 'message' => 'Method Not Allowed'], 405);
-            }
-            $userInfoController->create();
-            exit;
-
-        case 'show_edit_form':
-            $userInfoController->showEditForm(); // ➜ trả JSON
-            exit;
-
-        case 'update_user_info':
-            $userInfoController->update();       // ➜ trả JSON
-            exit;
-
-        case 'delete_user_info':           // DELETE hoặc POST (tuỳ client)
-            $m = strtoupper($_SERVER['REQUEST_METHOD'] ?? 'GET');
-            if (!in_array($m, ['DELETE', 'POST'], true)) {
-                respond_json(['status' => 'error', 'message' => 'Method Not Allowed', 'allowed' => 'DELETE, POST'], 405);
-            }
-            $userInfoController->delete();
-            exit;
-
-        case 'show_user_info':
-            $userInfoController->showUserInfo(); // ➜ trả JSON
-            exit;
+        case 'list_user_infos':         $userInfoController->listUserInfos();             exit;
+        case 'create_user_info_form':   $userInfoController->showCreateForm();            exit;
+        case 'create_user_info':        $userInfoController->create();                    exit;
+        case 'show_edit_form':          $userInfoController->showEditForm();              exit;
+        case 'update_user_info':        $userInfoController->update();                    exit;
+        case 'delete_user_info':        $userInfoController->delete();                    exit;
+        case 'show_user_info':          $userInfoController->showUserInfo();              exit;
 
         /*************** POST HASHTAG CRUD ***************/
-        case 'list_post_hashtags':
-            $postHashtagController->listByPost($_GET['post_id'] ?? null);
-            exit;
-        case 'posts_by_hashtag':
-            $postHashtagController->getPostsByHashtagId($_GET['hashtag_id'] ?? null);
-            exit;
+        case 'list_post_hashtags':      $postHashtagController->listByPost($_GET['post_id'] ?? null); exit;
         case 'create_post_hashtag_form':
             $postId = filter_var($_GET['post_id'] ?? null, FILTER_SANITIZE_STRING);
-            if (empty($postId)) {
-                http_response_code(400);
-                die("Lỗi: Post ID không được cung cấp!");
-            }
+            if (empty($postId)) respond_json(["status"=>"error","message"=>"Post ID không được để trống"], 400);
             $postHashtagController->showCreateForm($postId);
             exit;
-        case 'create_post_hashtag':
-            if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-                http_response_code(405);
-                die("Lỗi: Phương thức HTTP không được hỗ trợ!");
-            }
-            $postHashtagController->create();
-            exit;
-        case 'edit_post_hashtag_form':
-            $postHashtagController->showEditForm($_GET['post_id'] ?? null, $_GET['old_hashtag_id'] ?? null);
-            exit;
-        case 'update_post_hashtag':
-            $postHashtagController->update();
-            exit;
-        case 'delete_post_hashtag':
-            $postHashtagController->delete();
-            exit;
+        case 'create_post_hashtag':     $postHashtagController->create();                 exit;
+        case 'edit_post_hashtag_form':  $postHashtagController->showEditForm($_GET['post_id'] ?? null, $_GET['old_hashtag_id'] ?? null); exit;
+        case 'update_post_hashtag':     $postHashtagController->update();                 exit;
+        case 'delete_post_hashtag':     $postHashtagController->delete();                 exit;
 
         /*************** ROLE CRUD ***************/
-        case 'list_roles':
-            $roleController->listRoles();
-            exit;
-        case 'create_role_form':
-            $roleController->showCreateForm();
-            exit;
-        case 'create_role':
-            $roleController->create();
-            exit;
-        case 'edit_role_form':
-            $roleController->showEditForm();
-            exit;
-        case 'update_role':
-            $roleController->update();
-            exit;
-        case 'delete_role':
-            $roleController->delete();
-            exit;
+        case 'list_roles':              $roleController->listRoles();                     exit;
+        case 'create_role_form':        $roleController->showCreateForm();                exit;
+        case 'create_role':             $roleController->create();                        exit;
+        case 'edit_role_form':          $roleController->showEditForm();                  exit;
+        case 'update_role':             $roleController->update();                        exit;
+        case 'delete_role':             $roleController->delete();                        exit;
 
         /*************** COMMENT ***************/
-        case 'list_comments_by_post':
-            $commentController->getCommentsByPostId($_GET['post_id'] ?? '');
-            exit;
-
-        case 'count_comments_by_post':
-            $commentController->countCommentsByPostId($_GET['post_id'] ?? '');
-            exit;
-
+        case 'list_comments_by_post':   $commentController->getCommentsByPostId($_GET['post_id'] ?? '');    exit;
+        case 'count_comments_by_post':  $commentController->countCommentsByPostId($_GET['post_id'] ?? '');  exit;
         case 'create_comment':
-            // POST only
             $body = wants_json() ? read_json_body() : $_POST;
             $commentController->createComment($body['post_id'] ?? '', $body['content'] ?? '', $body['parent_id'] ?? null);
             exit;
-
         case 'update_comment':
-            // POST only
             $body = wants_json() ? read_json_body() : $_POST;
             $commentController->updateComment($body['comment_id'] ?? '', $body['content'] ?? '');
             exit;
-
         case 'delete_comment':
-            // GET ?id=... hoặc POST id
             $id = $_GET['id'] ?? $_POST['id'] ?? '';
             $commentController->deleteComment($id, $_SESSION['user_id'] ?? null);
             exit;
 
-
         /*************** REACTION ***************/
-        case 'toggle_reaction_api': {
-                $postId = $_POST['post_id'] ?? $_GET['post_id'] ?? null;
-                $type   = $_POST['reaction_type'] ?? $_GET['reaction_type'] ?? null;
-                $reactionController->toggleReactionApi($postId, $type);
-                exit; // bắt buộc để không render HTML
-            }
+        case 'toggle_reaction_api':
+            $postId = $_POST['post_id'] ?? $_GET['post_id'] ?? null;
+            $type   = $_POST['reaction_type'] ?? $_GET['reaction_type'] ?? null;
+            $reactionController->toggleReactionApi($postId, $type);
+            exit;
 
-        case 'get_reaction_state_api': {
-                $postId = $_GET['post_id'] ?? null;
-                $reactionController->getReactionStateApi($postId);
-                exit; // bắt buộc
-            }
-
+        case 'get_reaction_state_api':
+            $postId = $_GET['post_id'] ?? null;
+            $reactionController->getReactionStateApi($postId);
+            exit;
 
         case 'toggle_reaction':
             $postId = $_GET['post_id'] ?? null;
             $reactionType = $_GET['reaction_type'] ?? null;
             if (!$postId || !$reactionType) {
-                header("Location: index.php");
-                exit;
+                // tránh redirect vòng lặp khi gọi từ FE
+                respond_json(["ok" => false, "error" => "post_id và reaction_type là bắt buộc"], 400);
             }
             $reactionController->toggleReaction($postId, $reactionType);
             exit;
-        /*************** REACTION ***************/
+
         case 'count_reactions':
             $postId = $_GET['post_id'] ?? null;
-            if (!$postId) {
-                http_response_code(400);
-                echo json_encode(["ok" => false, "error" => "post_id là bắt buộc"]);
-                exit;
-            }
+            if (!$postId) respond_json(["ok" => false, "error" => "post_id là bắt buộc"], 400);
             $reactionController->countReactions($postId);
             exit;
 
-
-
         /*************** REPORT ***************/
-            // === REPORT API ===
         case 'toggle_report':
             $postId = $_POST['post_id'] ?? null;
             $reason = $_POST['reason'] ?? '';
-            if (!$postId) {
-                http_response_code(400);
-                echo json_encode(["ok" => false, "error" => "post_id là bắt buộc"]);
-                exit;
-            }
+            if (!$postId) respond_json(["ok" => false, "error" => "post_id là bắt buộc"], 400);
             $reportController->toggleReport($postId, $reason);
             exit;
 
         case 'list_reports':
             $postId = $_GET['post_id'] ?? null;
-            if (!$postId) {
-                http_response_code(400);
-                echo json_encode(["ok" => false, "error" => "post_id là bắt buộc"]);
-                exit;
-            }
+            if (!$postId) respond_json(["ok" => false, "error" => "post_id là bắt buộc"], 400);
             $reportController->listReports($postId);
             exit;
 
         case 'list_all_reports':
             $reportController->listAllReports();
             exit;
-            // 🧮 Đếm số người report 1 bài viết
+
         case 'count_reports':
             $postId = $_GET['post_id'] ?? null;
-            if (!$postId) {
-                http_response_code(400);
-                echo json_encode(["ok" => false, "error" => "post_id là bắt buộc"]);
-                exit;
-            }
+            if (!$postId) respond_json(["ok" => false, "error" => "post_id là bắt buộc"], 400);
             $reportController->countReportsByPost($postId);
             exit;
+
         case 'reporters_detail':
             $postId = $_GET['post_id'] ?? null;
-            if (!$postId) {
-                http_response_code(400);
-                echo json_encode(["ok" => false, "error" => "post_id là bắt buộc"]);
-                exit;
-            }
+            if (!$postId) respond_json(["ok" => false, "error" => "post_id là bắt buộc"], 400);
             $reportController->getReportersDetail($postId);
             exit;
 
-
         /*************** USER FOLLOW ***************/
         case 'toggle_follow':
-            $ctrl = new UserFollowController();
-            $ctrl->toggleFollow();
+            (new UserFollowController())->toggleFollow();
             exit;
+
         case 'api_top_followed':
-            // $limit = $_GET['limit'] ?? 10;
-            // $ufModel = new UserFollow();
-            // $users = $ufModel->getTopFollowedUsers((int)$limit);
             $ufModel = new UserFollow();
             $users = $ufModel->getTopFollowedUsers(10);
-            respond_json([
-                'status' => 'ok',
-                'data'   => $users
-            ], 200);
+            respond_json(['status' => 'ok', 'data' => $users], 200);
             exit;
+
         case 'api_user_following':
-            $ctrl = new UserFollowController();
-            $ctrl->userFollowing();
+            (new UserFollowController())->userFollowing();
             exit;
 
         case 'api_user_followers':
-            $ctrl = new UserFollowController();
-            $ctrl->userFollowers();
+            (new UserFollowController())->userFollowers();
             exit;
+
         case 'count_followers':
             (new UserFollowController())->countFollowers();
-            break;
+            exit;
 
         case 'count_following':
             (new UserFollowController())->countFollowing();
-            break;
+            exit;
 
-        /*************** BOOKMARK CRUD ***************/
-        case 'create_bookmark':
-            $bookmarkController->create();
-            exit;
-        case 'delete_bookmark':
-            $bookmarkController->remove();
-            exit;
-        case 'list_bookmarks':
-            $bookmarkController->listByUser();
-            exit;
+        /*************** BOOKMARK ***************/
+        case 'create_bookmark':         $bookmarkController->create();                    exit;
+        case 'delete_bookmark':         $bookmarkController->remove();                    exit;
+        case 'list_bookmarks':          $bookmarkController->listByUser();                exit;
 
         /*************** POST DOWNLOAD ***************/
-        case 'download':
-            $postController->download();
-            exit;
+        case 'download':                $postController->download();                      exit;
+
         /*************** CHECK ADMIN ***************/
-        case 'api_admin':
-            $auth->isAdmin();
-            exit;
+        case 'api_admin':               $auth->isAdmin();                                 exit;
+
         /*************** PDF PROXY ***************/
-        case 'pdf_proxy':
-            $pdfProxyController->handle();
-            exit;
+        case 'pdf_proxy':               $pdfProxyController->handle();                    exit;
+
         default:
-            header("Location: index.php");
-            exit;
+            // Cho API: trả JSON 404; cho view: rơi xuống khối view bên dưới
+            if (wants_json()) {
+                respond_json(['status' => 'error', 'message' => 'Unknown action'], 404);
+            }
+            break; // để tiếp tục render view
     }
 }
 
 /*************************************************
- * 7) TRANG CHỦ (VIEW)
+ * 7) TRANG CHỦ (VIEW) – chỉ chạy khi KHÔNG phải JSON API
  *************************************************/
-include __DIR__ . '/../views/layouts/header.php';
-include __DIR__ . '/../views/home.php';
-include __DIR__ . '/../views/layouts/footer.php';
+if (!wants_json()) {
+    include __DIR__ . '/../views/layouts/header.php';
+    include __DIR__ . '/../views/home.php';
+    include __DIR__ . '/../views/layouts/footer.php';
+}
