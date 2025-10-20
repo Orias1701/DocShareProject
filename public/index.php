@@ -16,7 +16,8 @@ ini_set('error_log', $logFile);
  *    - Thêm các domain FE thật của bạn vào đây
  *************************************************/
 const ALLOWED_ORIGINS = [
-    'http://localhost:3000',     // Dev FE
+    'http://localhost:3000',   
+    'http://localhost:5173',  // Dev FE
     'https://baotest.wuaze.com', // FE/BE cùng domain (ví dụ bạn đã có)
     // 'https://fe.yourdomain.com',
     // 'https://app.yourdomain.com',

@@ -10,10 +10,10 @@ class CategoryController
     {
         $this->categoryModel = new Category();
         // THAY ĐỔI: Set header mặc định cho tất cả các response là JSON
-        header('Content-Type: application/json');
-        header('Access-Control-Allow-Origin: http://localhost:5173'); // Cho phép cross-origin request (quan trọng khi FE và BE khác domain)
-        header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
-        header('Access-Control-Allow-Headers: Content-Type, Authorization');
+        // header('Content-Type: application/json');
+        // header('Access-Control-Allow-Origin: http://localhost:5173'); // Cho phép cross-origin request (quan trọng khi FE và BE khác domain)
+        // header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
+        // header('Access-Control-Allow-Headers: Content-Type, Authorization');
     }
 
     /**
