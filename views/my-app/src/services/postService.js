@@ -1,5 +1,5 @@
-// [Tác dụng file] Cung cấp các hàm thao tác với bài viết (posts), hashtag liên quan, master data và đếm số bài
-import fetchJson from "./fetchJson";
+// src/services/postService.js
+import fetchJson, { buildActionUrl } from "./fetchJson"; 
 
 // [Tác dụng] Khai báo các action do backend cung cấp cho post
 const ACTIONS = {
@@ -83,44 +83,36 @@ function pickCount(res) {
 
 // [Tác dụng] Gom các API thao tác với post
 export const postService = {
-  // [Tác dụng] Lấy bài mới nhất
-  getLatest: function () {
+  getLatest() {
     return fetchJson(ACTIONS.getLatest);
   },
 
-  // [Tác dụng] Lấy bài phổ biến
-  getPopular: function () {
+  getPopular() {
     return fetchJson(ACTIONS.getPopular);
   },
 
-  // [Tác dụng] Lấy chi tiết gọn cho một bài theo id
-  getByIdCompact: function (post_id) {
+  getByIdCompact(post_id) {
     return fetchJson(ACTIONS.postDetail + "&post_id=" + encodeURIComponent(post_id));
   },
 
-  // [Tác dụng] Lấy bài theo category_id
-  getByCategory: function (category_id) {
+  getByCategory(category_id) {
     return fetchJson(ACTIONS.postsByCategory + "&category_id=" + encodeURIComponent(category_id));
   },
 
-  // [Tác dụng] Lấy chi tiết đầy đủ theo post_id
-  showDetail: function (post_id) {
+  showDetail(post_id) {
     return fetchJson(ACTIONS.postDetail + "&post_id=" + encodeURIComponent(post_id));
   },
 
-  // [Tác dụng] Lấy tất cả bài
-  listAll: function () {
+  listAll() {
     return fetchJson(ACTIONS.listAll);
   },
 
-  // [Tác dụng] Lấy feed từ những người mình theo dõi (trả về mảng)
-  listPostsByFollowing: async function () {
+  async listPostsByFollowing() {
     let res = await fetchJson(ACTIONS.getPostsFromFollowedUsers);
     return res && typeof res === "object" && Array.isArray(res.data) ? res.data : [];
   },
 
-  // [Tác dụng] Tạo bài viết mới (hỗ trợ banner, content_file)
-  create: function (params) {
+  create(params) {
     let fd = new FormData();
     if (params) {
       if ("title" in params) fd.append("title", params.title);
@@ -136,8 +128,7 @@ export const postService = {
     return fetchJson(ACTIONS.create, { method: "POST", body: fd });
   },
 
-  // [Tác dụng] Cập nhật bài viết (cả meta + nội dung + file)
-  update: function (params) {
+  update(params) {
     let fd = new FormData();
     function has(k) { return params && Object.prototype.hasOwnProperty.call(params, k); }
     function app(k) { if (has(k)) fd.append(k, params[k]); }
@@ -170,24 +161,20 @@ export const postService = {
     return fetchJson(ACTIONS.update, { method: "POST", body: fd });
   },
 
-  // [Tác dụng] Xoá bài (GET theo id)
-  remove: function (id) {
+  remove(id) {
     return fetchJson(ACTIONS.delete + "&post_id=" + encodeURIComponent(id));
   },
 
-  // [Tác dụng] Xoá bài (POST theo id)
-  removeViaPost: function (id) {
+  removeViaPost(id) {
     let body = toFormData({ post_id: id });
     return fetchJson(ACTIONS.delete, { method: "POST", body: body });
   },
 
-  // [Tác dụng] Lấy hashtag của một bài
-  listHashtagsByPost: function (post_id) {
+  listHashtagsByPost(post_id) {
     return fetchJson(ACTIONS.listPostHashtags + "&post_id=" + encodeURIComponent(post_id));
   },
 
-  // [Tác dụng] Lấy danh sách bài theo hashtag (truyền hashtag_id hoặc hashtag_name)
-  getPostsByHashtag: async function (params) {
+  async getPostsByHashtag(params) {
     let hashtag_id = params && params.hashtag_id;
     let hashtag_name = params && params.hashtag_name;
     let q;
@@ -208,14 +195,12 @@ export const postService = {
     return out;
   },
 
-  // [Tác dụng] Thêm hashtag vào bài
-  addHashtagToPost: function (params) {
+  addHashtagToPost(params) {
     let body = toFormData({ post_id: params && params.post_id, hashtag_id: params && params.hashtag_id });
     return fetchJson(ACTIONS.createPostHashtag, { method: "POST", body: body });
   },
 
-  // [Tác dụng] Đổi hashtag của bài (old → new)
-  updatePostHashtag: function (params) {
+  updatePostHashtag(params) {
     let body = toFormData({
       post_id: params && params.post_id,
       old_hashtag_id: params && params.old_hashtag_id,
@@ -224,14 +209,12 @@ export const postService = {
     return fetchJson(ACTIONS.updatePostHashtag, { method: "POST", body: body });
   },
 
-  // [Tác dụng] Xoá hashtag khỏi bài
-  deletePostHashtag: function (params) {
+  deletePostHashtag(params) {
     let body = toFormData({ post_id: params && params.post_id, hashtag_id: params && params.hashtag_id });
     return fetchJson(ACTIONS.deletePostHashtag, { method: "POST", body: body });
   },
 
-  // [Tác dụng] Lấy danh mục (chuẩn hoá {id, name})
-  listCategories: async function () {
+  async listCategories() {
     let res = await fetchJson(ACTIONS.listCategories);
     let arr = res && typeof res === "object" && Array.isArray(res.data) ? res.data : [];
     let out = [];
@@ -242,8 +225,7 @@ export const postService = {
     return out;
   },
 
-  // [Tác dụng] Lấy album (chuẩn hoá {id, name})
-  listAlbums: async function () {
+  async listAlbums() {
     let res = await fetchJson(ACTIONS.listAlbums);
     let arr = res && typeof res === "object" && Array.isArray(res.data) ? res.data : [];
     let out = [];
@@ -254,8 +236,7 @@ export const postService = {
     return out;
   },
 
-  // [Tác dụng] Lấy hashtag (chuẩn hoá {id, name})
-  listHashtags: async function () {
+  async listHashtags() {
     let res = await fetchJson(ACTIONS.listHashtags);
     let arr = res && typeof res === "object" && Array.isArray(res.data) ? res.data : [];
     let out = [];
@@ -266,63 +247,55 @@ export const postService = {
     return out;
   },
 
-  // [Tác dụng] Lấy bài của tôi (theo session)
-  listMyPosts: async function () {
+  async listMyPosts() {
     let res = await fetchJson(ACTIONS.listPostByUser);
     return res && typeof res === "object" && Array.isArray(res.data) ? res.data : [];
   },
 
-  // [Tác dụng] Lấy bài theo user_id chỉ định
-  listUserPosts: async function (user_id) {
+  async listUserPosts(user_id) {
     let res = await fetchJson(ACTIONS.listUserPosts + "&user_id=" + encodeURIComponent(user_id));
     return res && typeof res === "object" && Array.isArray(res.data) ? res.data : [];
   },
 
-  // [Tác dụng] Lấy bài theo album_id
-  getByAlbum: function (album_id) {
+  getByAlbum(album_id) {
     return fetchJson(ACTIONS.postsByAlbum + "&album_id=" + encodeURIComponent(album_id));
   },
 
-  // [Tác dụng] Đếm tổng số bài
-  countAllPosts: async function () {
+  async countAllPosts() {
     let res = await fetchJson(ACTIONS.countAllPosts);
     return pickCount(res);
   },
 
-  // [Tác dụng] Đếm số bài theo user (nếu không truyền user_id → BE dùng session)
-  countPostsByUser: async function (user_id) {
+  async countPostsByUser(user_id) {
     let url = user_id ? (ACTIONS.countPostsByUser + "&user_id=" + encodeURIComponent(user_id)) : ACTIONS.countPostsByUser;
     let res = await fetchJson(url);
     return pickCount(res);
   },
 
-  // [Tác dụng] Đếm số bài trong một album
-  countPostsByAlbum: async function (album_id) {
+  async countPostsByAlbum(album_id) {
     if (!album_id) throw new Error("album_id is required");
     let res = await fetchJson(ACTIONS.countPostsByAlbum + "&album_id=" + encodeURIComponent(album_id));
     return pickCount(res);
   },
 
-  // [Tác dụng] Tải file đính kèm của bài (trình duyệt sẽ tải xuống)
-  download: async function (postId) {
+  async download(postId) {
     if (!postId) throw new Error("postId is required");
-    let API_BASE = "http://localhost:3000/public/index.php";
-    let url = API_BASE + "?action=download&post_id=" + encodeURIComponent(postId);
+    const url = buildActionUrl("download", { post_id: postId });
 
-    let res = await fetch(url, { credentials: "include" });
+    const res = await fetch(url, { credentials: "include" });
     if (!res.ok) {
-      let msg = await res.text();
+      const msg = await res.text();
       throw new Error("Download failed: " + res.status + " " + msg);
     }
 
     let filename = "downloaded_file";
-    let disposition = res.headers.get("Content-Disposition");
+    const disposition = res.headers.get("Content-Disposition");
     if (disposition && disposition.indexOf("filename=") !== -1) {
       filename = decodeURIComponent(disposition.split("filename=")[1].replace(/["']/g, ""));
     }
 
-    let blob = await res.blob();
-    let link = document.createElement("a");
+    const blob = await res.blob();
+    const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
     link.download = filename;
     document.body.appendChild(link);

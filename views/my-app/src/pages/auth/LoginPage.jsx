@@ -2,8 +2,7 @@ import React, { useState } from "react";
 import { useNavigate, useLocation, Link } from "react-router-dom";
 import useAuth from "../../hook/useAuth";
 import bannerAuth from "../../assets/image/banner_auth.png";
-
-const API_LOGIN_URL = "http://localhost:3000/public/index.php?action=api_login";
+import { fetchJson } from "../../services/fetchJson"; // <-- dùng helper
 
 export default function LoginPage() {
   const [formData, setFormData] = useState({ identifier: "", password: "" });
@@ -23,17 +22,13 @@ export default function LoginPage() {
     e.preventDefault();
     setLoading(true); setError(null); setSuccess(null);
     try {
-      const res = await fetch(API_LOGIN_URL, {
+      const data = await fetchJson("api_login", {
         method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        body: formData,        // sẽ tự stringify JSON trong helper
+        timeoutMs: 15000,
       });
-      const text = await res.text();
-      let data = {};
-      try { data = text ? JSON.parse(text) : {}; } catch {}
 
-      if (res.ok && (data.status === "ok" || data.user)) {
+      if (data?.status === "ok" || data?.user) {
         setSuccess("Đăng nhập thành công!");
         if (data.user) setUser(data.user);
         if (data.token) localStorage.setItem("token", data.token);
@@ -42,8 +37,8 @@ export default function LoginPage() {
       } else {
         setError(data?.message || "Đăng nhập thất bại!");
       }
-    } catch {
-      setError("Không thể kết nối đến server.");
+    } catch (err) {
+      setError(err.message || "Không thể kết nối đến server.");
     } finally {
       setLoading(false);
     }
@@ -56,8 +51,8 @@ export default function LoginPage() {
         className="
           w-full md:w-1/2
           min-h-screen md:h-screen
-          bg-no-repeat bg-top bg-cover  /* ⬅ ảnh bám TOP */
-          md:sticky md:top-0            /* ⬅ cột trái dính trên đầu khi cuộn (tùy chọn) */
+          bg-no-repeat bg-top bg-cover
+          md:sticky md:top-0
         "
         style={{ backgroundImage: `url(${bannerAuth})` }}
       >

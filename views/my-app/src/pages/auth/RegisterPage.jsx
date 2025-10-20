@@ -1,9 +1,7 @@
-// src/pages/auth/RegisterPage.jsx
 import React, { useRef, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import bannerAuth from "../../assets/image/banner_auth.png";
-
-const API_REGISTER_URL = "http://localhost:3000/public/index.php?action=api_register";
+import { fetchJson } from "../../services/fetchJson"; ; // <-- dùng helper
 
 export default function RegisterPage() {
   const [form, setForm] = useState({
@@ -29,14 +27,14 @@ export default function RegisterPage() {
   const validate = () => {
     const e = {};
     if (!form.fullName.trim()) e.fullName = "Vui lòng nhập họ và tên.";
-    if (!form.username.match(/^[a-zA-Z0-9_]{3,20}$/))
+    if (!/^[a-zA-Z0-9_]{3,20}$/.test(form.username))
       e.username = "Tên người dùng 3–20 ký tự, chỉ gồm chữ, số và dấu gạch dưới.";
-    if (!form.email.match(/^[^@]+@[^@]+\.[^@]+$/)) e.email = "Email không hợp lệ.";
+    if (!/^[^@]+@[^@]+\.[^@]+$/.test(form.email)) e.email = "Email không hợp lệ.";
     if (form.password.length < 8)
       e.password = "Mật khẩu phải có ít nhất 8 ký tự.";
-    if (!/[0-9]/.test(form.password))
+    else if (!/[0-9]/.test(form.password))
       e.password = "Mật khẩu phải chứa ít nhất 1 số.";
-    if (!/[a-z]/.test(form.password))
+    else if (!/[a-z]/.test(form.password))
       e.password = "Mật khẩu phải chứa ít nhất 1 chữ thường.";
     if (!form.birthday) e.birthday = "Vui lòng chọn ngày sinh.";
     return e;
@@ -62,22 +60,16 @@ export default function RegisterPage() {
         password: form.password,
         birth_date: form.birthday,
         bio: form.biography || null,
+        // avatar: form.avatar  // Nếu backend nhận multipart, chuyển sang FormData (ghi chú phía dưới)
       };
 
-      const res = await fetch(API_REGISTER_URL, {
+      const data = await fetchJson("api_register", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: payload, // helper sẽ stringify JSON
+        timeoutMs: 20000,
       });
-      const text = await res.text();
-      let data = {};
-      try {
-        data = text ? JSON.parse(text) : {};
-      } catch {
-        throw new Error("Máy chủ trả dữ liệu không hợp lệ.");
-      }
 
-      if (res.ok && data.status === "ok") {
+      if (data?.status === "ok") {
         setServerMsg({ type: "success", text: data.message || "Đăng ký thành công!" });
         setTimeout(() => navigate("/login"), 700);
       } else {
@@ -87,7 +79,7 @@ export default function RegisterPage() {
         });
       }
     } catch (err) {
-      setServerMsg({ type: "error", text: err.message });
+      setServerMsg({ type: "error", text: err.message || "Lỗi không xác định." });
     } finally {
       setLoading(false);
     }
@@ -100,8 +92,8 @@ export default function RegisterPage() {
         className="
           w-full md:w-1/2
           min-h-screen md:h-screen
-          bg-no-repeat bg-top bg-cover  /* ⬅ ảnh bám TOP */
-          md:sticky md:top-0            /* ⬅ cột trái dính trên đầu khi cuộn (tùy chọn) */
+          bg-no-repeat bg-top bg-cover
+          md:sticky md:top-0
         "
         style={{ backgroundImage: `url(${bannerAuth})` }}
       >
@@ -112,10 +104,7 @@ export default function RegisterPage() {
           <p className="mt-5 text-gray-200 text-lg max-w-md">
             Explore our core features for individuals and organizations.
           </p>
-          <a
-            href="#"
-            className="mt-6 text-indigo-300 hover:text-indigo-200 text-lg font-medium"
-          >
+          <a href="#" className="mt-6 text-indigo-300 hover:text-indigo-200 text-lg font-medium">
             Get start now &gt;&gt;
           </a>
         </div>
@@ -123,10 +112,7 @@ export default function RegisterPage() {
 
       {/* RIGHT - Form */}
       <div className="w-full md:w-1/2 flex items-center justify-center bg-white">
-        <div
-          ref={formRef}
-          className="w-full max-w-lg px-10 py-12 sm:px-12 sm:py-14 text-gray-800"
-        >
+        <div ref={formRef} className="w-full max-w-lg px-10 py-12 sm:px-12 sm:py-14 text-gray-800">
           <h2 className="text-3xl font-bold text-center mb-6">Sign up</h2>
 
           {serverMsg && (
@@ -153,9 +139,7 @@ export default function RegisterPage() {
                   errors.fullName ? "border-red-500" : "border-gray-300"
                 } focus:outline-none focus:ring-2 focus:ring-indigo-200`}
               />
-              {errors.fullName && (
-                <p className="text-red-600 mt-1 text-sm">{errors.fullName}</p>
-              )}
+              {errors.fullName && <p className="text-red-600 mt-1 text-sm">{errors.fullName}</p>}
             </div>
 
             {/* Username */}
@@ -169,9 +153,7 @@ export default function RegisterPage() {
                   errors.username ? "border-red-500" : "border-gray-300"
                 } focus:outline-none focus:ring-2 focus:ring-indigo-200`}
               />
-              {errors.username && (
-                <p className="text-red-600 mt-1 text-sm">{errors.username}</p>
-              )}
+              {errors.username && <p className="text-red-600 mt-1 text-sm">{errors.username}</p>}
             </div>
 
             {/* Email */}
@@ -185,9 +167,7 @@ export default function RegisterPage() {
                   errors.email ? "border-red-500" : "border-gray-300"
                 } focus:outline-none focus:ring-2 focus:ring-indigo-200`}
               />
-              {errors.email && (
-                <p className="text-red-600 mt-1 text-sm">{errors.email}</p>
-              )}
+              {errors.email && <p className="text-red-600 mt-1 text-sm">{errors.email}</p>}
             </div>
 
             {/* Password */}
@@ -223,9 +203,7 @@ export default function RegisterPage() {
                   errors.birthday ? "border-red-500" : "border-gray-300"
                 } focus:outline-none focus:ring-2 focus:ring-indigo-200`}
               />
-              {errors.birthday && (
-                <p className="text-red-600 mt-1 text-sm">{errors.birthday}</p>
-              )}
+              {errors.birthday && <p className="text-red-600 mt-1 text-sm">{errors.birthday}</p>}
             </div>
 
             {/* Biography */}
@@ -240,7 +218,7 @@ export default function RegisterPage() {
               />
             </div>
 
-            {/* Avatar */}
+            {/* Avatar (nếu backend nhận multipart, xem ghi chú dưới) */}
             <div>
               <label className="font-semibold">Choose your avatar</label>
               <input
@@ -263,10 +241,7 @@ export default function RegisterPage() {
 
           <p className="text-center text-base text-gray-700 mt-8">
             Already have an account?{" "}
-            <Link
-              to="/login"
-              className="text-indigo-600 hover:text-indigo-500 font-semibold"
-            >
+            <Link to="/login" className="text-indigo-600 hover:text-indigo-500 font-semibold">
               Sign in +
             </Link>
           </p>

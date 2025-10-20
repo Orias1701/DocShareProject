@@ -1,3 +1,4 @@
+// src/components/layout/Header.jsx
 import React, { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { NavLink, useNavigate } from "react-router-dom";
@@ -6,6 +7,7 @@ import useAuth from "../../hook/useAuth";
 import images from "../../assets/image";
 import SearchBarPanel from "../common/SearchBarPanel.jsx";
 import { user_followServices } from "../../services/user_followServices";
+import { fetchJson } from "../../services/fetchJson"; 
 
 /* Click outside */
 const useClickOutside = (handler) => {
@@ -28,7 +30,6 @@ export default function Header() {
   const [followersCount, setFollowersCount] = useState(0);
   const [followingCount, setFollowingCount] = useState(0);
 
-  // ✅ TẠO DUY NHẤT 1 HOOK Ở TOP-LEVEL
   const userMenuRef = useClickOutside(() => setDropdownOpen(false));
 
   useEffect(() => {
@@ -145,7 +146,6 @@ export default function Header() {
 
         {/* Cột 3: Actions */}
         <div className="flex items-center justify-end gap-3 md:gap-5">
-          
           <div className="hidden sm:flex items-center gap-1">
             <i className="fa-solid fa-blog text-[#ff6a25]" />
             <span className="text-sm">{followersCount}</span>
@@ -160,7 +160,7 @@ export default function Header() {
               user={user}
               isDropdownOpen={isDropdownOpen}
               setDropdownOpen={setDropdownOpen}
-              userMenuRef={userMenuRef}   
+              userMenuRef={userMenuRef}
               followersCount={followersCount}
               followingCount={followingCount}
             />
@@ -241,7 +241,7 @@ function UserMenu({ user, isDropdownOpen, setDropdownOpen, userMenuRef, follower
               </NavLink>
               <button
                 onClick={() => {
-                  fetch("http://localhost:3000/public/index.php?action=logout", { method: "POST", credentials: "include" })
+                  fetch(buildActionUrl("logout"), { method: "POST", credentials: "include" })
                     .then(() => { setDropdownOpen(false); setTimeout(() => window.location.reload(), 600); })
                     .catch((err) => console.error(err));
                 }}
