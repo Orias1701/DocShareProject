@@ -376,13 +376,15 @@ class AuthController
         $resetModel->createToken($email, $token);
 
         // 🔹 Tạo đường dẫn khôi phục (link gửi về email)
-        $link = "http://localhost:3000/reset-password?token={$token}";
+        $link = "http://localhost:5173/reset-password";
 
-        // 🔹 Soạn email
         $subject = "Đặt lại mật khẩu của bạn";
         $message = "Xin chào {$user['username']},\n\n"
-            . "Bấm vào đường dẫn sau để đặt lại mật khẩu (hết hạn sau 30 phút):\n{$link}\n\n"
+            . "Mã xác thực đặt lại mật khẩu của bạn là:\n{$token}\n\n"
+            . "Bấm vào đường dẫn sau để đặt lại mật khẩu:\n{$link}\n\n"
+            . "⏳ Lưu ý: Mã xác thực này sẽ hết hạn sau 30 phút.\n"
             . "Nếu bạn không yêu cầu, vui lòng bỏ qua email này.";
+
 
         // 🔹 Gửi email thật bằng PHPMailer
         $sent = MailerService::sendMail($email, $subject, $message);
