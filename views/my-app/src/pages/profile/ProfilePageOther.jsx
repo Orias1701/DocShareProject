@@ -1,5 +1,5 @@
 // src/pages/profile/ProfilePageOther.jsx
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { useParams } from "react-router-dom";
 import ProfileHeader from "../../components/profile/ProfileHeader";
 import BioCard from "../../components/profile/BioCard";
@@ -7,6 +7,33 @@ import PostFeed from "../../components/profile/PostFeed";
 import { userInfoApi } from "../../services/user_infoServices";
 import postService from "../../services/postService";
 import { user_followServices } from "../../services/user_followServices";
+import useAuth from "../../hook/useAuth";
+
+/* ===== Notice theo đúng index.css (banner) ===== */
+function Notice({ type = "info", message = "", onClose }) {
+  if (!message) return null;
+
+  const typeClass =
+    type === "error"
+      ? "banner banner--error"
+      : type === "success"
+      ? "banner banner--success"
+      : "banner banner--info";
+
+  return (
+    <div className={`${typeClass} mb-4`}>
+      <div className="flex items-start justify-between gap-3">
+        <span className="font-medium">{message}</span>
+        <button
+          onClick={onClose}
+          className="text-sm opacity-80 hover:opacity-100 underline"
+        >
+          Đóng
+        </button>
+      </div>
+    </div>
+  );
+}
 
 // Map BE → FE
 function normalizePostForProfile(p) {
@@ -46,6 +73,7 @@ function normalizePostForProfile(p) {
 
 function ProfilePageOther() {
   const { userId } = useParams();
+  const auth = useAuth();
 
   const [userData, setUserData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -63,8 +91,22 @@ function ProfilePageOther() {
   const [followersCount, setFollowersCount] = useState(0);
   const [followingCount, setFollowingCount] = useState(0);
 
+  // notice
+  const [notice, setNotice] = useState({ type: "info", message: "" });
+  const showInfo = (msg) => setNotice({ type: "info", message: msg });
+  const showError = (msg) => setNotice({ type: "error", message: msg });
+  const showSuccess = (msg) => setNotice({ type: "success", message: msg });
+  const clearNotice = () => setNotice({ type: "info", message: "" });
+
+  const myUserId = useMemo(() => auth?.user?.user_id ?? null, [auth?.user?.user_id]);
+  const isSelfProfile = useMemo(
+    () => myUserId && String(myUserId) === String(userId),
+    [myUserId, userId]
+  );
+
   // Lấy thông tin user
   useEffect(() => {
+    clearNotice();
     if (!userId) return;
     (async () => {
       try {
@@ -73,7 +115,7 @@ function ProfilePageOther() {
         const u = infoRes?.user ?? infoRes?.data?.user ?? infoRes?.data ?? infoRes;
         setUserData(u);
       } catch (e) {
-        setError(e.message || "Không tải được thông tin người dùng");
+        setError(e.message || "Không tải được thông tin người dùng.");
       } finally {
         setLoading(false);
       }
@@ -90,23 +132,24 @@ function ProfilePageOther() {
         const mapped = (Array.isArray(raw) ? raw : []).map(normalizePostForProfile);
         setUserPosts(mapped);
       } catch (e) {
-        setPostsError(e.message || "Không tải được bài viết");
+        setPostsError(e.message || "Không tải được bài viết.");
       } finally {
         setPostsLoading(false);
       }
     })();
   }, [userId]);
 
-  // Check follow (mình đang follow user này không?)
+  // Check follow
   useEffect(() => {
     if (!userId) return;
     (async () => {
       try {
-        const res = await user_followServices.userFollowing(); // danh sách mình đang follow
+        const res = await user_followServices.userFollowing();
         const followingIds = res?.data?.map((f) => String(f?.user_id));
         setIsFollowing(followingIds?.includes(String(userId)));
       } catch (e) {
         console.error("Check follow failed:", e);
+        showInfo("Không xác định được trạng thái theo dõi hiện tại.");
       }
     })();
   }, [userId]);
@@ -126,37 +169,59 @@ function ProfilePageOther() {
     })();
   }, [userId, isFollowing]);
 
+  // Toggle follow
   const toggleFollow = async () => {
-    console.log("🔘 Toggle clicked for user:", userId);
+    clearNotice();
+
+    if (!auth?.isAuthenticated) {
+      showError("Không thực hiện: Bạn cần đăng nhập để theo dõi người dùng.");
+      return;
+    }
+    if (isSelfProfile) {
+      showError("Không thực hiện: Bạn không thể theo dõi chính mình.");
+      return;
+    }
+
     try {
       setFollowLoading(true);
       const res = await user_followServices.toggle(userId);
-      console.log("🔁 Toggle API result:", res);
 
-      if (res.status === "success") {
+      if (res?.status === "success") {
         setIsFollowing((prev) => !prev);
         window.dispatchEvent(new Event("follow-updated"));
-        // khi đổi trạng thái follow → useEffect [isFollowing] sẽ chạy và reload count
+        showSuccess(isFollowing ? "Đã bỏ theo dõi." : "Đã theo dõi người dùng.");
       } else {
-        console.error("Toggle follow error status:", res);
-        alert("Không thực hiện được theo dõi. Vui lòng thử lại.");
+        const msg =
+          res?.message ||
+          (isFollowing
+            ? "Không thực hiện được bỏ theo dõi. Vui lòng thử lại."
+            : "Không thực hiện được theo dõi. Vui lòng thử lại.");
+        showError(`Không thực hiện: ${msg}`);
       }
     } catch (e) {
-      console.error("Toggle follow failed:", e);
-      alert(e?.message || "Không gọi được API follow (kiểm tra Network/CORS/đăng nhập).");
+      const msg =
+        e?.message ||
+        (isFollowing
+          ? "Không gọi được API bỏ theo dõi (kiểm tra mạng/CORS/đăng nhập)."
+          : "Không gọi được API theo dõi (kiểm tra mạng/CORS/đăng nhập).");
+      showError(`Không thực hiện: ${msg}`);
     } finally {
       setFollowLoading(false);
     }
   };
 
-  if (loading) return <div className="text-white p-4">Đang tải hồ sơ...</div>;
+  if (loading) {
+    return (
+      <div className="p-4 text-[var(--color-text-muted)]">
+        Đang tải hồ sơ...
+      </div>
+    );
+  }
+
   if (error) {
     return (
-      <div className="text-white p-4 max-w-6xl mx-auto">
-        <div className="bg-red-900/40 border border-red-700 rounded-lg p-4">
-          <div className="font-semibold">Không tải được hồ sơ</div>
-          <div className="text-red-200 mt-1">{error}</div>
-        </div>
+      <div className="p-4 max-w-6xl mx-auto text-[var(--color-text)]">
+        <Notice type="error" message={`Không tải được hồ sơ: ${error}`} onClose={clearNotice} />
       </div>
     );
   }
@@ -167,7 +232,10 @@ function ProfilePageOther() {
   const birthday = userData?.birth_date || "N/A";
 
   return (
-    <div className="text-white p-4 max-w-6xl mx-auto">
+    <div className="p-4 max-w-6xl mx-auto text-[var(--color-text)]">
+      {/* Banner thông báo chung */}
+      <Notice type={notice.type} message={notice.message} onClose={clearNotice} />
+
       <ProfileHeader
         avatar={avatarUrl}
         realName={fullName}
@@ -179,29 +247,46 @@ function ProfilePageOther() {
           <button
             onClick={toggleFollow}
             disabled={followLoading}
-            className={`px-4 py-1 rounded font-semibold ${
-              isFollowing
-                ? "bg-gray-700 text-white hover:bg-gray-600"
-                : "bg-blue-500 text-white hover:bg-blue-600"
-            }`}
+            className={`btn ${
+              isFollowing ? "btn-outline" : "btn-primary"
+            } ${followLoading ? "opacity-60 cursor-not-allowed" : ""}`}
+            title={
+              !auth?.isAuthenticated
+                ? "Bạn cần đăng nhập để theo dõi."
+                : isSelfProfile
+                ? "Bạn không thể theo dõi chính mình."
+                : isFollowing
+                ? "Bỏ theo dõi"
+                : "Theo dõi"
+            }
           >
-            {isFollowing ? "Unfollow" : "Follow"}
+            {followLoading ? "Đang xử lý..." : isFollowing ? "Unfollow" : "Follow"}
           </button>
         }
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-6">
         <div className="lg:col-span-1">
-          <BioCard user={userData} />
+          {/* Dùng panel theo system */}
+          <div className="panel">
+            <BioCard user={userData} />
+          </div>
         </div>
 
         <div className="lg:col-span-2">
           {postsLoading ? (
-            <div className="text-gray-300">Đang tải bài viết…</div>
+            <div className="text-[var(--color-text-muted)]">Đang tải bài viết…</div>
           ) : postsError ? (
-            <div className="bg-yellow-900/30 border border-yellow-700 rounded p-3 text-sm">
-              {postsError}
-            </div>
+            <>
+              <Notice
+                type="error"
+                message={`Không tải được bài viết: ${postsError}`}
+                onClose={clearNotice}
+              />
+              <div className="panel panel-muted text-sm">
+                Vui lòng thử tải lại trang hoặc kiểm tra kết nối mạng.
+              </div>
+            </>
           ) : (
             <PostFeed posts={userPosts} />
           )}

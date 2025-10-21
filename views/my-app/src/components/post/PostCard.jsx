@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import PropTypes from "prop-types";
 import { Link } from "react-router-dom";
 import BookmarkButton from "./BookmarkButton";
@@ -49,7 +49,7 @@ function isImageUrl(url, type) {
 export default function PostCard({
   post = {},
   showAlbum = true,
-  maxTags = 3,
+  maxTags = 2, // 👈 MẶC ĐỊNH CHỈ HIỂN THỊ 2 HASHTAG
   placeholderImage = FALLBACK_URL,
   initiallyBookmarked,
   onBookmarkChange,
@@ -73,7 +73,14 @@ export default function PostCard({
   const albumName = post?.albumName ?? post?.album?.name ?? post?.album_name ?? "";
 
   const hashtags = normalizeHashtags(post?.hashtags);
-  const displayTags = hashtags.slice(0, maxTags);
+
+  // --- State & tính toán số hashtag hiển thị ---
+  const [showAllTags, setShowAllTags] = useState(false);
+
+  const displayTags = useMemo(() => {
+    return showAllTags ? hashtags : hashtags.slice(0, maxTags);
+  }, [hashtags, showAllTags, maxTags]);
+
   const extraTags = Math.max(0, hashtags.length - maxTags);
 
   const stats = {
@@ -166,6 +173,7 @@ export default function PostCard({
                 src={authorAvatar}
                 alt={authorName}
                 className="w-8 h-8 rounded-full object-cover flex-shrink-0"
+                onError={(e) => (e.currentTarget.src = FALLBACK_AVATAR)}
               />
               <span className="font-semibold text-sm truncate">{authorName}</span>
             </>
@@ -188,10 +196,10 @@ export default function PostCard({
         </h3>
 
         {/* Album & Hashtags */}
-        <div className="min-h-[28px] mb-2">
-          <div className="flex flex-wrap gap-2">
-            {/* Album Chip — nổi bật hơn hashtag */}
-            {showAlbum && albumName && (
+        <div className="min-h-[28px] mb-2 flex flex-col gap-1">
+          {/* Dòng album */}
+          {showAlbum && albumName && (
+            <div className="flex flex-wrap gap-2">
               <span
                 className="
                   inline-flex items-center gap-1
@@ -208,9 +216,11 @@ export default function PostCard({
                 <i className="fa-regular fa-folder-open text-[12px]"></i>
                 {albumName}
               </span>
-            )}
+            </div>
+          )}
 
-            {/* Hashtags */}
+          {/* Dòng hashtag */}
+          <div className="flex flex-wrap items-center gap-2">
             {displayTags.map((tag) => (
               <span
                 key={tag}
@@ -227,17 +237,23 @@ export default function PostCard({
               </span>
             ))}
 
+            {/* Nút "Xem thêm" / "Thu gọn" khi có hashtag dư */}
             {extraTags > 0 && (
-              <span
+              <button
+                type="button"
+                onClick={() => setShowAllTags((v) => !v)}
                 className="
                   text-xs font-semibold px-2 py-1 rounded
                   bg-[var(--color-muted-bg)]
-                  text-[var(--color-text-muted)]
+                  text-[var(--color-link)]
                   border border-[var(--color-border-soft)]
+                  hover:underline
+                  transition-colors
                 "
+                aria-label={showAllTags ? "Thu gọn hashtag" : `Xem thêm ${extraTags} hashtag`}
               >
-                +{extraTags}
-              </span>
+                {showAllTags ? "Thu gọn" : `+${extraTags} xem thêm`}
+              </button>
             )}
           </div>
         </div>
@@ -274,7 +290,7 @@ export default function PostCard({
 PostCard.propTypes = {
   post: PropTypes.object,
   showAlbum: PropTypes.bool,
-  maxTags: PropTypes.number,
+  maxTags: PropTypes.number, // vẫn có thể override nếu muốn
   placeholderImage: PropTypes.string,
   initiallyBookmarked: PropTypes.bool,
   onBookmarkChange: PropTypes.func,

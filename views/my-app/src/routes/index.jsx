@@ -31,13 +31,18 @@ import ProfilePageOther from "../pages/profile/ProfilePageOther";
 import AlbumDetailPage from "../pages/myalbum/AlbumDetailPage";
 import CategoryDetailPage from "../pages/categories/CategoryDetailPage";
 import SearchPage from "../pages/search/SearchPage";
-import UserManager from "../pages/user_manager/UserManager"; 
+import UserManager from "../pages/user_manager/UserManager";
 
 // Global css
 import "../assets/font-awesome-6.6.0-pro-full-main/css/all.css";
 
 /** Layout chính (public), không yêu cầu đăng nhập */
-function MainLayout({ isCollapsed, setIsCollapsed, isNewAlbumModalOpen, setNewAlbumModalOpen }) {
+function MainLayout({
+  isCollapsed,
+  setIsCollapsed,
+  isNewAlbumModalOpen,
+  setNewAlbumModalOpen,
+}) {
   useEffect(() => {
     document.body.classList.add("main-page");
     return () => document.body.classList.remove("main-page");
@@ -66,70 +71,21 @@ function MainLayout({ isCollapsed, setIsCollapsed, isNewAlbumModalOpen, setNewAl
             <Route path="hashtags/:slug" element={<HashtagsPage />} />
             <Route path="viewer/file" element={<FileViewerPage />} />
             <Route path="viewer/content/:postId" element={<ContentViewerPage />} />
-            <Route path="/profile/:userId" element={<ProfilePageOther />} />
-            <Route path="/albums/:albumId" element={<AlbumDetailPage />} />
-            <Route path="/categories/:categoryId" element={<CategoryDetailPage />} />
-            <Route path="/search" element={<SearchPage />} />
+            <Route path="profile/:userId" element={<ProfilePageOther />} />
+            <Route path="albums/:albumId" element={<AlbumDetailPage />} />
+            <Route path="categories/:categoryId" element={<CategoryDetailPage />} />
+            <Route path="search" element={<SearchPage />} />
 
-            {/* ===== PRIVATE ROUTES (bọc từng trang) ===== */}
-            <Route
-              path="following"
-              element={
-                <RequireAuth>
-                  <FollowingPage />
-                </RequireAuth>
-              }
-            />
-            <Route
-              path="my-posts"
-              element={
-                <RequireAuth>
-                  <MyPostsPage />
-                </RequireAuth>
-              }
-            />
-            <Route
-              path="bookmarks"
-              element={
-                <RequireAuth>
-                  <BookmarksPage />
-                </RequireAuth>
-              }
-            />
-            <Route
-              path="my-albums"
-              element={
-                <RequireAuth>
-                  <MyAlbumPage />
-                </RequireAuth>
-              }
-            />
-            <Route 
-              path="album/:albumId"
-              element={
-                <RequireAuth>
-                  <AlbumDetailPage />
-                </RequireAuth>
-              }
-            />
-            <Route
-              path="new-post"
-              element={
-                <RequireAuth>
-                  <NewPostPage />
-                </RequireAuth>
-              }
-            />
-            <Route
-              path="profile"
-              element={
-                <RequireAuth>
-                  <ProfilePage />
-                </RequireAuth>
-              }
-            />
-          </Routes>
-          <Routes>
+            {/* ✅ NHỮNG ROUTE TỪNG BỊ CHẶN → GIỜ THÀNH PUBLIC */}
+            <Route path="following" element={<FollowingPage />} />
+            <Route path="my-posts" element={<MyPostsPage />} />
+            <Route path="bookmarks" element={<BookmarksPage />} />
+            <Route path="my-albums" element={<MyAlbumPage />} />
+            <Route path="album/:albumId" element={<AlbumDetailPage />} />
+            <Route path="new-post" element={<NewPostPage />} />
+            <Route path="profile" element={<ProfilePage />} />
+
+            {/* 🔒 CHỈ TRANG NÀY YÊU CẦU ĐĂNG NHẬP */}
             <Route
               path="user-manager"
               element={
@@ -142,7 +98,10 @@ function MainLayout({ isCollapsed, setIsCollapsed, isNewAlbumModalOpen, setNewAl
         </main>
       </div>
       <Footer />
-      <Modal isOpen={isNewAlbumModalOpen} onClose={() => setNewAlbumModalOpen(false)}>
+      <Modal
+        isOpen={isNewAlbumModalOpen}
+        onClose={() => setNewAlbumModalOpen(false)}
+      >
         <NewAlbumForm onClose={() => setNewAlbumModalOpen(false)} />
       </Modal>
     </>
@@ -175,7 +134,7 @@ function App() {
             }
           />
 
-          {/* Main (public layout) – chỉ bọc riêng các route cần đăng nhập */}
+          {/* Main layout */}
           <Route
             path="/*"
             element={
@@ -194,4 +153,3 @@ function App() {
 }
 
 export default App;
-//

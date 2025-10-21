@@ -18,6 +18,10 @@ const NewPostPage = () => {
   const [submitting, setSubmitting] = useState(false);
   const [isSummarizing, setIsSummarizing] = useState(false);
 
+  // ⛔ trạng thái bị từ chối từ backend
+  const [isRejected, setIsRejected] = useState(false);
+  const [rejectedMsg, setRejectedMsg] = useState("");
+
   const [errors, setErrors] = useState({});
   const [toast, setToast] = useState({ open: false, message: "", type: "success" });
   const showToast = (message, type = "success") => setToast({ open: true, message, type });
@@ -105,9 +109,15 @@ const NewPostPage = () => {
     const loadAll = async () => {
       try {
         const [cats, albs, tags] = await Promise.all([
-          categoryServices.list().catch((e) => (setOptErrors((p) => ({ ...p, categories: e.message })), [])),
-          albumService.listMyAlbums().catch((e) => (setOptErrors((p) => ({ ...p, albums: e.message })), [])),
-          hashtagService.list().catch((e) => (setOptErrors((p) => ({ ...p, hashtags: e.message })), [])),
+          categoryServices
+            .list()
+            .catch((e) => (setOptErrors((p) => ({ ...p, categories: e.message })), [])),
+          albumService
+            .listMyAlbums()
+            .catch((e) => (setOptErrors((p) => ({ ...p, albums: e.message })), [])),
+          hashtagService
+            .list()
+            .catch((e) => (setOptErrors((p) => ({ ...p, hashtags: e.message })), [])),
         ]);
 
         const normCats = (Array.isArray(cats) ? cats : [])
@@ -140,6 +150,10 @@ const NewPostPage = () => {
     const e = {};
     if (!newPost.title.trim()) e.title = "Title là bắt buộc";
     if (!newPost.category) e.category = "Hãy chọn Category";
+
+    // ⛔ nếu backend đã reject thì chặn submit
+    if (isRejected) e.summary = rejectedMsg || "Bài viết không được duyệt – không thể submit";
+
     if (mode === "pdf") {
       if (!mainFile) e.mainFile = "Cần upload file chính (.pdf)";
       if (mainFile && mainFile.type !== "application/pdf") e.mainFile = "File chính phải là PDF";
@@ -173,10 +187,21 @@ const NewPostPage = () => {
       return;
     }
     setIsSummarizing(true);
+    setIsRejected(false);
+    setRejectedMsg("");
     setNewPost((p) => ({ ...p, summary: "⏳ Đang tóm tắt..." }));
     try {
       const ctrl = new AbortController();
       const data = await aiService.summarizePDF(file, ctrl.signal);
+
+      // ⛔ Nếu backend báo từ chối, không hiển thị summary
+      if (data?.checkstatus === 0 || data?.status === "rejected") {
+        setIsRejected(true);
+        setRejectedMsg(data?.message || "Bài viết không được duyệt.");
+        setNewPost((p) => ({ ...p, summary: "" }));
+        showToast(data?.message || "❌ Bài viết không được duyệt", "error");
+        return; // dừng ở đây, không map category/summary
+      }
 
       const aiCatName = getAiCategoryName(data);
       let next = { ...newPost, summary: data.summary || "" };
@@ -245,6 +270,8 @@ const NewPostPage = () => {
       setThumbnailFile(null);
       setEditorHtml("");
       setErrors({});
+      setIsRejected(false);
+      setRejectedMsg("");
     } catch (err) {
       console.error("Create post failed:", err);
       showToast(err?.message || "Tạo bài viết thất bại!", "error");
@@ -325,6 +352,13 @@ const NewPostPage = () => {
 
           {mode === "pdf" ? (
             <>
+              {/* cảnh báo nếu bị từ chối */}
+              {isRejected && (
+                <div className="rounded-md border border-red-500/40 bg-red-500/10 text-red-300 px-3 py-2 text-sm">
+                  {rejectedMsg || "Bài viết không được duyệt."}
+                </div>
+              )}
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <div>
                   <FileUpload
@@ -334,6 +368,9 @@ const NewPostPage = () => {
                     note="Only support .pdf file"
                     onFileSelect={(file) => {
                       setMainFile(file);
+                      // reset trạng thái reject khi chọn file mới
+                      setIsRejected(false);
+                      setRejectedMsg("");
                       if (file && file.type === "application/pdf") handleSummarize(file);
                     }}
                   />
@@ -361,6 +398,7 @@ const NewPostPage = () => {
                 rows={5}
                 value={newPost.summary}
                 onChange={(e) => handleChange("summary", e.target.value)}
+                error={errors.summary}
               />
               <FormField
                 label="Description"
@@ -448,7 +486,7 @@ const NewPostPage = () => {
       <div className="flex justify-end mt-8">
         <button
           onClick={handleSubmit}
-          disabled={submitting || isSummarizing || loadingOpts.categories || loadingOpts.albums}
+          disabled={submitting || isSummarizing || loadingOpts.categories || loadingOpts.albums || isRejected}
           className="bg-[var(--color-text)] hover:bg-white disabled:opacity-60 text-black font-bold py-2 px-8 rounded-lg transition-colors"
         >
           {submitting ? "Submitting..." : isSummarizing ? "Summarizing..." : "Submit"}

@@ -70,12 +70,17 @@
   /* Effects */
   --shadow-soft: 0 2px 8px rgba(0,0,0,.35);
   --transition-fast: .25s ease;
+
+  --font-sans: "Inter", "Montserrat", -apple-system, BlinkMacSystemFont, "Segoe UI",
+               Roboto, "Helvetica Neue", Arial, sans-serif;
 }
 
 /* Sidebar width states (desktop) */
 body { --sidebar-width: 15.625rem; }             /* 250px */
 body.sidebar--collapsed { --sidebar-width: 5rem; } /* ~80px */
-
+html, body {
+  font-family: var(--font-sans);
+}
 /* ================== Global App Shell ================== */
 html, body, #root {
   background: var(--color-bg);
