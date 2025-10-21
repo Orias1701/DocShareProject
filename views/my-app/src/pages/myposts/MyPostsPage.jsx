@@ -1,16 +1,34 @@
-// src/pages/my-posts/MyPostsPage.jsx
 import React, { useEffect, useState } from "react";
 import PostSection from "../../components/post/PostSection";
 import postService from "../../services/postService";
 import bookmarkService from "../../services/bookmarkService";
 
 export default function MyPostsPage() {
-  // -------- STATE CHÍNH --------
-  const [sections, setSections] = useState([]); // Danh sách nhóm bài viết (theo album)
+  const [sections, setSections] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // -------- CHUYỂN DỮ LIỆU VỀ DẠNG DỄ HIỂU --------
+  // master data để truyền cho modal edit (nếu modal mở từ đây)
+  const [albums, setAlbums] = useState([]);
+  const [categories, setCategories] = useState([]);
+
+  // load albums/categories một lần
+  useEffect(() => {
+    (async () => {
+      try {
+        const [albs, cats] = await Promise.all([
+          postService.listAlbums(),
+          postService.listCategories(),
+        ]);
+        setAlbums(albs || []);
+        setCategories(cats || []);
+      } catch {
+        setAlbums([]);
+        setCategories([]);
+      }
+    })();
+  }, []);
+
   function convertPost(post) {
     if (!post) return null;
 
@@ -50,31 +68,24 @@ export default function MyPostsPage() {
     };
   }
 
-  // -------- TẢI DANH SÁCH BÀI VIẾT --------
   useEffect(() => {
     async function fetchMyPosts() {
       setLoading(true);
       setError(null);
-
       try {
-        // Lấy dữ liệu từ 2 API
         const [postList, bookmarks] = await Promise.all([
           postService.listMyPosts(),
           bookmarkService.list(),
         ]);
 
-        // Tạo danh sách ID bài đã bookmark
         const bookmarkedIds = new Set(
           (bookmarks || []).map((b) => b.post_id ?? b.id).filter(Boolean)
         );
 
-        // Gom các bài viết theo album
         const grouped = new Map();
-
         (postList || []).forEach((p) => {
           const albumKey = p.album_id || "__no_album__";
           const albumName = p.album_name || "Chưa có album";
-
           if (!grouped.has(albumKey)) {
             grouped.set(albumKey, { title: albumName, posts: [] });
           }
@@ -82,7 +93,6 @@ export default function MyPostsPage() {
           const postCard = convertPost(p);
           if (!postCard) return;
 
-          // Đánh dấu nếu bài đã bookmark
           postCard.is_bookmarked =
             typeof p.is_bookmarked === "boolean"
               ? p.is_bookmarked
@@ -91,14 +101,12 @@ export default function MyPostsPage() {
           grouped.get(albumKey).posts.push(postCard);
         });
 
-        // Sắp xếp bài trong từng album (mới nhất ở trên)
         grouped.forEach((group) => {
           group.posts.sort(
             (a, b) => new Date(b.uploadTime) - new Date(a.uploadTime)
           );
         });
 
-        // Chuyển Map → Array + sắp xếp album theo bài mới nhất
         const sortedAlbums = Array.from(grouped.values()).sort(
           (a, b) =>
             new Date(b.posts[0]?.uploadTime || 0) -
@@ -117,21 +125,17 @@ export default function MyPostsPage() {
     fetchMyPosts();
   }, []);
 
-  // -------- CẬP NHẬT BOOKMARK --------
   function handleBookmarkChange(nextState, postId) {
     setSections((oldSections) =>
       oldSections.map((album) => ({
         ...album,
         posts: album.posts.map((p) =>
-          (p.post_id || p.id) === postId
-            ? { ...p, is_bookmarked: nextState }
-            : p
+          (p.post_id || p.id) === postId ? { ...p, is_bookmarked: nextState } : p
         ),
       }))
     );
   }
 
-  // -------- XOÁ BÀI VIẾT --------
   function handleDeleted(deletedId) {
     setSections((oldSections) =>
       oldSections
@@ -145,14 +149,12 @@ export default function MyPostsPage() {
     );
   }
 
-  // -------- SỬA BÀI VIẾT --------
   function handleEdited(updatedPost) {
     setSections((oldSections) => {
       const newAlbumId = updatedPost.album_id || "__no_album__";
       const newAlbumName = updatedPost.album_name || "Chưa có album";
       const postId = String(updatedPost.post_id);
 
-      // Tìm bài cũ trong danh sách
       let oldAlbumIndex = -1;
       let oldPostIndex = -1;
       let oldPost = null;
@@ -170,7 +172,6 @@ export default function MyPostsPage() {
 
       if (!oldPost) return oldSections;
 
-      // Gộp dữ liệu cũ + mới
       const mergedPost = {
         ...oldPost,
         ...updatedPost,
@@ -180,7 +181,6 @@ export default function MyPostsPage() {
         album_name: updatedPost.album_name ?? oldPost.album_name,
       };
 
-      // Tạo bản sao an toàn
       const nextAlbums = oldSections.map((a) => ({
         ...a,
         posts: [...a.posts],
@@ -188,18 +188,15 @@ export default function MyPostsPage() {
 
       const oldAlbumId = oldPost.album_id || "__no_album__";
 
-      // Nếu vẫn cùng album → chỉ cập nhật dữ liệu
       if (oldAlbumId === newAlbumId) {
         nextAlbums[oldAlbumIndex].posts[oldPostIndex] = mergedPost;
         return nextAlbums;
       }
 
-      // Nếu chuyển album khác → xóa khỏi album cũ
       nextAlbums[oldAlbumIndex].posts.splice(oldPostIndex, 1);
       if (nextAlbums[oldAlbumIndex].posts.length === 0)
         nextAlbums.splice(oldAlbumIndex, 1);
 
-      // Thêm vào album mới
       let targetAlbum = nextAlbums.find((a) => a.title === newAlbumName);
       if (!targetAlbum) {
         targetAlbum = { title: newAlbumName, posts: [] };
@@ -217,7 +214,6 @@ export default function MyPostsPage() {
     });
   }
 
-  // -------- GIAO DIỆN --------
   if (loading) {
     return (
       <div className="p-4 text-[var(--color-text-secondary)]">
@@ -250,6 +246,12 @@ export default function MyPostsPage() {
             posts={[]}
             showAlbum={false}
             emptyText="Bạn chưa có bài viết nào."
+            // nếu PostSection có mở modal edit nội bộ, có thể truyền thêm albums/categories ở đây
+            albums={albums}
+            categories={categories}
+            onEdited={handleEdited}
+            onDeleted={handleDeleted}
+            onBookmarkChange={handleBookmarkChange}
           />
         ) : (
           sections.map((album, i) => (
@@ -258,6 +260,8 @@ export default function MyPostsPage() {
               title={album.title}
               posts={album.posts}
               showAlbum={false}
+              albums={albums}
+              categories={categories}
               headerRight={
                 <span
                   className="

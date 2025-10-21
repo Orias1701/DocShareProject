@@ -31,7 +31,7 @@ class Bookmark
     }
 
     // Lấy danh sách post đã bookmark của user
-   // models/Bookmark.php
+    // models/Bookmark.php
     public function getBookmarksByUser($userId)
     {
         $stmt = $this->pdo->prepare("
@@ -53,7 +53,9 @@ class Bookmark
     }
 
 
-    // Lấy toàn bộ posts kèm cờ is_bookmarked
+    // Lấy toàn bộ posts kèm cờ is_bookmarked Câu SQL này có tác dụng lấy
+    // danh sách tất cả bài viết (posts), đồng thời xác định xem người dùng
+    // hiện tại đã đánh dấu (bookmark) từng bài viết đó hay chưa.
     public function getPostsWithBookmarkFlag($userId)
     {
         $stmt = $this->pdo->prepare("

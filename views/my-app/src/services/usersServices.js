@@ -67,7 +67,18 @@ export const authApi = {
     if (params && params.role_id !== undefined) payload.role_id = params.role_id;
 
     return postJson("api_update_account", payload);
-  }
+  },
+  forgotPassword(identifier) {
+    // Router của bạn đang là 'forgot-password', nên ưu tiên cái này
+    return postJson("forgot-password", { identifier });
+    // Nếu bạn muốn giữ 'api_forgot_password', bật alias ở router (mục 4)
+    // return postJson("api_forgot_password", { identifier });
+  },
+  resetPassword({ token, new_password }) {
+    return postJson("reset-password", { token, new_password });
+    // Hoặc alias 'api_reset_password' nếu bạn thêm route (mục 4)
+    // return postJson("api_reset_password", { token, new_password });
+  },
 };
 
 export default authApi;
