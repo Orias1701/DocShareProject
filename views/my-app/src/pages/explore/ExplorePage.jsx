@@ -122,6 +122,7 @@ export default function ExplorePage() {
           onBookmarkChange={handleBookmarkChange}
           onDeleted={handleDeleted}
           onEdited={handleEdited}
+          maxTags={2}
         />
       )}
 
@@ -133,6 +134,7 @@ export default function ExplorePage() {
           onBookmarkChange={handleBookmarkChange}
           onDeleted={handleDeleted}
           onEdited={handleEdited}
+          maxTags={2}
         />
       )}
 

@@ -1,0 +1,187 @@
+* [33mbfa2036[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mbao[m[33m)[m 1111
+* [33mc2ade02[m update
+* [33me3fcf18[m 111
+* [33m6bda570[m 1111
+* [33m42a74e4[m 1111111
+* [33mcd07302[m 11111111
+* [33m6ded984[m bao luu 3
+[31m|[m * [33md837ca2[m[33m ([m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m, [m[1;32mmain[m[33m)[m AI
+[31m|[m * [33m4bcc229[m 111
+[31m|[m *   [33m0736024[m 1111
+[31m|[m [33m|[m[31m\[m  
+[31m|[m [33m|[m[31m/[m  
+[31m|[m[31m/[m[33m|[m   
+* [33m|[m   [33mb3d7e82[m[33m ([m[1;31morigin/bao[m[33m)[m bao luu 3.4
+[35m|[m[36m\[m [33m\[m  
+* [36m|[m [33m|[m [33m9f6b8c4[m 11111
+[36m|[m [36m|[m * [33m5e503e5[m new db
+[36m|[m [36m|[m[36m/[m  
+[36m|[m [36m|[m * [33m3ccd24f[m[33m ([m[1;32mdeloyfinal[m[33m)[m Your descriptive commit message
+[36m|[m [36m|[m * [33m7e22b7f[m 111
+[36m|[m [36m|[m * [33m9467a8a[m[33m ([m[1;31morigin/deloyfinal[m[33m)[m 111
+[36m|[m [36m|[m * [33mecb3ee9[m 111
+[36m|[m [36m|[m * [33me4d7152[m bao luu 3
+[36m|[m [36m|[m * [33m1801492[m 11111
+[36m|[m [36m|[m[36m/[m  
+[36m|[m * [33mc90aaf6[m 1111
+[36m|[m [1;31m|[m * [33m6881695[m[33m ([m[1;31morigin/deloy[m[33m)[m 111
+[36m|[m [1;31m|[m * [33mdfb8e18[m `1111
+[36m|[m [1;31m|[m * [33m0091b7e[m Cập nhật cấu hình DB và index
+[36m|[m [1;31m|[m * [33mc57c4da[m aaaaa
+[36m|[m [1;31m|[m * [33m12b6677[m 111
+[36m|[m [1;31m|[m[1;31m/[m  
+[36m|[m * [33m97db99a[m mtesst
+[36m|[m[36m/[m  
+* [33me0790e6[m 111
+* [33m55f7d2a[m bao luu 2
+* [33m09a136f[m 1111
+* [33m078eb4e[m 1111
+* [33m2117fb4[m 111
+* [33m9f12866[m bao luu 1.2
+*   [33m8584175[m bao luu 1.1
+[1;33m|[m[1;34m\[m  
+[1;33m|[m * [33ma908ae1[m 11111
+[1;33m|[m * [33m62700cb[m 111111
+[1;33m|[m * [33m5e2b220[m 1111
+* [1;34m|[m [33m74a5be0[m bao luu 1
+[1;34m|[m[1;34m/[m  
+* [33m14564f8[m newwww
+* [33m2ab0d78[m fix stripHtmlTagshtml
+*   [33m69a7949[m Merge branch 'main' of https://github.com/Orias1701/DocShareProject
+[1;35m|[m[1;36m\[m  
+[1;35m|[m * [33m7d14d89[m 111
+* [1;36m|[m [33m975e371[m fix
+[1;36m|[m[1;36m/[m  
+* [33mb9ff718[m 1
+* [33mc73af93[m 1
+* [33m9ad4d92[m 11111'
+* [33mbbcdea0[m 111
+* [33m99fb94f[m 1111
+* [33m6a1b20e[m 1
+* [33md516a13[m feat creat count user report of post, detail user report of post, count post in category, count like and dislike in post
+* [33m27b10d6[m 1
+* [33m5e712d5[m 1
+* [33m18ccf32[m 1
+* [33mdb71b8f[m feat: change api because missing ingredients
+* [33m3ec1ce7[m new admin
+* [33m3f47a55[m 111
+* [33m21c0952[m download done
+* [33mb85ff43[m fix dowload
+* [33m4a78687[m 1
+* [33mb0f9f36[m 1
+* [33m3b5d2e4[m 1111
+* [33mf59cddf[m 1
+* [33m5ab3e0d[m 1
+* [33m2b9ff8e[m 1
+* [33md4875c6[m 1
+* [33m9174ace[m new
+* [33m3d7198f[m 1
+* [33mb4b8c07[m 1
+* [33m309169a[m 1
+* [33m083547d[m 1
+* [33m96e5eef[m 1
+* [33mff3c6b5[m 111
+* [33m50bd3f6[m 1
+*   [33m5ed8d38[m 1
+[31m|[m[32m\[m  
+[31m|[m * [33mb586d97[m fix get postbyuserfollow
+* [32m|[m [33m8861c18[m 1
+* [32m|[m [33mee9d275[m 1
+[33m|[m[32m\[m[32m|[m 
+[33m|[m * [33m6e12734[m fix create post mix hashtag and posthashtag
+* [34m|[m [33m1f0094a[m 1
+[34m|[m[34m/[m  
+* [33mb494b63[m 1
+*   [33ma2244e4[m 1
+[35m|[m[36m\[m  
+[35m|[m * [33m7785cdf[m create function search post,hashtag,album,category, get post by following , delete code superfluous
+* [36m|[m [33m1bcf40c[m 1
+[1;31m|[m[36m\[m[36m|[m 
+[1;31m|[m * [33m5f26ecd[m create column url in album , create bookmark with two function create and remove, create function get_following and get_followers to get user_follows
+* [1;32m|[m [33m8ded1a1[m bug coss
+[1;32m|[m[1;32m/[m  
+* [33ma917b20[m fix bug create album
+* [33m85650eb[m auth,post
+*   [33m89880c7[m 1
+[1;33m|[m[1;34m\[m  
+[1;33m|[m * [33m9910852[m push database
+* [1;34m|[m [33m7b6e390[m 1
+* [1;34m|[m [33md074355[m post fe,profile fe
+* [1;34m|[m [33m1341080[m test
+[1;34m|[m[1;34m/[m  
+* [33m2b08d0f[m git add function reply comment
+* [33m9c33766[m add function top follower
+* [33mb90db90[m add useAuth to remain status login, fix login and register to navigate
+* [33me6d8e3f[m 1
+* [33mf51b67c[m new fe
+* [33md628172[m add authLayout,register
+* [33m6176c4d[m update register user+ user_info, fix login from login by email to login by email and username
+* [33medcd421[m new fe
+* [33mccee810[m new fe
+* [33m11580c5[m new fe
+*   [33m92381df[m Merge branch 'main' of https://github.com/Orias1701/DocShareProject
+[1;35m|[m[1;36m\[m  
+[1;35m|[m *   [33m1fd568a[m Merge branch 'main' of https://github.com/Orias1701/DocShareProject
+[1;35m|[m [31m|[m[32m\[m  
+[1;35m|[m [31m|[m * [33m8e794ba[m 1
+[1;35m|[m * [32m|[m [33m458584a[m added template
+* [32m|[m [32m|[m [33mafefc75[m fix register to register+album
+[32m|[m [32m|[m[32m/[m  
+[32m|[m[32m/[m[32m|[m   
+* [32m|[m [33mf67f54e[m change create many hashtags
+* [32m|[m [33m87cfda9[m fix create posthashtag
+* [32m|[m [33m5a972b2[m test hashtag
+[32m|[m[32m/[m  
+*   [33m5c13068[m Merge branch 'main' of https://github.com/Orias1701/DocShareProject
+[33m|[m[34m\[m  
+[33m|[m * [33m39a395e[m del
+* [34m|[m [33m2ae3ad0[m 123231
+[34m|[m[34m/[m  
+*   [33m8ecc2e5[m 1
+[35m|[m[36m\[m  
+[35m|[m *   [33mc788ae6[m Merge branch 'main' of https://github.com/Orias1701/DocShareProject
+[35m|[m [1;31m|[m[1;32m\[m  
+[35m|[m [1;31m|[m *   [33me1f8576[m Merge branch 'main' of https://github.com/Orias1701/DocShareProject
+[35m|[m [1;31m|[m [1;33m|[m[1;34m\[m  
+[35m|[m [1;31m|[m * [1;34m|[m [33m19d5e90[m db
+[35m|[m * [1;34m|[m [1;34m|[m [33mb986e25[m add txt
+[35m|[m [1;34m|[m [1;34m|[m[1;34m/[m  
+[35m|[m [1;34m|[m[1;34m/[m[1;34m|[m   
+[35m|[m * [1;34m|[m [33m8086158[m Merge branch 'main' of https://github.com/Orias1701/DocShareProject
+[35m|[m [1;35m|[m[1;34m\[m[1;34m|[m 
+[35m|[m [1;35m|[m *   [33m20f963a[m Merge branch 'main' of https://github.com/Orias1701/DocShareProject
+[35m|[m [1;35m|[m [31m|[m[32m\[m  
+[35m|[m [1;35m|[m * [32m|[m [33m610cdf1[m del vendors
+[35m|[m * [32m|[m [32m|[m [33m3fac641[m del
+[35m|[m [32m|[m [32m|[m[32m/[m  
+[35m|[m [32m|[m[32m/[m[32m|[m   
+* [32m/[m [32m|[m [33md599ed7[m 1
+[32m|[m[32m/[m [32m/[m  
+* [32m/[m [33md6bd8a5[m new db
+[32m|[m[32m/[m  
+* [33m46dda17[m datademo
+* [33m886e14e[m add column file_url,file_type in table post
+* [33m67a68f3[m filer posts by categoryid and array hashtag
+*   [33m8f07309[m Merge branch 'main' of https://github.com/Orias1701/DocShareProject
+[33m|[m[34m\[m  
+[33m|[m *   [33m8cd3f1e[m Merge branch 'main' of https://github.com/Orias1701/DocShareProject
+[33m|[m [35m|[m[36m\[m  
+[33m|[m * [36m|[m [33m777391a[m update database
+* [36m|[m [36m|[m [33m571b0c9[m mess
+[36m|[m [36m|[m[36m/[m  
+[36m|[m[36m/[m[36m|[m   
+* [36m|[m [33m992ce2e[m delete post word
+* [36m|[m [33m0ca22a0[m commit update pdf post super ngon
+* [36m|[m [33m5f2989e[m push
+* [36m|[m [33m323f8af[m add html change, fix code create,edit post
+[36m|[m[36m/[m  
+* [33md40c914[m create upload content by file pdf or word
+* [33m70e7b04[m feat: complete backend version demo website sharefile
+* [33m9260d82[m add function hashtag,category,role,userinfo, avt_url save by cloudinary
+*   [33m9060242[m Merge branch 'main' of https://github.com/Orias1701/DocShareProject
+[1;31m|[m[1;32m\[m  
+[1;31m|[m * [33mc2bedef[m add function register and login
+* [1;32m|[m [33mecc8f96[m update demodata
+[1;32m|[m[1;32m/[m  
+* [33m585edaa[m update readme
+* [33m1aebff5[m first commit

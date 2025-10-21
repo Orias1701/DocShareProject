@@ -27,8 +27,8 @@ export default function RegisterPage() {
   const validate = () => {
     const e = {};
     if (!form.fullName.trim()) e.fullName = "Vui lòng nhập họ và tên.";
-    if (!/^[a-zA-Z0-9_]{3,20}$/.test(form.username))
-      e.username = "Tên người dùng 3–20 ký tự, chỉ gồm chữ, số và dấu gạch dưới.";
+    if (!form.username.trim()) e.username = "Vui lòng nhập tên người dùng.";
+    else if (form.username.length < 3) e.username = "Tên người dùng phải có ít nhất 3 ký tự.";
     if (!/^[^@]+@[^@]+\.[^@]+$/.test(form.email)) e.email = "Email không hợp lệ.";
     if (form.password.length < 8) e.password = "Mật khẩu phải có ít nhất 8 ký tự.";
     else if (!/[0-9]/.test(form.password)) e.password = "Mật khẩu phải chứa ít nhất 1 số.";
@@ -36,6 +36,7 @@ export default function RegisterPage() {
     if (!form.birthday) e.birthday = "Vui lòng chọn ngày sinh.";
     return e;
   };
+  
 
   const handleSubmit = async (e) => {
     e.preventDefault();

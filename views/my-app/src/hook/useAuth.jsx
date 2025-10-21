@@ -1,104 +1,188 @@
-// [Tác dụng file] Tạo context xác thực; cung cấp AuthProvider và hook useAuth để lấy user/refresh/login state
-import { createContext, useContext, useEffect, useState } from "react";
+// [AuthProvider] Cấp context xác thực toàn cục, kết hợp dữ liệu từ api_me + api_admin
+// Dùng để xác định người dùng hiện tại, vai trò (role), quyền admin, và cung cấp các helper kiểm tra quyền.
 
-// [Tác dụng] URL kiểm tra phiên đăng nhập (lấy thông tin người dùng hiện tại)
-const API_ME_URL = "http://localhost:3000/public/index.php?action=api_me";
+import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import authApi from "../services/usersServices"; // Import file chứa các API xác thực
 
-// [Tác dụng] Context lưu trạng thái xác thực (user, loading, v.v.)
+// ------------------------------------------------------------
+// Cấu hình tên hiển thị (label) cho từng role_id
+// Bạn có thể mở rộng theo backend của mình.
+// ------------------------------------------------------------
+const ROLE_LABELS = {
+  ROLE000: "Admin",
+  ROLE011: "Người dùng",
+};
 const AuthContext = createContext(null);
+// ------------------------------------------------------------
+// [Hàm chuẩn hoá user từ phản hồi api_me]
+// Nhận JSON từ api_me -> lọc, đổi tên, thêm fallback ảnh, tên, role.
+// ------------------------------------------------------------
+function normalizeUserFromMe(me) {
+  if (!me || me.status !== "ok" || !me.user) return null;
 
-// [Tác dụng] Bao bọc ứng dụng, cung cấp giá trị xác thực cho các component con
+  const raw = me.user;
+  const normalized = { ...raw };
+
+  // [1] Avatar fallback nếu user chưa có
+  const fallbackAvatar = "https://cdn2.fptshop.com.vn/small/avatar_trang_1_cd729c335b.jpg";
+  normalized.avatar_url =
+    raw?.avatar_url ?? raw?.avatar ?? raw?.profile_image ?? fallbackAvatar;
+
+  // [2] Tên hiển thị fallback
+  normalized.full_name = raw?.full_name ?? raw?.name ?? raw?.username ?? "User name";
+
+  // [3] Role chuẩn hoá
+  const roleId = raw?.role_id ?? null;
+  normalized.role_id = roleId;
+  normalized.roles = Array.isArray(raw?.roles) ? raw.roles : roleId ? [roleId] : [];
+  normalized.role_label = roleId && ROLE_LABELS[roleId] ? ROLE_LABELS[roleId] : "user";
+
+  return normalized;
+}
+
+// ------------------------------------------------------------
+// [Hàm hợp nhất dữ liệu admin]
+// Kết hợp kết quả từ api_admin vào user hiện tại (nếu có).
+// ------------------------------------------------------------
+function mergeAdminInfo(user, adminPayload) {
+  if (!user) return null;
+
+  const merged = { ...user };
+
+  if (adminPayload && adminPayload.status === "ok") {
+    // [1] Gắn cờ admin
+    merged.is_admin = !!adminPayload.isAdmin;
+
+    // [2] Nếu api_admin có roleId rõ ràng hơn → ưu tiên
+    if (adminPayload.roleId && adminPayload.roleId !== merged.role_id) {
+      merged.role_id = adminPayload.roleId;
+      merged.roles = [adminPayload.roleId];
+      merged.role_label =
+        ROLE_LABELS[adminPayload.roleId] ?? merged.role_label ?? "user";
+    }
+
+    // [3] Gộp thêm thông tin phiên (session)
+    merged.session_user = adminPayload.session_user ?? merged.session_user;
+    merged.session_data = adminPayload.session_data ?? merged.session_data;
+    merged.admin_message = adminPayload.message ?? merged.admin_message;
+  } else {
+    // Nếu không phải admin hoặc gọi api_admin lỗi → gán false
+    merged.is_admin = false;
+  }
+
+  return merged;
+}
+
+// ------------------------------------------------------------
+// [AuthProvider Component]
+// Bao quanh toàn bộ ứng dụng, lưu và chia sẻ trạng thái xác thực.
+// ------------------------------------------------------------
 export function AuthProvider({ children }) {
-  // [Tác dụng] Trạng thái người dùng và cờ tải
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState(null);           // Dữ liệu user hiện tại
+  const [loading, setLoading] = useState(true);     // Cờ tải ban đầu
+  const [refreshing, setRefreshing] = useState(false); // Cờ khi đang refresh thủ công
 
-  // [Tác dụng] Làm mới (fetch) thông tin đăng nhập hiện tại và chuẩn hoá user
+  // ------------------------------------------------------------
+  // [Helpers kiểm tra quyền] — dùng cả trong context và UI
+  // ------------------------------------------------------------
+  const hasRole = (u, roleId) =>
+    !!u && (Array.isArray(u.roles) ? u.roles.includes(roleId) : u.role_id === roleId);
+  const hasAnyRole = (u, roleIds = []) => !!u && roleIds.some((r) => hasRole(u, r));
+  const hasAllRoles = (u, roleIds = []) => !!u && roleIds.every((r) => hasRole(u, r));
+  const isAdminUser = (u) => !!u && (u.is_admin || hasRole(u, "ROLE000"));
+
+  // ------------------------------------------------------------
+  // [refresh()] Gọi lại API để cập nhật thông tin user và quyền
+  // ------------------------------------------------------------
   async function refresh() {
+    setRefreshing(true);
     try {
-      const res = await fetch(API_ME_URL, {
-        method: "GET",
-        credentials: "include",
-        headers: { Accept: "application/json" }
-      });
+      // Gọi song song api_me và api_admin để giảm thời gian chờ
+      const [meRes, adminRes] = await Promise.allSettled([authApi.me(), authApi.admin()]);
 
-      if (!res.ok) {
+      // Xử lý kết quả api_me
+      const meVal = meRes.status === "fulfilled" ? meRes.value : null;
+      const normalized = normalizeUserFromMe(meVal);
+
+      if (!normalized) {
         setUser(null);
-        return;
+        return null;
       }
 
-      // [Tác dụng] Cố gắng parse JSON; nếu lỗi thì trả object rỗng
-      let data = {};
-      try {
-        data = await res.json();
-      } catch (e) {
-        data = {};
-      }
+      // Hợp nhất với kết quả api_admin
+      const adminVal = adminRes.status === "fulfilled" ? adminRes.value : null;
+      const merged = mergeAdminInfo(normalized, adminVal);
 
-      // [Tác dụng] Kiểm tra cấu trúc phản hồi và chuẩn hoá các field hiển thị
-      if (data && typeof data === "object" && data.status === "ok" && data.user) {
-        const raw = data.user;
-
-        // Sao chép an toàn tất cả key từ raw sang normalized (tránh spread)
-        let normalized = {};
-        for (let k in raw) {
-          if (Object.prototype.hasOwnProperty.call(raw, k)) {
-            normalized[k] = raw[k];
-          }
-        }
-
-        // Bổ sung các field fallback để UI luôn hiển thị được
-        let fallbackAvatar = "https://cdn2.fptshop.com.vn/small/avatar_trang_1_cd729c335b.jpg";
-        let avatarUrl = (raw && raw.avatar_url) ? raw.avatar_url
-          : (raw && raw.avatar) ? raw.avatar
-          : (raw && raw.profile_image) ? raw.profile_image
-          : fallbackAvatar;
-        let fullName = (raw && raw.full_name) ? raw.full_name
-          : (raw && raw.name) ? raw.name
-          : (raw && raw.username) ? raw.username
-          : "User name";
-
-        normalized.avatar_url = avatarUrl;
-        normalized.full_name = fullName;
-
-        setUser(normalized);
-      } else {
-        setUser(null);
-      }
-    } catch (e) {
-      // [Tác dụng] Lỗi mạng/khác → coi như chưa đăng nhập
+      setUser(merged);
+      return merged;
+    } catch (_) {
+      // Gặp lỗi mạng hoặc API → reset user
       setUser(null);
+      return null;
+    } finally {
+      // Dù thành công hay thất bại đều tắt cờ loading
+      setRefreshing(false);
+      setLoading(false);
     }
   }
 
-  // [Tác dụng] Tự động refresh 1 lần khi mount; sau đó tắt cờ loading
-  useEffect(function () {
+  // ------------------------------------------------------------
+  // [useEffect] — tự động refresh khi mount lần đầu
+  // ------------------------------------------------------------
+  useEffect(() => {
     let mounted = true;
-    (async function () {
-      await refresh();
-      if (mounted) setLoading(false);
+    (async () => {
+      const u = await refresh();
+      if (!mounted) return;
+      if (!u) setUser(null);
     })();
-    return function () { mounted = false; };
+    return () => {
+      mounted = false;
+    };
   }, []);
 
-  // [Tác dụng] Giá trị cung cấp qua context cho toàn app
-  const value = {
-    user: user,
-    setUser: setUser,
-    loading: loading,
-    refresh: refresh,
-    isAuthenticated: !!user
-  };
+  // ------------------------------------------------------------
+  // [Giá trị Context] — truyền cho toàn bộ app
+  // ------------------------------------------------------------
+  const value = useMemo(
+    () => ({
+      user,
+      setUser,
+      loading,
+      refreshing,
+      refresh,
+      isAuthenticated: !!user,
+      // Helpers gắn sẵn user hiện tại
+      hasRole: (roleId) => hasRole(user, roleId),
+      hasAnyRole: (roleIds) => hasAnyRole(user, roleIds),
+      hasAllRoles: (roleIds) => hasAllRoles(user, roleIds),
+      isAdmin: () => isAdminUser(user),
+    }),
+    [user, loading, refreshing]
+  );
 
-  // [Tác dụng] Render provider bao ngoài children
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
-// [Tác dụng] Hook tiện lấy giá trị xác thực trong component con
+// ------------------------------------------------------------
+// [useAuth()] Hook tiện lợi để lấy context xác thực trong component
+// ------------------------------------------------------------
 export default function useAuth() {
   const ctx = useContext(AuthContext);
-  if (!ctx) {
-    throw new Error("useAuth must be used within <AuthProvider>");
-  }
+  if (!ctx) throw new Error("useAuth must be used within <AuthProvider>");
   return ctx;
+}
+
+// ------------------------------------------------------------
+// [RoleGate] Component ẩn/hiện nội dung theo quyền người dùng
+// anyOf: chỉ cần 1 role khớp
+// allOf: yêu cầu tất cả role khớp
+// fallback: JSX hiển thị nếu không có quyền
+// ------------------------------------------------------------
+export function RoleGate({ anyOf = [], allOf = [], fallback = null, children }) {
+  const auth = useAuth();
+  if (auth.loading) return null; // hoặc return spinner khi đang tải
+  const okAny = anyOf.length === 0 || auth.hasAnyRole(anyOf);
+  const okAll = allOf.length === 0 || auth.hasAllRoles(allOf);
+  return okAny && okAll ? children : fallback;
 }
