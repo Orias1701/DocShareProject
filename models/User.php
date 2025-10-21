@@ -18,6 +18,13 @@ class User
         $stmt->execute([$email]);
         return $stmt->fetch(PDO::FETCH_ASSOC);
     }
+
+    public function updatePassword($email, $newPassword)
+    {
+        $hash = password_hash($newPassword, PASSWORD_DEFAULT);
+        $stmt = $this->conn->prepare("UPDATE users SET password = ? WHERE email = ?");
+        return $stmt->execute([$hash, $email]);
+    }
     public function getByUsername($username)
     {
         $stmt = $this->conn->prepare("SELECT * FROM users WHERE username = ?");
@@ -105,7 +112,7 @@ class User
     }
     // ================== BỔ SUNG TRONG class User ==================
 
-/** Lấy theo user_id (tiện kiểm tra tồn tại) */
+    /** Lấy theo user_id (tiện kiểm tra tồn tại) */
     public function getById($user_id)
     {
         $stmt = $this->conn->prepare("SELECT * FROM users WHERE user_id = ?");
@@ -218,7 +225,7 @@ class User
     public function setStatus($user_id, $status)
     {
         // gợi ý whitelist
-        $allowed = ['active','disabled','banned'];
+        $allowed = ['active', 'disabled', 'banned'];
         if (!in_array($status, $allowed, true)) {
             return ['status' => 'error', 'message' => 'Invalid status'];
         }
@@ -242,10 +249,22 @@ class User
         $fields = [];
         $params = [];
 
-        if ($full_name !== null) { $fields[] = "full_name = ?"; $params[] = $full_name; }
-        if ($bio !== null)       { $fields[] = "bio = ?";        $params[] = $bio; }
-        if ($birth_date !== null){ $fields[] = "birth_date = ?"; $params[] = $birth_date; }
-        if ($avatar_url !== null){ $fields[] = "avatar_url = ?"; $params[] = $avatar_url; }
+        if ($full_name !== null) {
+            $fields[] = "full_name = ?";
+            $params[] = $full_name;
+        }
+        if ($bio !== null) {
+            $fields[] = "bio = ?";
+            $params[] = $bio;
+        }
+        if ($birth_date !== null) {
+            $fields[] = "birth_date = ?";
+            $params[] = $birth_date;
+        }
+        if ($avatar_url !== null) {
+            $fields[] = "avatar_url = ?";
+            $params[] = $avatar_url;
+        }
 
         if (empty($fields)) {
             return ['status' => 'ok', 'message' => 'Nothing to update'];

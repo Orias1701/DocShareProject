@@ -4,7 +4,8 @@
         "phpoffice/phpword": "^1.3",
         "smalot/pdfparser": "^2.12",
         "ezyang/htmlpurifier": "^4.18",
-        "cloudconvert/cloudconvert-php": "^3.4"
+        "cloudconvert/cloudconvert-php": "^3.4",
+        "phpmailer/phpmailer": "^7.0"
     },
     "config": {
         "allow-plugins": {

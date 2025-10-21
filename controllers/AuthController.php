@@ -1,6 +1,10 @@
 <?php
 // controllers/AuthController.php
 require_once __DIR__ . '/../models/User.php';
+require_once __DIR__ . '/../models/PasswordReset.php';
+require_once __DIR__ . '/../vendor/MailerService.php';
+
+
 
 class AuthController
 {
@@ -219,24 +223,23 @@ class AuthController
             ];
         } else {
             $roleId = $_SESSION['user']['role_id'] ?? null;
-        
+
             $response = [
                 'status' => 'ok',
                 'isAdmin' => $roleId === 'ROLE000',
                 'roleId' => $roleId,
                 'session_user' => $_SESSION['user_id'], // in chi tiết user
                 'session_data' => $_SESSION, // in toàn bộ session để debug
-                'message' => $roleId === 'ROLE000' 
-                    ? 'User is an administrator.' 
+                'message' => $roleId === 'ROLE000'
+                    ? 'User is an administrator.'
                     : 'Access denied. User does not have administrator privileges.'
             ];
         }
-        
+
         // trả về JSON
         header('Content-Type: application/json; charset=utf-8');
         echo json_encode($response, JSON_PRETTY_PRINT);
         exit;
-        
     }
 
 
@@ -344,6 +347,98 @@ class AuthController
         $this->json($res, $res['status'] === 'ok' ? 200 : 400);
     }
 
+    /** ------------------------------
+     *  📧 FORGOT PASSWORD (Gửi link qua email)
+     *  Endpoint: POST /api/auth/forgot-password
+     *  Body JSON: { "email": "user@gmail.com" }
+     * ------------------------------ */
+    public function apiForgotPassword(): void
+    {
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            $this->json(['status' => 'error', 'message' => 'Method Not Allowed'], 405);
+        }
 
+        $body = $this->readJsonBody();
+        $email = trim($body['email'] ?? '');
 
+        if ($email === '') {
+            $this->json(['status' => 'error', 'message' => 'Thiếu email'], 400);
+        }
+
+        $user = $this->userModel->getByEmail($email);
+        if (!$user) {
+            $this->json(['status' => 'error', 'message' => 'Không tìm thấy người dùng với email này!'], 404);
+        }
+
+        // 🔹 Tạo token reset mật khẩu
+        $resetModel = new PasswordReset();
+        $token = bin2hex(random_bytes(32));
+        $resetModel->createToken($email, $token);
+
+        // 🔹 Tạo đường dẫn khôi phục (link gửi về email)
+        $link = "http://localhost:3000/reset-password?token={$token}";
+
+        // 🔹 Soạn email
+        $subject = "Đặt lại mật khẩu của bạn";
+        $message = "Xin chào {$user['username']},\n\n"
+            . "Bấm vào đường dẫn sau để đặt lại mật khẩu (hết hạn sau 30 phút):\n{$link}\n\n"
+            . "Nếu bạn không yêu cầu, vui lòng bỏ qua email này.";
+
+        // 🔹 Gửi email thật bằng PHPMailer
+        $sent = MailerService::sendMail($email, $subject, $message);
+
+        if ($sent) {
+            $this->json([
+                'status' => 'ok',
+                'message' => 'Email đặt lại mật khẩu đã được gửi đến hộp thư của bạn (hết hạn sau 30 phút).'
+            ]);
+        } else {
+            // Nếu lỗi gửi email → trả về link giả lập để test nhanh
+            $this->json([
+                'status' => 'error',
+                'message' => 'Không gửi được email, vui lòng kiểm tra cấu hình SMTP hoặc thử lại sau.',
+                'reset_link_debug' => $link
+            ]);
+        }
+    }
+
+    public function apiResetPassword(): void
+    {
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            $this->json(['status' => 'error', 'message' => 'Method Not Allowed'], 405);
+        }
+
+        $body = $this->readJsonBody();
+        $token = trim($body['token'] ?? '');
+        $newPassword = (string)($body['new_password'] ?? '');
+
+        if ($token === '' || $newPassword === '') {
+            $this->json(['status' => 'error', 'message' => 'Thiếu token hoặc mật khẩu mới'], 400);
+        }
+
+        // ✅ Kiểm tra token trong bảng password_resets
+        $resetModel = new PasswordReset();
+        $resetData = $resetModel->findByToken($token);
+
+        if (!$resetData) {
+            $this->json(['status' => 'error', 'message' => 'Token không hợp lệ hoặc đã hết hạn'], 400);
+        }
+
+        // ✅ Lấy email từ token và cập nhật mật khẩu mới
+        $email = $resetData['email'];
+        $hashed = password_hash($newPassword, PASSWORD_BCRYPT);
+
+        $conn = Database::getConnection();
+        $stmt = $conn->prepare("UPDATE users SET password = ? WHERE email = ?");
+        $stmt->execute([$hashed, $email]);
+
+        // ✅ Xoá token sau khi dùng
+        $resetModel->deleteToken($email);
+
+        // ✅ Trả JSON phản hồi
+        $this->json([
+            'status' => 'ok',
+            'message' => 'Mật khẩu của bạn đã được cập nhật thành công!'
+        ]);
+    }
 }

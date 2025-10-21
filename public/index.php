@@ -66,6 +66,8 @@ require_once __DIR__ . '/../models/PostReaction.php';
 require_once __DIR__ . '/../models/PostReport.php';
 require_once __DIR__ . '/../models/bookmark.php';
 require_once __DIR__ . '/../models/Search.php';
+require_once __DIR__ . '/../models/PasswordReset.php';
+
 
 
 
@@ -693,6 +695,14 @@ if (isset($_GET['action'])) {
         case 'pdf_proxy':
             $pdfProxyController->handle();
             exit;
+        case 'forgot-password':
+            $auth->apiForgotPassword();
+            break;
+
+        case 'reset-password':
+            $auth->apiResetPassword();
+            break;
+
         default:
             header("Location: index.php");
             exit;
