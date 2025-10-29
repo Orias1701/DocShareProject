@@ -17,6 +17,7 @@ DocShareProject/
 │   └── ...
 ├── database/             # Database related files
 │   ├── migrations/
+│   ├── scripts/          # Database backup File
 │   └── seeds/
 ├── models/              # Backend models
 ├── public/             # Public assets
