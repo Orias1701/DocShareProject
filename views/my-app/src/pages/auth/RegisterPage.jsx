@@ -30,7 +30,9 @@ export default function RegisterPage() {
     if (!form.username.trim()) e.username = "Vui lòng nhập tên người dùng.";
     else if (form.username.length < 3) e.username = "Tên người dùng phải có ít nhất 3 ký tự.";
     if (!/^[^@]+@[^@]+\.[^@]+$/.test(form.email)) e.email = "Email không hợp lệ.";
-    if (form.password.length < 8) e.password = "Mật khẩu phải có ít nhất 8 ký tự.";
+    // if (form.password.length < 8) e.password = "Mật khẩu phải có ít nhất 8 ký tự.";
+    if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{6,}$/.test(form.password)) 
+      e.password = "Mật khẩu phải có ít nhất 6 ký tự, gồm chữ hoa, chữ thường, số và ký tự đặc biệt.";    
     else if (!/[0-9]/.test(form.password)) e.password = "Mật khẩu phải chứa ít nhất 1 số.";
     else if (!/[a-z]/.test(form.password)) e.password = "Mật khẩu phải chứa ít nhất 1 chữ thường.";
     if (!form.birthday) e.birthday = "Vui lòng chọn ngày sinh.";
@@ -203,7 +205,7 @@ export default function RegisterPage() {
                 <p className="text-red-600 mt-1 text-sm">{errors.password}</p>
               ) : (
                 <p className="text-black/80 text-sm mt-1">
-                  At least 8 characters including a number and a lowercase letter.
+                  Mật khẩu phải có ít nhất 6 ký tự, gồm chữ hoa, chữ thường, số và ký tự đặc biệt.
                 </p>
               )}
             </div>

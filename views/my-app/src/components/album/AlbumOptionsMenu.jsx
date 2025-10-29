@@ -210,7 +210,7 @@ export default function AlbumOptionsMenu({
     <>
       <div className="relative" ref={ref}>
         <button
-          className="text-gray-400 hover:text-white"
+          className="text-[var(--color-icon-default)] hover:text-[var(--color-icon-hover)] disabled:opacity-50"
           aria-label="Album options"
           onClick={() => setOpen((v) => !v)}
           disabled={checking && !open}
@@ -219,12 +219,12 @@ export default function AlbumOptionsMenu({
         </button>
 
         {open && (
-          <div className="absolute right-0 mt-2 w-40 bg-[#1C2028] border border-gray-700 rounded-lg shadow-lg z-50">
+          <div className="absolute right-0 mt-2 w-40 bg-[var(--color-menu-bg)] border border-[var(--color-menu-border)] rounded-lg shadow-lg z-50">
             <button
               onClick={handleOpenEdit}
-              className="flex items-center gap-2 w-full px-3 py-2 text-left text-sm text-gray-300 hover:bg-gray-700/40 rounded-t-lg"
+              className="flex items-center gap-2 w-full px-3 py-2 text-left text-sm text-[var(--color-text-secondary)] hover:bg-[var(--color-menu-hover)] rounded-t-lg"
             >
-              <i className="fa-solid fa-pen-to-square text-blue-400"></i>
+              <i className="fa-solid fa-pen-to-square text-[var(--color-accent)]"></i>
               Sửa
             </button>
 
@@ -234,13 +234,13 @@ export default function AlbumOptionsMenu({
                   setOpen(false);
                   setShowConfirm(true);
                 }}
-                className="flex items-center gap-2 w-full px-3 py-2 text-left text-sm text-red-400 hover:bg-gray-700/40 rounded-b-lg"
+                className="flex items-center gap-2 w-full px-3 py-2 text-left text-sm text-[var(--color-dislike)] hover:bg-[var(--color-menu-hover)] rounded-b-lg"
               >
-                <i className="fa-solid fa-trash-can text-red-500"></i>
+                <i className="fa-solid fa-trash-can text-[var(--color-dislike)]"></i>
                 Xóa
               </button>
             ) : (
-              <div className="px-3 py-2 text-xs text-gray-500 border-t border-gray-800 rounded-b-lg">
+              <div className="px-3 py-2 text-xs text-[var(--color-text-muted)] border-t border-[var(--color-border-soft)] rounded-b-lg">
                 Không có quyền xóa
               </div>
             )}
@@ -252,8 +252,8 @@ export default function AlbumOptionsMenu({
       {toast && (
         <div
           className={`fixed bottom-6 right-6 px-4 py-2 rounded-lg shadow-lg text-sm
-          ${toast.type === "success" ? "bg-green-600 text-white" : ""}
-          ${toast.type === "error" ? "bg-red-600 text-white" : ""}`}
+          ${toast.type === "success" ? "bg-green-600 text-[var(--color-text)]" : ""}
+          ${toast.type === "error" ? "bg-red-600 text-[var(--color-text)]" : ""}`}
         >
           {toast.text}
         </div>

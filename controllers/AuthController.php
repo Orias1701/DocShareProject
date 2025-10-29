@@ -131,7 +131,7 @@ class AuthController
             $username,
             $email,
             $hashedPassword,
-            "ROLE001",   // role mặc định
+            "ROLE011",   // role mặc định
             $full_name,
             $avatar_url,
             $bio,
@@ -376,7 +376,7 @@ class AuthController
         $resetModel->createToken($email, $token);
 
         // 🔹 Tạo đường dẫn khôi phục (link gửi về email)
-        $link = "http://localhost:5173/reset-password";
+        $link = "http://localhost:5173/reset-password?token={$token}";
 
         $subject = "Đặt lại mật khẩu của bạn";
         $message = "Xin chào {$user['username']},\n\n"
@@ -385,6 +385,8 @@ class AuthController
             . "⏳ Lưu ý: Mã xác thực này sẽ hết hạn sau 30 phút.\n"
             . "Nếu bạn không yêu cầu, vui lòng bỏ qua email này.";
 
+        $body = $this->readJsonBody();
+        $email = trim($body['email'] ?? '');
 
         // 🔹 Gửi email thật bằng PHPMailer
         $sent = MailerService::sendMail($email, $subject, $message);

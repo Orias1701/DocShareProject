@@ -1,4 +1,4 @@
-// Menu 3 chấm của Post: Sửa, Xoá (chủ bài), Report/Unreport, Tải
+// src/components/posts/PostOptionsMenu.jsx
 import React, { useState, useRef, useEffect } from "react";
 import postService from "../../services/postService";
 import post_reportService from "../../services/post_reportServices";
@@ -11,11 +11,11 @@ import { categoryServices } from "../../services/categoryServices";
 export default function PostOptionsMenu({
   postId,
   ownerId,
-  postRaw,                // raw data để fill modal
-  onDeleted,              // (postId) => void
-  onEdited,               // (updated) => void
-  initialIsReported,      // cờ report ban đầu
-  onReportChange,         // (postId, nextIsReported) => void
+  postRaw,
+  onDeleted,
+  onEdited,
+  initialIsReported,
+  onReportChange,
 }) {
   const [open, setOpen] = useState(false);
   const [message, setMessage] = useState(null);
@@ -32,7 +32,6 @@ export default function PostOptionsMenu({
   const [categories, setCategories] = useState([]);
   const [loadingMeta, setLoadingMeta] = useState(false);
 
-  // Helpers
   const pickMeUserId = (meRes) =>
     meRes?.user?.user_id ??
     meRes?.user_id ??
@@ -72,10 +71,9 @@ export default function PostOptionsMenu({
 
   const showMessage = (type, text) => {
     setMessage({ type, text });
-    setTimeout(() => setMessage(null), 3000);
+    setTimeout(() => setMessage(null), 2500);
   };
 
-  // Đóng menu khi click ra ngoài
   useEffect(() => {
     const onDocClick = (e) => {
       if (ref.current && !ref.current.contains(e.target)) setOpen(false);
@@ -84,12 +82,10 @@ export default function PostOptionsMenu({
     return () => document.removeEventListener("mousedown", onDocClick);
   }, []);
 
-  // Sync state report khi điều hướng
   useEffect(() => {
     setIsReported(Boolean(initialIsReported));
   }, [postId, initialIsReported]);
 
-  // Kiểm tra quyền chủ bài
   useEffect(() => {
     let mounted = true;
     async function run() {
@@ -121,10 +117,9 @@ export default function PostOptionsMenu({
     };
   }, [postId, ownerId]);
 
-  // Download
   const handleDownload = async () => {
     if (!postId) {
-      showMessage("error", "❌ Không có postId để tải!");
+      showMessage("warning", "❌ Không có postId để tải!");
       return;
     }
     try {
@@ -141,10 +136,9 @@ export default function PostOptionsMenu({
     }
   };
 
-  // Report / Unreport
   const handleReport = async () => {
     if (!postId) {
-      showMessage("error", "❌ Không có postId để report!");
+      showMessage("warning", "❌ Không có postId để report!");
       return;
     }
     try {
@@ -173,7 +167,6 @@ export default function PostOptionsMenu({
     }
   };
 
-  // Xoá
   const confirmDelete = () => {
     setOpen(false);
     setShowConfirm(true);
@@ -211,7 +204,6 @@ export default function PostOptionsMenu({
     }
   };
 
-  // Edit — mở modal
   const openEditModal = async () => {
     if (!canDelete) {
       showMessage("error", "🚫 Bạn không có quyền sửa bài này.");
@@ -252,7 +244,6 @@ export default function PostOptionsMenu({
     }
   };
 
-  // Edit — lưu
   const handleSaveEdit = async (payload) => {
     const maxTitleLen = 120;
     const title = String(payload?.title ?? "").trim();
@@ -344,18 +335,18 @@ export default function PostOptionsMenu({
             absolute right-0 mt-2 w-48
             bg-[var(--color-menu-bg)]
             border border-[var(--color-menu-border)]
-            rounded-lg shadow-[var(--shadow-soft)] z-50 overflow-hidden
+            rounded-lg shadow-lg z-50 overflow-hidden
           "
         >
           {/* Edit (chỉ chủ bài) */}
           {canDelete && (
             <button
               onClick={openEditModal}
-              className="flex items-center gap-2 w-full px-3 py-2 text-left text-sm text-[var(--color-text)] hover:bg-[var(--color-menu-hover)]"
+              className="flex items-center gap-2 w-full px-3 py-2 text-left text-sm text-[var(--color-text-secondary)] hover:bg-[var(--color-menu-hover)] rounded-t-lg disabled:opacity-60"
               disabled={loadingMeta}
               type="button"
             >
-              <i className="fa-solid fa-pen-to-square text-[var(--color-link)]"></i>
+              <i className="fa-solid fa-pen-to-square text-[var(--color-accent)]"></i>
               {loadingMeta ? "Đang tải…" : "Sửa bài viết"}
             </button>
           )}
@@ -367,12 +358,16 @@ export default function PostOptionsMenu({
               handleReport();
             }}
             className={`flex items-center gap-2 w-full px-3 py-2 text-left text-sm hover:bg-[var(--color-menu-hover)] ${
-              isReported ? "text-yellow-300" : "text-[var(--color-text)]"
+              isReported ? "text-yellow-400" : "text-[var(--color-text-secondary)]"
             }`}
             type="button"
             title={isReported ? "Unreport" : "Report"}
           >
-            <i className={`fa-regular fa-flag ${isReported ? "text-yellow-400" : "text-red-400"}`}></i>
+            <i
+              className={`fa-regular fa-flag ${
+                isReported ? "text-yellow-400" : "text-[var(--color-accent)]"
+              }`}
+            ></i>
             {isReported ? "Unreport" : "Report"}
           </button>
 
@@ -382,35 +377,42 @@ export default function PostOptionsMenu({
               setOpen(false);
               await handleDownload();
             }}
-            className={`flex items-center gap-2 w-full px-3 py-2 text-left text-sm text-[var(--color-text)] hover:bg-[var(--color-menu-hover)] ${downloadTailClass}`}
+            className={`flex items-center gap-2 w-full px-3 py-2 text-left text-sm text-[var(--color-text-secondary)] hover:bg-[var(--color-menu-hover)] ${downloadTailClass}`}
             type="button"
           >
-            <i className="fa-solid fa-download text-[var(--color-link)]"></i>
+            <i className="fa-solid fa-download text-[var(--color-accent)]"></i>
             Tải tài liệu
           </button>
 
           {/* Delete (chủ bài) */}
-          {canDelete && (
+          {canDelete ? (
             <button
               onClick={confirmDelete}
-              className="flex items-center gap-2 w-full px-3 py-2 text-left text-sm text-red-400 hover:bg-[var(--color-menu-hover)] rounded-b-lg"
+              className="flex items-center gap-2 w-full px-3 py-2 text-left text-sm text-[var(--color-dislike)] hover:bg-[var(--color-menu-hover)] rounded-b-lg"
               type="button"
             >
-              <i className="fa-solid fa-trash-can text-red-500"></i>
+              <i className="fa-solid fa-trash-can text-[var(--color-dislike)]"></i>
               Xóa bài viết
             </button>
+          ) : (
+            <div className="px-3 py-2 text-xs text-[var(--color-text-muted)] border-t border-[var(--color-border-soft)] rounded-b-lg">
+              Không có quyền xóa
+            </div>
           )}
         </div>
       )}
 
-      {/* Toast mini */}
+      {/* Toast mini — đồng bộ kiểu với AlbumOptionsMenu */}
       {message && (
         <div
-          className={`fixed bottom-6 right-6 px-4 py-2 rounded-lg shadow-[var(--shadow-soft)] text-sm border border-[var(--color-modal-border)]
-            ${message.type === "success" ? "bg-[var(--color-modal-bg)] text-[var(--color-text)]" : ""}
-            ${message.type === "error" ? "bg-[var(--color-modal-bg)] text-[var(--color-text)]" : ""}
-            ${message.type === "warning" ? "bg-[var(--color-modal-bg)] text-[var(--color-text)]" : ""}
-          `}
+          className={`fixed bottom-6 right-6 px-4 py-2 rounded-lg shadow-lg text-sm
+            ${
+              message.type === "success"
+                ? "bg-green-600 text-[var(--color-text)]"
+                : message.type === "error"
+                ? "bg-red-600 text-[var(--color-text)]"
+                : "bg-yellow-600 text-[var(--color-text)]"
+            }`}
         >
           {message.text}
         </div>

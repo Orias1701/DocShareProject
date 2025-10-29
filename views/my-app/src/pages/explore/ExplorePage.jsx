@@ -138,7 +138,7 @@ export default function ExplorePage() {
         />
       )}
 
-      {whoToFollow?.length > 0 && (
+      {/* {whoToFollow?.length > 0 && (
         <section>
           <h2 className="text-2xl font-bold text-[var(--color-text)] mb-4">➕ Gợi ý nên theo dõi</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
@@ -175,7 +175,7 @@ export default function ExplorePage() {
             ))}
           </div>
         </section>
-      )}
+      )} */}
     </div>
   );
 }

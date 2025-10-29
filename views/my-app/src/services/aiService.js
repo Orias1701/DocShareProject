@@ -1,6 +1,6 @@
 // src/services/aiService.js
-const AI_URL = import.meta.env.VITE_AI_URL?.trim() || "http://127.0.0.1:8000/process_pdf";
-
+const AI_URL = import.meta.env.VITE_AI_URL?.trim() || "https://orias171-doc-ai-api.hf.space/process_pdf";
+// http://127.0.0.1:8000/process_pdf
 async function summarizePDF(file, abortSignal) {
   const fd = new FormData();
   fd.append("file", file); // Flask đọc request.files["file"]

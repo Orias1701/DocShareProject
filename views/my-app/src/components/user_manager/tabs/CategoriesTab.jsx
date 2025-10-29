@@ -1,15 +1,16 @@
 import React from "react";
 import CategoryItem from "../../../components/user_manager/list/CategoryItem";
 import CategoryInfoPanel from "../../../components/user_manager/panels/CategoryInfoPanel";
-import AddCategoryModal from "../../../components/user_manager/modals/AddCategoryModal";
+import AddCategoryModal from "../modals/AddCategoryModal";
 import ConfirmModal from "../../common/ConfirmModal";
+// ⬇️ make sure this matches your actual file name (provided code shows ModalEditCategory)
 import ModalEditCategory from "../modals/ModalEditCategories";
 import categoryServices from "../../../services/categoryServices";
-
 // Chuẩn hoá item từ API -> UI
 const mapApiCategory = (c) => ({
   id: c.category_id,
   name: c.category_name,
+  // count sẽ merge sau (nếu API có)
 });
 
 export default function CategoriesTab() {
@@ -36,14 +37,33 @@ export default function CategoriesTab() {
     return data.slice(start, start + PAGE_SIZE);
   }, [data, page]);
 
-  // ====== FETCH LIST ======
+  // ====== HELPERS ======
+  function mergeCounts(baseList, countsPayload) {
+    const rows = Array.isArray(countsPayload?.categories)
+      ? countsPayload.categories
+      : [];
+
+    const byId = new Map();
+    for (const r of rows) {
+      const rid = r.category_id ?? r.id ?? r.categoryId;
+      const count =
+        r.count ?? r.posts ?? r.post_count ?? r.total_posts ?? r.total ?? 0;
+      if (rid != null) byId.set(String(rid), Number(count) || 0);
+    }
+
+    return baseList.map((item) => ({
+      ...item,
+      count: byId.get(String(item.id)) ?? item.count ?? 0,
+    }));
+  }
+
+  // ====== FETCH LIST (+ COUNTS) ======
   async function fetchCategories() {
     try {
       setLoading(true);
       setError(null);
 
       const arr = await categoryServices.list();
-      // Hỗ trợ nhiều định dạng trả về: {categories: [...]}, {data: [...]}, hoặc [...]:
       const raw = Array.isArray(arr?.categories)
         ? arr.categories
         : Array.isArray(arr?.data)
@@ -53,11 +73,27 @@ export default function CategoriesTab() {
         : [];
 
       const mapped = raw.map(mapApiCategory);
-      setData(mapped);
+
+      let withCounts = mapped;
+      try {
+        const counts = await categoryServices.countPost(); // bulk nếu có
+        withCounts = mergeCounts(mapped, counts);
+      } catch {
+        withCounts = mapped;
+      }
+
+      setData(withCounts);
       setFetched(true);
-      setSelectedId((prev) => prev ?? mapped[0]?.id ?? null);
+
+      setSelectedId((prev) => {
+        if (prev && withCounts.some((c) => c.id === prev)) return prev;
+        return withCounts[0]?.id ?? null;
+      });
     } catch (e) {
       setError(e?.message || "Failed to load categories");
+      setData([]);
+      setFetched(true);
+      setSelectedId(null);
     } finally {
       setLoading(false);
     }
@@ -78,6 +114,15 @@ export default function CategoriesTab() {
 
   // ID đang hiển thị cho panel
   const currentCategoryId = selectedId ?? (pageData[0]?.id ?? null);
+
+  // Row actions
+  const doEdit = (cat) => {
+    setEditCategory(cat);
+    setOpenEdit(true);
+  };
+  const doDelete = (cat) => {
+    setConfirm({ open: true, target: cat });
+  };
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -107,7 +152,10 @@ export default function CategoriesTab() {
         {loading && !fetched && (
           <div className="space-y-3 animate-pulse">
             {Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="h-14 rounded-xl bg-white/5 border border-white/10" />
+              <div
+                key={i}
+                className="h-14 rounded-xl bg-white/5 border border-white/10"
+              />
             ))}
           </div>
         )}
@@ -125,26 +173,38 @@ export default function CategoriesTab() {
           <div className="panel panel-muted">No categories found.</div>
         )}
 
-        {/* BỌC CategoryItem TRONG DIV CLICKABLE để chắc chắn bắt click */}
+        {/* Wrapper click để chọn item; bỏ qua click trên nút action */}
         <div className="space-y-3">
-          {pageData.map((c) => (
-            <div
-              key={c.id}
-              role="button"
-              tabIndex={0}
-              onClick={() => setSelectedId(c.id)}
-              onKeyDown={(e) => e.key === "Enter" && setSelectedId(c.id)}
-              className={`rounded-xl transition ring-0 cursor-pointer ${
-                c.id === selectedId ? "ring-1 ring-white/40 bg-white/5" : "hover:bg-white/5"
-              }`}
-            >
-              <CategoryItem
-                cat={c}
-                active={c.id === selectedId}
-                // Lưu ý: không phụ thuộc CategoryItem.onClick để tránh bị nuốt event
-              />
-            </div>
-          ))}
+          {pageData.map((c) => {
+            const isActive = c.id === selectedId;
+            return (
+              <div
+                key={c.id}
+                role="button"
+                tabIndex={0}
+                onClickCapture={(e) => {
+                  // Nếu click từ nút (Edit/Delete) thì không select
+                  const target = e.target;
+                  if (target instanceof Element && target.closest("button")) {
+                    return;
+                  }
+                }}
+                onClick={() => setSelectedId(c.id)}
+                onKeyDown={(e) => e.key === "Enter" && setSelectedId(c.id)}
+                className={`rounded-xl transition ring-0 cursor-pointer ${
+                  isActive
+                    ? "ring-1 ring-white/40 bg-white/5"
+                    : "hover:bg-white/5"
+                }`}
+              >
+                <CategoryItem
+                  cat={c}
+                  onEdit={() => doEdit(c)}
+                  onDelete={() => doDelete(c)}
+                />
+              </div>
+            );
+          })}
         </div>
 
         {totalPages > 1 && (
@@ -168,10 +228,9 @@ export default function CategoriesTab() {
         )}
       </div>
 
-      {/* ====== PANEL (dùng countPost) ====== */}
+      {/* ====== PANEL ====== */}
       <aside>
         {currentCategoryId ? (
-          // key giúp re-mount khi đổi danh mục -> fetch sạch
           <CategoryInfoPanel categoryId={currentCategoryId} />
         ) : (
           <div className="panel panel-muted">Nothing to show here.</div>
@@ -197,7 +256,10 @@ export default function CategoriesTab() {
         onClose={() => setOpenEdit(false)}
         category={editCategory}
         onSave={async ({ category_id, category_name }) => {
-          const res = await categoryServices.update({ category_id, category_name });
+          const res = await categoryServices.update({
+            category_id,
+            category_name,
+          });
           await fetchCategories();
           return res || { status: "ok" };
         }}

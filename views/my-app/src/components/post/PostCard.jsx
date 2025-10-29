@@ -220,7 +220,7 @@ export default function PostCard({
           )}
 
           {/* Dòng hashtag */}
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2 min-h-[24px]">
             {displayTags.map((tag) => (
               <span
                 key={tag}

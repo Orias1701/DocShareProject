@@ -32,7 +32,9 @@ import AlbumDetailPage from "../pages/myalbum/AlbumDetailPage";
 import CategoryDetailPage from "../pages/categories/CategoryDetailPage";
 import SearchPage from "../pages/search/SearchPage";
 import UserManager from "../pages/user_manager/UserManager";
-
+import ForgotPasswordPage from "../pages/auth/ForgotPasswordPage";
+import ResetPasswordPage from "../pages/auth/ResetPasswordPage";
+import RequireAdmin from "../pages/auth/RequireAdmin";
 // Global css
 import "../assets/font-awesome-6.6.0-pro-full-main/css/all.css";
 
@@ -90,7 +92,9 @@ function MainLayout({
               path="user-manager"
               element={
                 <RequireAuth>
-                  <UserManager />
+                  <RequireAdmin>
+                    <UserManager />
+                  </RequireAdmin>
                 </RequireAuth>
               }
             />
@@ -133,6 +137,23 @@ function App() {
               </AuthLayout>
             }
           />
+          <Route
+            path="/forgot-password"
+            element={
+              <AuthLayout>
+                <ForgotPasswordPage />
+              </AuthLayout>
+            }
+          />
+          <Route
+            path="/reset-password"
+            element={
+              <AuthLayout>
+                <ResetPasswordPage />
+              </AuthLayout>
+            }
+          />
+          
 
           {/* Main layout */}
           <Route

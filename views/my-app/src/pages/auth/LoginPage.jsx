@@ -112,7 +112,11 @@ export default function LoginPage() {
               {loading ? "Signing in..." : "Sign in"}
             </button>
           </form>
-
+          <p className="text-center text-sm text-black">
+            <Link to="/forgot-password" className="text-indigo-600 hover:text-indigo-500">
+              Quên mật khẩu?
+            </Link>
+          </p>
           <p className="text-center text-sm text-black mt-6">
             Don&apos;t have an account?{" "}
             <Link to="/register" className="text-indigo-600 hover:text-indigo-500">

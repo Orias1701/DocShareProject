@@ -257,102 +257,101 @@ class PostController
     /** Cập nhật META bài viết: title, banner_url, album/category (owner vs admin) */
     public function update()
 {
-  if (strtoupper($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
-    return $this->respondError('Method Not Allowed', 405);
-  }
-  if (empty($_SESSION['user_id'])) {
-    return $this->respondError('Unauthorized', 401);
-  }
-
-  // Lấy input JSON hoặc form
-  $ct = $_SERVER['CONTENT_TYPE'] ?? $_SERVER['HTTP_CONTENT_TYPE'] ?? '';
-  $isJson = stripos($ct, 'application/json') !== false;
-
-  if ($isJson) {
-    $raw = file_get_contents('php://input');
-    $in  = json_decode($raw, true) ?: [];
-  } else {
-    $in = $_POST;
-  }
-
-  $postId = $in['post_id'] ?? null;
-  if (!$postId) return $this->respondError('Thiếu post_id', 422);
-
-  $post = $this->postModel->getPostById($postId);
-  if (!$post) return $this->respondError('Bài viết không tồn tại', 404);
-
-  $roleId  = $_SESSION['role_id'] ?? ($_SESSION['user']['role_id'] ?? null);
-  $isAdmin = ($roleId === 'ROLE000');
-  $isOwner = (($post['author_id'] ?? null) === ($_SESSION['user_id'] ?? null));
-
-  // Nếu nhận FormData có banner file -> upload => banner_url
-  if (!empty($_FILES['banner']['tmp_name'])) {
-    try {
-      $cloudinary = require __DIR__ . '/../config/cloudinary.php';
-      $up = $cloudinary->uploadApi()->upload($_FILES['banner']['tmp_name'], ['folder' => 'post_banners']);
-      if (!empty($up['secure_url'])) {
-        $in['banner_url'] = $up['secure_url'];
-      }
-    } catch (Exception $e) {
-      return $this->respondError('Upload banner thất bại: ' . $e->getMessage(), 500);
+    if (strtoupper($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
+        return $this->respondError('Method Not Allowed', 405);
     }
-  }
+    if (empty($_SESSION['user_id'])) {
+        return $this->respondError('Unauthorized', 401);
+    }
 
-  // Chuẩn hoá input
-  $title      = array_key_exists('title', $in) ? trim((string)$in['title']) : null;
-  $bannerUrl  = array_key_exists('banner_url', $in) ? trim((string)$in['banner_url']) : null;
+    // Lấy input JSON hoặc form-data
+    $ct = $_SERVER['CONTENT_TYPE'] ?? $_SERVER['HTTP_CONTENT_TYPE'] ?? '';
+    $isJson = stripos($ct, 'application/json') !== false;
+    $in = $isJson ? (json_decode(file_get_contents('php://input'), true) ?: []) : $_POST;
 
-  // cho phép FE gửi album_id_new/category_id_new hoặc album_id/category_id
-  $albumIdNew    = $in['album_id_new']    ?? ($in['album_id']    ?? null);
-  $categoryIdNew = $in['category_id_new'] ?? ($in['category_id'] ?? null);
+    $postId = $in['post_id'] ?? null;
+    if (!$postId) return $this->respondError('Thiếu post_id', 422);
 
-  $albumNameNew    = isset($in['album_name_new'])    ? trim((string)$in['album_name_new'])    : null;
-  $categoryNameNew = isset($in['category_name_new']) ? trim((string)$in['category_name_new']) : null;
+    $post = $this->postModel->getPostById($postId);
+    if (!$post) return $this->respondError('Bài viết không tồn tại', 404);
 
-  // Validate cơ bản
-  if ($title !== null && $title === '') return $this->respondError('Title không được rỗng', 422);
-  if (!empty($bannerUrl) && !filter_var($bannerUrl, FILTER_VALIDATE_URL)) {
-    return $this->respondError('Banner URL không hợp lệ', 422);
-  }
-  if (!empty($albumIdNew) && !empty($albumNameNew)) {
-    return $this->respondError('Chỉ chọn album khác HOẶC đổi tên album, không đồng thời.', 422);
-  }
-  if (!empty($categoryIdNew) && !empty($categoryNameNew)) {
-    return $this->respondError('Chỉ chọn danh mục khác HOẶC đổi tên danh mục, không đồng thời.', 422);
-  }
+    $roleId  = $_SESSION['role_id'] ?? ($_SESSION['user']['role_id'] ?? null);
+    $isAdmin = ($roleId === 'ROLE000');
 
-  try {
-    if ($isAdmin && !$isOwner) {
-      // Admin sửa meta bài của người khác
-      $payload = [
+    // Nếu có upload banner qua FormData → upload và gán lại banner_url
+    if (!empty($_FILES['banner']['tmp_name'])) {
+        try {
+            $cloudinary = require __DIR__ . '/../config/cloudinary.php';
+            $up = $cloudinary->uploadApi()->upload($_FILES['banner']['tmp_name'], ['folder' => 'post_banners']);
+            if (!empty($up['secure_url'])) {
+                $in['banner_url'] = $up['secure_url'];
+            }
+        } catch (Exception $e) {
+            return $this->respondError('Upload banner thất bại: ' . $e->getMessage(), 500);
+        }
+    }
+
+    // Chuẩn hoá
+    $title      = array_key_exists('title', $in) ? trim((string)$in['title']) : null;
+    $bannerUrl  = array_key_exists('banner_url', $in) ? trim((string)$in['banner_url']) : null;
+    $albumIdNew    = $in['album_id_new']    ?? ($in['album_id']    ?? null);
+    $categoryIdNew = $in['category_id_new'] ?? ($in['category_id'] ?? null);
+    $albumNameNew    = isset($in['album_name_new'])    ? trim((string)$in['album_name_new'])    : null;
+    $categoryNameNew = isset($in['category_name_new']) ? trim((string)$in['category_name_new']) : null;
+
+    // Validate cơ bản
+    if ($title !== null && $title === '') {
+        return $this->respondError('Title không được rỗng', 422);
+    }
+    // banner_url: chỉ check khi khác rỗng; rỗng "" nghĩa là xoá (set NULL ở model)
+    if ($bannerUrl !== null && $bannerUrl !== '' && !filter_var($bannerUrl, FILTER_VALIDATE_URL)) {
+        return $this->respondError('Banner URL không hợp lệ', 422);
+    }
+    if (!empty($albumIdNew) && !empty($albumNameNew)) {
+        return $this->respondError('Chỉ chọn album khác HOẶC đổi tên album, không đồng thời.', 422);
+    }
+    if (!empty($categoryIdNew) && !empty($categoryNameNew)) {
+        return $this->respondError('Chỉ chọn danh mục khác HOẶC đổi tên danh mục, không đồng thời.', 422);
+    }
+
+    // 🧱 Payload cơ sở (đủ trường cho cả 2 nhánh)
+    $payload = [
         'post_id'           => $postId,
-        'title'             => $title,                         // null => giữ nguyên
-        'banner_url'        => $bannerUrl,                     // null => giữ nguyên, '' => clear
+        'title'             => $title,          // null => giữ nguyên
+        'banner_url'        => $bannerUrl,      // null => giữ nguyên, '' => clear (NULL)
         'album_id_new'      => $albumIdNew ?: null,
         'category_id_new'   => $categoryIdNew ?: null,
-        'album_name_new'    => $albumNameNew ?: null,
-        'category_name_new' => $categoryNameNew ?: null,
-      ];
-      $this->postModel->adminUpdatePost($payload);
-      return $this->respondJson(['status' => 'ok', 'message' => 'Cập nhật (admin) thành công']);
-    }
-
-    // Owner (hoặc admin sửa bài của mình) → ràng buộc owner
-    $payload = [
-      'post_id'         => $postId,
-      'user_id'         => $_SESSION['user_id'],
-      'title'           => $title !== null ? $title : $post['title'],
-      'banner_url'      => $bannerUrl !== null ? $bannerUrl : $post['banner_url'],
-      'album_id_new'    => $albumIdNew ?: null,
-      'category_id_new' => $categoryIdNew ?: null,
+        'album_name_new'    => $albumNameNew ?: null,        // chỉ admin dùng
+        'category_name_new' => $categoryNameNew ?: null,     // chỉ admin dùng
     ];
-    $this->postModel->ownerUpdatePost($payload);
-    return $this->respondJson(['status' => 'ok', 'message' => 'Cập nhật (owner) thành công']);
 
-  } catch (Exception $e) {
-    return $this->respondError($e->getMessage(), 500);
-  }
+    try {
+        if ($isAdmin) {
+            // ✅ admin dùng full payload
+            $this->postModel->adminUpdatePost($payload);
+            return $this->respondJson(['status' => 'ok', 'message' => 'Cập nhật (admin) thành công']);
+        }
+
+        // 👤 owner: loại key đổi tên (model owner không hỗ trợ)
+        $payloadOwner = $payload;
+        unset($payloadOwner['album_name_new'], $payloadOwner['category_name_new']);
+
+        // Điền fallback để giữ nguyên nếu FE không gửi (title/banner_url null)
+        if (!array_key_exists('title', $payloadOwner) || $payloadOwner['title'] === null) {
+            $payloadOwner['title'] = $post['title'];
+        }
+        if (!array_key_exists('banner_url', $payloadOwner) || $payloadOwner['banner_url'] === null) {
+            $payloadOwner['banner_url'] = $post['banner_url']; // rỗng "" vẫn giữ nguyên để model xử lý clear
+        }
+        $payloadOwner['user_id'] = $_SESSION['user_id'];
+
+        $this->postModel->ownerUpdatePost($payloadOwner);
+        return $this->respondJson(['status' => 'ok', 'message' => 'Cập nhật thành công']);
+    } catch (Exception $e) {
+        return $this->respondError($e->getMessage(), 500);
+    }
 }
+
 
 
 
